@@ -6,12 +6,12 @@
     <title>Clínica Nuevo Palmar | Fisioterapia & Pilates</title>
     
     <!-- DESCRIPCIÓN PARA GOOGLE -->
-    <meta name="description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
+    <meta name="description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física en Murcia. Especialistas en terapia manual, pilates terapéutico y lesiones deportivas.">
     
-    <!-- VISTA PREVIA PARA WHATSAPP / FACEBOOK (Open Graph) -->
+    <!-- OPEN GRAPH -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Clínica Nuevo Palmar | Fisioterapia & Pilates">
-    <meta property="og:description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
+    <meta property="og:description" content="Salud integral y movimiento consciente en El Palmar.">
     <meta property="og:image" content="assets/Portada Clinica.png">
     
     <!-- FAVICON -->
@@ -46,10 +46,10 @@
       }
     </script>
     <style>
+        /* Estilos personalizados adicionales */
         .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
         
-        /* CLASES PARA ANIMACIONES */
+        /* Animaciones Reveal */
         .reveal {
             opacity: 0;
             transform: translateY(40px);
@@ -60,7 +60,7 @@
             transform: translateY(0);
         }
         
-        /* Retardos para efecto cascada */
+        /* Retardos para efectos en cascada */
         .delay-100 { transition-delay: 100ms; }
         .delay-200 { transition-delay: 200ms; }
         .delay-300 { transition-delay: 300ms; }
@@ -179,11 +179,6 @@
                             <p class="font-serif text-2xl">José Diego Frutos Bernal</p>
                             <p class="text-white/80">Director & Fisioterapeuta</p>
                         </div>
-                    </div>
-                    <!-- Badge Experiencia -->
-                    <div class="absolute top-8 right-8 bg-white p-6 rounded-2xl shadow-xl max-w-[150px] text-center">
-                        <span class="block text-4xl font-bold text-brand-green mb-1">25+</span>
-                        <span class="text-sm text-gray-600 leading-tight">Años de Experiencia</span>
                     </div>
                 </div>
 
@@ -517,27 +512,31 @@
         const menu = document.getElementById('mobile-menu');
         const navbar = document.getElementById('navbar');
 
-        btn.addEventListener('click', () => {
-            menu.classList.toggle('hidden');
-            menu.classList.toggle('flex');
-        });
-
-        // Cerrar menú al hacer click en enlaces
-        menu.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                menu.classList.add('hidden');
-                menu.classList.remove('flex');
+        if(btn && menu) {
+            btn.addEventListener('click', () => {
+                menu.classList.toggle('hidden');
+                menu.classList.toggle('flex');
             });
-        });
+
+            // Cerrar menú al hacer click en enlaces
+            menu.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    menu.classList.add('hidden');
+                    menu.classList.remove('flex');
+                });
+            });
+        }
 
         // Efecto sombra navbar al hacer scroll
         window.addEventListener('scroll', () => {
-            if (window.scrollY > 20) {
-                navbar.classList.add('shadow-sm', 'py-4');
-                navbar.classList.remove('py-6');
-            } else {
-                navbar.classList.remove('shadow-sm', 'py-4');
-                navbar.classList.add('py-6');
+            if (navbar) {
+                if (window.scrollY > 20) {
+                    navbar.classList.add('shadow-sm', 'py-4');
+                    navbar.classList.remove('py-6');
+                } else {
+                    navbar.classList.remove('shadow-sm', 'py-4');
+                    navbar.classList.add('py-6');
+                }
             }
         });
 
@@ -545,14 +544,14 @@
         const observerOptions = {
             root: null,
             rootMargin: '0px',
-            threshold: 0.1 // Se activa cuando el 10% del elemento es visible
+            threshold: 0.1
         };
 
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('active');
-                    observer.unobserve(entry.target); // Dejar de observar una vez animado
+                    observer.unobserve(entry.target);
                 }
             });
         }, observerOptions);
