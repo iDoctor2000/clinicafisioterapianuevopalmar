@@ -49,17 +49,16 @@
     <!-- FUENTES -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
     
-    <!-- REACT & LIBRARIES -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- REACT & LIBRARIES (Versiones Estables UMD) -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
+    <!-- Lucide React UMD v0.292.0 (Estable) -->
+    <script src="https://unpkg.com/lucide-react@0.292.0/dist/umd/lucide-react.js"></script>
 
     <style>
         .reveal { opacity: 0; transform: translateY(30px); transition: all 1s ease-out; }
         .reveal.active { opacity: 1; transform: translateY(0); }
-        /* Scrollbar personalizado para el modal */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
@@ -97,7 +96,6 @@
             // appId: "NUMEROS"
         };
 
-        // Inicialización de Firebase (Solo si se ha configurado)
         if (firebaseConfig.apiKey) {
             console.log("Conectando a Firebase...");
             const app = initializeApp(firebaseConfig);
@@ -113,11 +111,12 @@
     <!-- REACT APPLICATION CODE -->
     <script type="text/babel">
         const { useState, useEffect, createContext, useContext, useRef } = React;
+        // Corrección de sintaxis: Image: ImageIcon
         const { 
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Image as ImageIcon, Maximize2, ExternalLink
+            ZoomIn, Image: ImageIcon, Maximize2, ExternalLink
         } = lucideReact;
 
         // --- CONSTANTES & DATOS POR DEFECTO ---
