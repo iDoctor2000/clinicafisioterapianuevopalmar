@@ -49,12 +49,21 @@
     <!-- FUENTES -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
     
-    <!-- REACT & LIBRARIES (Versiones Estables UMD) -->
-    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide React UMD v0.292.0 (Estable) -->
-    <script src="https://unpkg.com/lucide-react@0.292.0/dist/umd/lucide-react.js"></script>
+    <!-- BABEL (Para JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- IMPORT MAP: Gestiona las dependencias de forma moderna -->
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
 
     <style>
         .reveal { opacity: 0; transform: translateY(30px); transition: all 1s ease-out; }
@@ -64,29 +73,15 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
-  }
-}
-</script>
 </head>
 <body class="font-sans text-brand-dark bg-white antialiased">
     <div id="root"></div>
 
-    <!-- FIREBASE SETUP (MODULO ES) -->
+    <!-- FIREBASE SETUP -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // --------------------------------------------------------
-        // ¡¡¡ IMPORTANTE: PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE !!!
-        // --------------------------------------------------------
-        
         const firebaseConfig = {
             // apiKey: "TU_API_KEY_AQUI",
             // authDomain: "TU_PROYECTO.firebaseapp.com",
@@ -108,16 +103,16 @@
         }
     </script>
 
-    <!-- REACT APPLICATION CODE -->
-    <script type="text/babel">
-        const { useState, useEffect, createContext, useContext, useRef } = React;
-        // Corrección de sintaxis: Image: ImageIcon
-        const { 
+    <!-- REACT APPLICATION CODE (data-type="module" es CRUCIAL) -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Image: ImageIcon, Maximize2, ExternalLink
-        } = lucideReact;
+            ZoomIn, Image as ImageIcon, Maximize2, ExternalLink
+        } from 'lucide-react';
 
         // --- CONSTANTES & DATOS POR DEFECTO ---
         const DEFAULT_CONTENT = {
@@ -689,7 +684,7 @@
             );
         };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+        const root = createRoot(document.getElementById('root'));
         root.render(
             <ContentProvider>
                 <App />
