@@ -42,6 +42,7 @@
             animation: {
               'fade-in': 'fadeIn 0.3s ease-out',
               'scale-in': 'scaleIn 0.3s ease-out',
+              'spin-slow': 'spin 3s linear infinite',
             },
             keyframes: {
               fadeIn: {
@@ -123,7 +124,7 @@
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight
+            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2
         } from 'lucide-react';
 
         // --- DATOS POR DEFECTO ---
@@ -189,25 +190,55 @@
             const [content, setContent] = useState(DEFAULT_CONTENT);
             const [isAdmin, setIsAdmin] = useState(false);
             const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+            const [isLoading, setIsLoading] = useState(true); // Estado de carga para evitar decalaje
 
             useEffect(() => {
+                let unsubscribe;
+                let attempts = 0;
+                const maxAttempts = 30; // 3 segundos aprox de espera máxima
+
                 const checkFirebase = setInterval(() => {
+                    attempts++;
+                    
                     if (window.db) {
-                        setIsFirebaseReady(true);
+                        // Firebase está listo
                         clearInterval(checkFirebase);
-                        const unsub = window.onSnapshot(window.doc(window.db, "site_content", "main"), (docSnap) => {
-                            if (docSnap.exists()) setContent({ ...DEFAULT_CONTENT, ...docSnap.data() });
-                        });
-                        return () => unsub();
+                        setIsFirebaseReady(true);
+                        
+                        // Nos suscribimos a los cambios
+                        unsubscribe = window.onSnapshot(window.doc(window.db, "site_content", "main"), 
+                            (docSnap) => {
+                                if (docSnap.exists()) {
+                                    setContent({ ...DEFAULT_CONTENT, ...docSnap.data() });
+                                }
+                                // IMPORTANTE: Una vez recibimos los primeros datos (o comprobamos que existen), quitamos el loading
+                                setIsLoading(false);
+                            }, 
+                            (error) => {
+                                console.error("Error conectando a BD:", error);
+                                // Si hay error, usamos local y quitamos loading
+                                loadFromLocal();
+                                setIsLoading(false);
+                            }
+                        );
+                    } else if (attempts >= maxAttempts) {
+                        // Si tras X intentos no hay firebase, cargamos local
+                        clearInterval(checkFirebase);
+                        console.log("Firebase no detectado a tiempo, usando local.");
+                        loadFromLocal();
+                        setIsLoading(false);
                     }
-                }, 500);
-                setTimeout(() => {
-                    if (!window.db) {
-                        const saved = localStorage.getItem('site_content_v1');
-                        if (saved) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(saved) });
-                    }
-                }, 2000);
-                return () => clearInterval(checkFirebase);
+                }, 100);
+
+                const loadFromLocal = () => {
+                     const saved = localStorage.getItem('site_content_v1');
+                     if (saved) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(saved) });
+                };
+
+                return () => {
+                    clearInterval(checkFirebase);
+                    if (unsubscribe) unsubscribe();
+                }
             }, []);
 
             const updateContent = async (section, key, value) => {
@@ -219,6 +250,20 @@
                     localStorage.setItem('site_content_v1', JSON.stringify(newContent));
                 }
             };
+
+            // Pantalla de carga para evitar decalaje
+            if (isLoading) {
+                return (
+                    <div className="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center animate-fade-in">
+                        <img src="assets/logo.png" className="h-20 w-auto object-contain mb-8 animate-pulse" alt="Logo" onError={(e) => e.target.style.display='none'} />
+                        <div className="relative">
+                            <div className="w-12 h-12 rounded-full border-4 border-gray-100"></div>
+                            <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-brand-green border-t-transparent animate-spin"></div>
+                        </div>
+                        <p className="mt-4 text-gray-400 font-serif text-sm tracking-widest uppercase">Cargando experiencia...</p>
+                    </div>
+                );
+            }
 
             return (
                 <ContentContext.Provider value={{ 
