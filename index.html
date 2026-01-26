@@ -42,7 +42,7 @@
             animation: {
               'fade-in': 'fadeIn 0.3s ease-out',
               'scale-in': 'scaleIn 0.3s ease-out',
-              'spin-slow': 'spin 3s linear infinite',
+              'breath': 'breath 2.5s ease-in-out infinite', // Nueva animación de zoom suave
             },
             keyframes: {
               fadeIn: {
@@ -52,6 +52,11 @@
               scaleIn: {
                 '0%': { transform: 'scale(0.95)', opacity: '0' },
                 '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+              breath: {
+                '0%': { transform: 'scale(0.9)', opacity: '0.85' },
+                '50%': { transform: 'scale(1.05)', opacity: '1' },
+                '100%': { transform: 'scale(0.9)', opacity: '0.85' },
               }
             }
           }
@@ -71,9 +76,7 @@
   "imports": {
     "react": "https://esm.sh/react@18.2.0",
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.292.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
+    "lucide-react": "https://esm.sh/lucide-react@0.292.0"
   }
 }
 </script>
@@ -190,7 +193,7 @@
             const [content, setContent] = useState(DEFAULT_CONTENT);
             const [isAdmin, setIsAdmin] = useState(false);
             const [isFirebaseReady, setIsFirebaseReady] = useState(false);
-            const [isLoading, setIsLoading] = useState(true); // Estado de carga para evitar decalaje
+            const [isLoading, setIsLoading] = useState(true); // Estado de carga
 
             useEffect(() => {
                 let unsubscribe;
@@ -211,7 +214,7 @@
                                 if (docSnap.exists()) {
                                     setContent({ ...DEFAULT_CONTENT, ...docSnap.data() });
                                 }
-                                // IMPORTANTE: Una vez recibimos los primeros datos (o comprobamos que existen), quitamos el loading
+                                // IMPORTANTE: Una vez recibimos los datos, quitamos el loading
                                 setIsLoading(false);
                             }, 
                             (error) => {
@@ -251,16 +254,22 @@
                 }
             };
 
-            // Pantalla de carga para evitar decalaje
+            // Pantalla de carga con assets/ico2026.png y efecto zoom-in (breathing)
             if (isLoading) {
                 return (
-                    <div className="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center animate-fade-in">
-                        <img src="assets/logo.png" className="h-20 w-auto object-contain mb-8 animate-pulse" alt="Logo" onError={(e) => e.target.style.display='none'} />
-                        <div className="relative">
-                            <div className="w-12 h-12 rounded-full border-4 border-gray-100"></div>
-                            <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-brand-green border-t-transparent animate-spin"></div>
+                    <div className="fixed inset-0 bg-white z-[9999] flex items-center justify-center transition-opacity duration-500">
+                        <div className="w-full h-full flex items-center justify-center p-8">
+                             <img 
+                                src="assets/ico2026.png" 
+                                className="w-full max-w-md object-contain animate-breath" 
+                                alt="Cargando..." 
+                                onError={(e) => {
+                                    // Fallback elegante si la imagen no carga
+                                    e.target.style.display='none';
+                                    e.target.parentNode.innerHTML = '<div class="flex flex-col items-center"><div class="w-20 h-20 rounded-full border-4 border-brand-green border-t-transparent animate-spin mb-4"></div><span class="text-2xl font-serif text-brand-dark">Cargando...</span></div>';
+                                }}
+                            />
                         </div>
-                        <p className="mt-4 text-gray-400 font-serif text-sm tracking-widest uppercase">Cargando experiencia...</p>
                     </div>
                 );
             }
