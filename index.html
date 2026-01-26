@@ -42,7 +42,7 @@
             animation: {
               'fade-in': 'fadeIn 0.3s ease-out',
               'scale-in': 'scaleIn 0.3s ease-out',
-              'breath': 'breath 2.5s ease-in-out infinite', // Nueva animación de zoom suave
+              'breath': 'breath 2.5s ease-in-out infinite',
             },
             keyframes: {
               fadeIn: {
@@ -76,7 +76,9 @@
   "imports": {
     "react": "https://esm.sh/react@18.2.0",
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+    "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
@@ -127,7 +129,7 @@
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2
+            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle
         } from 'lucide-react';
 
         // --- DATOS POR DEFECTO ---
@@ -193,39 +195,34 @@
             const [content, setContent] = useState(DEFAULT_CONTENT);
             const [isAdmin, setIsAdmin] = useState(false);
             const [isFirebaseReady, setIsFirebaseReady] = useState(false);
-            const [isLoading, setIsLoading] = useState(true); // Estado de carga
+            const [isLoading, setIsLoading] = useState(true);
 
             useEffect(() => {
                 let unsubscribe;
                 let attempts = 0;
-                const maxAttempts = 30; // 3 segundos aprox de espera máxima
+                const maxAttempts = 30;
 
                 const checkFirebase = setInterval(() => {
                     attempts++;
                     
                     if (window.db) {
-                        // Firebase está listo
                         clearInterval(checkFirebase);
                         setIsFirebaseReady(true);
                         
-                        // Nos suscribimos a los cambios
                         unsubscribe = window.onSnapshot(window.doc(window.db, "site_content", "main"), 
                             (docSnap) => {
                                 if (docSnap.exists()) {
                                     setContent({ ...DEFAULT_CONTENT, ...docSnap.data() });
                                 }
-                                // IMPORTANTE: Una vez recibimos los datos, quitamos el loading
                                 setIsLoading(false);
                             }, 
                             (error) => {
                                 console.error("Error conectando a BD:", error);
-                                // Si hay error, usamos local y quitamos loading
                                 loadFromLocal();
                                 setIsLoading(false);
                             }
                         );
                     } else if (attempts >= maxAttempts) {
-                        // Si tras X intentos no hay firebase, cargamos local
                         clearInterval(checkFirebase);
                         console.log("Firebase no detectado a tiempo, usando local.");
                         loadFromLocal();
@@ -254,7 +251,6 @@
                 }
             };
 
-            // Pantalla de carga con assets/ico2026.png y efecto zoom-in (breathing)
             if (isLoading) {
                 return (
                     <div className="fixed inset-0 bg-white z-[9999] flex items-center justify-center transition-opacity duration-500">
@@ -264,7 +260,6 @@
                                 className="w-full max-w-md object-contain animate-breath" 
                                 alt="Cargando..." 
                                 onError={(e) => {
-                                    // Fallback elegante si la imagen no carga
                                     e.target.style.display='none';
                                     e.target.parentNode.innerHTML = '<div class="flex flex-col items-center"><div class="w-20 h-20 rounded-full border-4 border-brand-green border-t-transparent animate-spin mb-4"></div><span class="text-2xl font-serif text-brand-dark">Cargando...</span></div>';
                                 }}
@@ -321,10 +316,15 @@
             const [selectedDate, setSelectedDate] = useState(null);
             const [selectedTime, setSelectedTime] = useState(null);
             const [currentMonth, setCurrentMonth] = useState(new Date());
+            
+            // Form & Validation State
             const [formData, setFormData] = useState({ name: '', phone: '', comments: '' });
+            const [touched, setTouched] = useState({ name: false, phone: false });
+            const [errors, setErrors] = useState({ name: '', phone: '' });
 
             if (!isOpen) return null;
 
+            // --- HELPERS ---
             const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
             const getFirstDayOfMonth = (date) => {
                 let day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
@@ -335,18 +335,47 @@
                 const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
                 const today = new Date();
                 today.setHours(0,0,0,0);
-                
-                // Pasado
                 if (date < today) return true;
-                
-                // Fin de semana (0=Dom, 6=Sab)
                 if (date.getDay() === 0 || date.getDay() === 6) return true;
-                
-                // Festivos
                 const dateString = date.toISOString().split('T')[0];
                 if (MURCIA_HOLIDAYS.includes(dateString)) return true;
-
                 return false;
+            };
+
+            // --- VALIDATION LOGIC ---
+            const validateField = (name, value) => {
+                if (name === 'name') {
+                    if (!value.trim()) return "El nombre es obligatorio.";
+                    if (value.trim().length < 3) return "El nombre debe tener al menos 3 letras.";
+                }
+                if (name === 'phone') {
+                    if (!value.trim()) return "El teléfono es obligatorio.";
+                    // Regex simple para telefonos españoles (fijos 9/8, moviles 6/7)
+                    const phoneRegex = /^[6789]\d{8}$/;
+                    if (!phoneRegex.test(value.replace(/\s/g, ''))) return "Introduce un teléfono válido (9 dígitos).";
+                }
+                return "";
+            };
+
+            const handleBlur = (e) => {
+                const { name, value } = e.target;
+                setTouched(prev => ({ ...prev, [name]: true }));
+                setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
+            };
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+                // Si ya se ha tocado el campo, validar en tiempo real
+                if (touched[name]) {
+                    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
+                }
+            };
+
+            const isFormValid = () => {
+                const nameErr = validateField('name', formData.name);
+                const phoneErr = validateField('phone', formData.phone);
+                return !nameErr && !phoneErr && formData.name && formData.phone;
             };
 
             const handleDateClick = (day) => {
@@ -358,16 +387,23 @@
 
             const generateTimeSlots = () => {
                 const slots = [];
-                // Mañana 9 a 14 (ultima a las 13)
                 for (let i = 9; i < 14; i++) slots.push(`${i.toString().padStart(2, '0')}:00`);
-                // Tarde 17 a 21 (ultima a las 20)
                 for (let i = 17; i < 21; i++) slots.push(`${i}:00`);
                 return slots;
             };
 
             const handleSubmit = (e) => {
                 e.preventDefault();
-                // Aquí iría la lógica real de backend
+                // Validar todo antes de enviar
+                const nameErr = validateField('name', formData.name);
+                const phoneErr = validateField('phone', formData.phone);
+                
+                setTouched({ name: true, phone: true });
+                setErrors({ name: nameErr, phone: phoneErr });
+
+                if (nameErr || phoneErr) return;
+
+                // Submit simulado
                 setTimeout(() => setStep(4), 1000);
             };
 
@@ -432,8 +468,19 @@
                             {step === 2 && (
                                 <div className="animate-fade-in">
                                     <button onClick={() => setStep(1)} className="text-sm text-gray-500 mb-4 hover:text-brand-dark flex items-center gap-1"><ChevronLeft size={16}/> Volver al calendario</button>
-                                    <h3 className="text-xl font-serif font-bold mb-2">Selecciona hora</h3>
-                                    <p className="text-gray-500 mb-6 capitalize">{selectedDate?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                    
+                                    {/* RESUMEN FECHA SELECCIONADA */}
+                                    <div className="bg-brand-light/50 p-4 rounded-xl mb-6 flex items-center gap-3 border border-brand-green/10">
+                                        <CalendarIcon className="text-brand-green shrink-0" size={20} />
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Fecha seleccionada</p>
+                                            <p className="text-brand-dark font-medium capitalize">
+                                                {selectedDate?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <h3 className="text-xl font-serif font-bold mb-4">Turnos Disponibles</h3>
                                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                                         {generateTimeSlots().map(time => (
                                             <button 
@@ -449,16 +496,78 @@
                             )}
 
                             {step === 3 && (
-                                <form onSubmit={handleSubmit} className="animate-fade-in space-y-4">
+                                <form onSubmit={handleSubmit} className="animate-fade-in space-y-5">
                                     <button type="button" onClick={() => setStep(2)} className="text-sm text-gray-500 mb-2 hover:text-brand-dark flex items-center gap-1"><ChevronLeft size={16}/> Volver a horas</button>
-                                    <div className="bg-brand-light p-4 rounded-lg mb-4">
-                                        <p className="font-bold text-brand-dark">Resumen:</p>
-                                        <p className="text-sm text-gray-600 capitalize">{selectedDate?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {selectedTime}</p>
+                                    
+                                    {/* RESUMEN COMPLETO INTERACTIVO */}
+                                    <div className="bg-brand-light p-6 rounded-xl mb-6 border border-brand-green/20 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-20 h-20 bg-brand-green/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                                        <h3 className="font-serif text-lg font-bold text-brand-dark mb-4 relative z-10">Resumen de tu Reserva</h3>
+                                        <div className="space-y-3 relative z-10">
+                                            <div className="flex items-center gap-3">
+                                                <CalendarIcon size={18} className="text-brand-green"/>
+                                                <span className="capitalize text-gray-700 font-medium">
+                                                    {selectedDate?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Clock size={18} className="text-brand-green"/>
+                                                <span className="text-gray-700 font-medium">{selectedTime} horas</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <input required placeholder="Nombre completo" className="w-full p-3 border rounded-lg" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                                    <input required placeholder="Teléfono" type="tel" className="w-full p-3 border rounded-lg" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                                    <textarea placeholder="Comentarios (opcional)" className="w-full p-3 border rounded-lg" rows="3" value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} />
-                                    <Button type="submit" className="w-full">Confirmar Reserva</Button>
+
+                                    {/* CAMPOS CON VALIDACIÓN */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo <span className="text-red-500">*</span></label>
+                                        <input 
+                                            name="name"
+                                            value={formData.name} 
+                                            onChange={handleChange}
+                                            onBlur={handleBlur}
+                                            placeholder="Ej: Ana García" 
+                                            className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 
+                                                ${touched.name && errors.name 
+                                                    ? 'border-red-500 focus:ring-red-100 bg-red-50' 
+                                                    : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} 
+                                        />
+                                        {touched.name && errors.name && (
+                                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.name}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Móvil <span className="text-red-500">*</span></label>
+                                        <input 
+                                            name="phone"
+                                            type="tel"
+                                            value={formData.phone} 
+                                            onChange={handleChange}
+                                            onBlur={handleBlur}
+                                            placeholder="Ej: 600 123 456" 
+                                            className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 
+                                                ${touched.phone && errors.phone 
+                                                    ? 'border-red-500 focus:ring-red-100 bg-red-50' 
+                                                    : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} 
+                                        />
+                                        {touched.phone && errors.phone && (
+                                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.phone}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Comentarios (Opcional)</label>
+                                        <textarea 
+                                            name="comments"
+                                            value={formData.comments} 
+                                            onChange={handleChange}
+                                            placeholder="Indícanos si tienes alguna patología previa..." 
+                                            className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all" 
+                                            rows="3" 
+                                        />
+                                    </div>
+
+                                    <Button type="submit" className="w-full" disabled={!isFormValid() && (touched.name || touched.phone)}>Confirmar Reserva</Button>
                                 </form>
                             )}
 
@@ -468,7 +577,7 @@
                                         <Check size={40} />
                                     </div>
                                     <h3 className="text-2xl font-bold text-brand-dark mb-2">¡Reserva Solicitada!</h3>
-                                    <p className="text-gray-600 mb-8">Hemos recibido tu solicitud. Te contactaremos por WhatsApp/Teléfono para confirmar la disponibilidad definitiva.</p>
+                                    <p className="text-gray-600 mb-8">Hemos recibido tu solicitud para el <strong>{selectedDate?.toLocaleDateString()}</strong> a las <strong>{selectedTime}</strong>.<br/>Te contactaremos por WhatsApp/Teléfono para confirmar.</p>
                                     <Button onClick={onClose} variant="outline">Cerrar</Button>
                                 </div>
                             )}
