@@ -15,12 +15,17 @@
         theme: {
           extend: {
             colors: {
+              stone: {
+                50: '#fafaf9',
+                100: '#f5f5f4',
+                200: '#e7e5e4',
+                800: '#292524',
+                900: '#1c1917',
+              },
               brand: {
                 green: '#548C2F',
-                dark: '#2c3e50',
-                light: '#f8f9fa',
-                accent: '#e74c3c',
-                beige: '#F5F5F0'
+                dark: '#1c1917', // Casi negro para contraste alto
+                soft: '#E8E8E6'  // Un gris cálido para fondos de secciones
               }
             },
             fontFamily: {
@@ -28,13 +33,13 @@
               serif: ['Playfair Display', 'serif'],
             },
             animation: {
-              'fade-in': 'fadeIn 0.3s ease-out',
+              'fade-up': 'fadeUp 0.8s ease-out forwards',
               'scale-in': 'scaleIn 0.3s ease-out',
             },
             keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
+              fadeUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
               },
               scaleIn: {
                 '0%': { transform: 'scale(0.95)', opacity: '0' },
@@ -47,12 +52,12 @@
     </script>
 
     <!-- FUENTES -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
     
-    <!-- BABEL (Para JSX) -->
+    <!-- BABEL -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- IMPORT MAP: Gestiona las dependencias de forma moderna -->
+    <!-- IMPORT MAP -->
     <script type="importmap">
 {
   "imports": {
@@ -66,15 +71,16 @@
 </script>
 
     <style>
-        .reveal { opacity: 0; transform: translateY(30px); transition: all 1s ease-out; }
+        body { background-color: #FAFAF9; color: #1c1917; }
+        .reveal { opacity: 0; transform: translateY(40px); transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1); }
         .reveal.active { opacity: 1; transform: translateY(0); }
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        /* Ocultar scrollbar en elementos horizontales pero permitir scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="font-sans text-brand-dark bg-white antialiased">
+<body>
     <div id="root"></div>
 
     <!-- FIREBASE SETUP -->
@@ -84,158 +90,105 @@
 
         const firebaseConfig = {
             // apiKey: "TU_API_KEY_AQUI",
-            // authDomain: "TU_PROYECTO.firebaseapp.com",
-            // projectId: "TU_PROYECTO_ID",
-            // storageBucket: "TU_PROYECTO.appspot.com",
-            // messagingSenderId: "NUMEROS",
-            // appId: "NUMEROS"
         };
 
         if (firebaseConfig.apiKey) {
-            console.log("Conectando a Firebase...");
             const app = initializeApp(firebaseConfig);
             window.db = getFirestore(app);
             window.doc = doc;
             window.onSnapshot = onSnapshot;
             window.setDoc = setDoc;
-        } else {
-            console.log("Firebase no configurado. Usando almacenamiento local.");
         }
     </script>
 
-    <!-- REACT APPLICATION CODE (data-type="module" es CRUCIAL) -->
+    <!-- REACT APPLICATION CODE -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
         import { 
-            Phone, MapPin, Mail, Clock, Menu, X, Settings, 
-            ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
-            Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Image as ImageIcon, Maximize2, ExternalLink
+            Phone, MapPin, Mail, ArrowRight, Check, Star, 
+            ArrowUpRight, Activity, Menu, X, Settings, Lock, RotateCcw, LogOut,
+            Bone, Heart, UserCheck, Image as ImageIcon, Maximize2
         } from 'lucide-react';
 
-        // --- CONSTANTES & DATOS POR DEFECTO ---
+        // --- DATA ---
         const DEFAULT_CONTENT = {
             hero: {
                 badge: "Estrategia Digital 2026",
-                titleLine1: "Tu Bienestar es",
-                titleLine2: "Nuestra Prioridad",
-                description: "25 años de trayectoria trasladados a un ecosistema de salud integral. Fisioterapia honesta, pilates terapéutico y trato humano en El Palmar.",
+                titleLine1: "Bienestar",
+                titleLine2: "Integral",
+                description: "25 años de fisioterapia honesta y pilates terapéutico en El Palmar. Un espacio donde la ciencia se encuentra con el trato humano.",
                 buttonPrimary: "Reservar Cita",
-                buttonSecondary: "Ver Tratamientos"
-            },
-            gallery: {
-                title: "Galería",
-                subtitle: "Nuestras Instalaciones y Tratamientos"
             },
             contact: {
                 phone: "968 885 931",
                 address: "Avenida de Burgos s/n",
-                city: "CP 30120. El Palmar-Murcia",
+                city: "El Palmar, Murcia",
                 email: "info@fisioterapianuevopalmar.com"
             },
             pilates: {
-                title: "Pilates Terapéutico: Movimiento Consciente",
-                description: "Más que ejercicio, es rehabilitación. Supervisado por fisioterapeutas para garantizar seguridad y efectividad.",
+                title: "Control & Movimiento",
+                description: "Rehabilitación activa supervisada por expertos. Recupera tu funcionalidad a través del movimiento consciente.",
                 priceIndividual: "Consultar",
                 pricePair: "Consultar",
                 priceGroup: "Consultar"
             }
         };
 
-        const MAP_URL = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3145.897350785168!2d-1.1627!3d37.9315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd63806295555555%3A0x123456789!2sAv.%20de%20Burgos%2C%2030120%20El%20Palmar%2C%20Murcia!5e0!3m2!1ses!2ses!4v1234567890";
-        const DIRECTIONS_URL = "https://www.google.com/maps/dir//Av.+de+Burgos,+30120+El+Palmar,+Murcia";
-
         const SERVICES_LIST = [
-            { title: 'Osteopatía', desc: 'Terapia manual para la integridad estructural (visceral y craneal).', icon: Bone },
-            { title: 'Punción Seca', desc: 'Técnica invasiva de alta efectividad muscular para puntos gatillo.', icon: Activity },
-            { title: 'Lesiones Deportivas', desc: 'Desde traumatismos y esguinces hasta gestos deportivos.', icon: Activity },
-            { title: 'Accidentes Tráfico', desc: 'Gestión integral, rehabilitación y valoración del daño corporal.', icon: Car },
-            { title: 'Terapia Manual', desc: 'Desde estiramientos hasta quiropraxia avanzada.', icon: Heart },
-            { title: 'Fisioterapia Geriátrica', desc: 'Tratamiento especializado para personas de edad avanzada.', icon: UserCheck }
+            { title: 'Osteopatía', desc: 'Restauración del equilibrio estructural visceral y craneal.', icon: Bone },
+            { title: 'Punción Seca', desc: 'Tratamiento invasivo de puntos gatillo miofasciales.', icon: Activity },
+            { title: 'Deportiva', desc: 'Readaptación al gesto deportivo y tratamiento de lesiones.', icon: Activity },
+            { title: 'Tráfico', desc: 'Gestión integral y rehabilitación de accidentes.', icon: Activity },
+            { title: 'Terapia Manual', desc: 'Quiropraxia y movilización tejido blando.', icon: Heart },
+            { title: 'Geriatría', desc: 'Mantenimiento de la funcionalidad en el adulto mayor.', icon: UserCheck }
         ];
 
         const GALLERY_ITEMS = [
-            { id: 1, title: 'Cabina de Tratamiento', category: 'Instalaciones', img: 'https://images.unsplash.com/photo-1628177142898-7136c2e96d22?auto=format&fit=crop&q=80&w=800' },
+            { id: 1, title: 'Cabina Principal', category: 'Espacios', img: 'https://images.unsplash.com/photo-1628177142898-7136c2e96d22?auto=format&fit=crop&q=80&w=800' },
             { id: 2, title: 'Terapia Manual', category: 'Fisioterapia', img: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800' },
-            { id: 3, title: 'Pilates Reformer', category: 'Pilates', img: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800' },
-            { id: 4, title: 'Rehabilitación Deportiva', category: 'Lesiones', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=800' },
-            { id: 5, title: 'Punción Seca', category: 'Técnicas', img: 'https://plus.unsplash.com/premium_photo-1661764256397-af154e87b1b3?auto=format&fit=crop&q=80&w=800' },
-            { id: 6, title: 'Osteopatía', category: 'Tratamientos', img: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&q=80&w=800' },
+            { id: 3, title: 'Estudio Pilates', category: 'Pilates', img: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800' },
         ];
 
-        // --- CONTEXTO DE GESTIÓN DE CONTENIDO ---
+        // --- CONTEXT ---
         const ContentContext = createContext();
-
         const ContentProvider = ({ children }) => {
             const [content, setContent] = useState(DEFAULT_CONTENT);
             const [isAdmin, setIsAdmin] = useState(false);
-            const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
             useEffect(() => {
-                const checkFirebase = setInterval(() => {
-                    if (window.db) {
-                        setIsFirebaseReady(true);
-                        clearInterval(checkFirebase);
-                        const unsub = window.onSnapshot(window.doc(window.db, "site_content", "main"), (docSnap) => {
-                            if (docSnap.exists()) {
-                                setContent({ ...DEFAULT_CONTENT, ...docSnap.data() });
-                            }
-                        });
-                        return () => unsub();
-                    }
-                }, 500);
-
-                setTimeout(() => {
-                    if (!window.db) {
-                        const saved = localStorage.getItem('site_content_v1');
-                        if (saved) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(saved) });
-                    }
-                }, 2000);
-
-                return () => clearInterval(checkFirebase);
+                const saved = localStorage.getItem('site_content_minimal');
+                if (saved) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(saved) });
+                
+                // Intentar conectar Firebase si existe
+                if (window.db) {
+                     window.onSnapshot(window.doc(window.db, "site_content", "minimal"), (doc) => {
+                        if (doc.exists()) setContent({ ...DEFAULT_CONTENT, ...doc.data() });
+                    });
+                }
             }, []);
 
-            const updateContent = async (section, key, value) => {
-                const newContent = {
-                    ...content,
-                    [section]: { ...content[section], [key]: value }
-                };
-                
-                setContent(newContent); 
-
-                if (window.db) {
-                    try {
-                        await window.setDoc(window.doc(window.db, "site_content", "main"), newContent);
-                    } catch (e) {
-                        alert("Error guardando en la nube.");
-                    }
-                } else {
-                    localStorage.setItem('site_content_v1', JSON.stringify(newContent));
-                }
-            };
-
-            const login = (pass) => {
-                if (pass === "JoseDiego2026") {
-                    setIsAdmin(true);
-                    return true;
-                }
-                return false;
+            const updateContent = (section, key, value) => {
+                const newContent = { ...content, [section]: { ...content[section], [key]: value } };
+                setContent(newContent);
+                localStorage.setItem('site_content_minimal', JSON.stringify(newContent));
+                if (window.db) window.setDoc(window.doc(window.db, "site_content", "minimal"), newContent);
             };
 
             return (
-                <ContentContext.Provider value={{ content, updateContent, isAdmin, login, logout: () => setIsAdmin(false), resetToDefaults: () => {
-                    if(confirm("¿Restaurar?")) { setContent(DEFAULT_CONTENT); if(!window.db) localStorage.removeItem('site_content_v1'); }
-                }, isFirebaseReady }}>
+                <ContentContext.Provider value={{ 
+                    content, updateContent, isAdmin, 
+                    login: (p) => { if(p==="JoseDiego2026"){setIsAdmin(true); return true;} return false; },
+                    logout: () => setIsAdmin(false),
+                    reset: () => { if(confirm("¿Resetear?")) { setContent(DEFAULT_CONTENT); localStorage.removeItem('site_content_minimal'); }}
+                }}>
                     {children}
                 </ContentContext.Provider>
             );
         };
-
         const useContent = () => useContext(ContentContext);
 
-        // --- COMPONENTES UI ---
-
+        // --- COMPONENTS ---
         const Reveal = ({ children, className = "", delay = 0 }) => {
             const ref = useRef(null);
             useEffect(() => {
@@ -251,158 +204,117 @@
             return <div ref={ref} className={`reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>{children}</div>;
         };
 
-        const Button = ({ children, variant = 'primary', className = '', ...props }) => {
-            const base = "inline-flex items-center justify-center px-8 py-3 text-sm font-medium transition-all duration-300 rounded-full shadow-lg hover:-translate-y-1";
-            const styles = {
-                primary: "bg-brand-green hover:bg-green-700 text-white",
-                outline: "border-2 border-brand-green text-brand-green hover:bg-brand-green hover:text-white bg-white/50 backdrop-blur-sm",
-                accent: "bg-brand-accent hover:bg-red-600 text-white"
-            };
-            return <button className={`${base} ${styles[variant]} ${className}`} {...props}>{children}</button>;
-        };
+        const FloatingNav = ({ onOpenAdmin }) => {
+            const [scrolled, setScrolled] = useState(false);
+            const [mobileOpen, setMobileOpen] = useState(false);
 
-        const ImageModal = ({ image, onClose }) => {
-            if (!image) return null;
-            return (
-                <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-                    <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full" onClick={onClose}>
-                        <X size={24} />
-                    </button>
-                    <div className="max-w-5xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col md:flex-row max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                        <div className="md:w-2/3 bg-gray-100 flex items-center justify-center overflow-hidden">
-                            <img src={image.img} alt={image.title} className="w-full h-full object-contain max-h-[60vh] md:max-h-full" />
-                        </div>
-                        <div className="md:w-1/3 p-8 flex flex-col justify-center bg-white">
-                            <span className="text-xs font-bold text-brand-green uppercase tracking-wider mb-2">{image.category}</span>
-                            <h3 className="text-3xl font-serif text-brand-dark mb-4">{image.title}</h3>
-                            <p className="text-gray-600 leading-relaxed mb-6">
-                                Descubre nuestras instalaciones y tratamientos especializados. En Clínica Nuevo Palmar combinamos tecnología y terapia manual.
-                            </p>
-                            <div className="mt-auto pt-6 border-t border-gray-100">
-                                <a href="#contact" onClick={onClose} className="flex items-center gap-2 text-brand-dark font-medium hover:text-brand-green transition-colors">
-                                    Solicitar información <ArrowRight size={16} />
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
+            useEffect(() => {
+                const fn = () => setScrolled(window.scrollY > 20);
+                window.addEventListener('scroll', fn);
+                return () => window.removeEventListener('scroll', fn);
+            }, []);
 
-        const MapModal = ({ isOpen, onClose }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-                     <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full z-50" onClick={onClose}>
-                        <X size={24} />
-                    </button>
-                    <div className="w-full h-full max-w-6xl max-h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in relative">
-                         <iframe 
-                            src={MAP_URL}
-                            className="w-full h-full border-0" 
-                            allowFullScreen 
-                            loading="lazy"
-                        ></iframe>
-                    </div>
-                </div>
-            );
-        };
-
-        const Gallery = () => {
-            const [selectedImage, setSelectedImage] = useState(null);
-            const { content } = useContent();
+            const links = [
+                { name: 'Nosotros', href: '#about' },
+                { name: 'Servicios', href: '#services' },
+                { name: 'Pilates', href: '#pilates' },
+                { name: 'Contacto', href: '#contact' }
+            ];
 
             return (
-                <section id="gallery" className="py-24 bg-white relative">
-                    <div className="max-w-7xl mx-auto px-4">
-                        <Reveal>
-                            <div className="text-center mb-16">
-                                <h2 className="text-brand-green font-bold uppercase mb-2">{content.gallery.title}</h2>
-                                <h3 className="font-serif text-4xl text-brand-dark">{content.gallery.subtitle}</h3>
-                            </div>
-                        </Reveal>
+                <>
+                    {/* Desktop "Pill" Navigation */}
+                    <nav className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 hidden md:flex items-center gap-1 ${
+                        scrolled ? 'bg-white/90 backdrop-blur-md shadow-sm border border-stone-200/50 py-2 px-3 rounded-full' : 'py-4'
+                    }`}>
+                        <a href="#home" className="mr-4 pl-3 font-serif font-bold text-lg tracking-tight hover:text-brand-green transition-colors">
+                            NP<span className="text-brand-green">.</span>
+                        </a>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {GALLERY_ITEMS.map((item, index) => (
-                                <Reveal key={item.id} delay={index * 100}>
-                                    <div 
-                                        className="group relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all hover:-translate-y-1"
-                                        onClick={() => setSelectedImage(item)}
-                                    >
-                                        <img src={item.img} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                        <div className="absolute inset-0 bg-brand-dark/0 group-hover:bg-brand-dark/40 transition-all duration-300 flex items-center justify-center">
-                                            <div className="opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 text-center p-4">
-                                                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white mb-3 mx-auto border border-white/30">
-                                                    <ZoomIn size={24} />
-                                                </div>
-                                                <p className="text-white font-bold text-lg drop-shadow-md">{item.title}</p>
-                                                <p className="text-white/80 text-xs uppercase tracking-wider">{item.category}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Reveal>
+                        <div className="flex items-center bg-stone-100/50 rounded-full px-1">
+                            {links.map(l => (
+                                <a key={l.name} href={l.href} className="px-5 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors rounded-full hover:bg-white">
+                                    {l.name}
+                                </a>
                             ))}
                         </div>
+
+                        <button onClick={onOpenAdmin} className="ml-2 p-2 text-stone-400 hover:text-stone-900 transition-colors">
+                            <Settings size={18} strokeWidth={1.5} />
+                        </button>
+                    </nav>
+
+                    {/* Mobile Navigation */}
+                    <div className="md:hidden fixed top-0 w-full z-50 p-4 flex justify-between items-center pointer-events-none">
+                         <a href="#home" className="pointer-events-auto font-serif font-bold text-xl bg-white/80 backdrop-blur px-4 py-2 rounded-full shadow-sm">
+                            NP<span className="text-brand-green">.</span>
+                        </a>
+                        <button onClick={() => setMobileOpen(true)} className="pointer-events-auto p-3 bg-white shadow-lg rounded-full text-stone-900">
+                            <Menu size={20} strokeWidth={1.5}/>
+                        </button>
                     </div>
-                    <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} />
-                </section>
+
+                    {/* Mobile Menu Overlay */}
+                    {mobileOpen && (
+                        <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center animate-fade-up">
+                            <button onClick={() => setMobileOpen(false)} className="absolute top-6 right-6 p-4 text-stone-500 hover:text-stone-900">
+                                <X size={32} strokeWidth={1} />
+                            </button>
+                            <nav className="flex flex-col gap-8 text-center">
+                                {links.map(l => (
+                                    <a key={l.name} href={l.href} onClick={() => setMobileOpen(false)} className="font-serif text-4xl text-stone-800 hover:text-brand-green hover:italic transition-all">
+                                        {l.name}
+                                    </a>
+                                ))}
+                                <button onClick={() => {setMobileOpen(false); onOpenAdmin();}} className="mt-8 text-sm text-stone-400 uppercase tracking-widest">
+                                    Admin Access
+                                </button>
+                            </nav>
+                        </div>
+                    )}
+                </>
             );
         };
 
-        const AdminPanel = ({ isOpen, onClose }) => {
-            const { content, updateContent, isAdmin, login, logout, resetToDefaults, isFirebaseReady } = useContent();
+        const AdminModal = ({ isOpen, onClose }) => {
+            const { content, updateContent, isAdmin, login, logout, reset } = useContent();
             const [pass, setPass] = useState("");
             const [tab, setTab] = useState('hero');
 
             if (!isOpen) return null;
 
             return (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                        <div className="bg-brand-dark p-6 flex justify-between items-center text-white">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                {isAdmin ? '⚙️ Editor' : '🔒 Acceso Privado'}
-                            </h2>
-                            <button onClick={onClose}><X /></button>
+                <div className="fixed inset-0 z-[100] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
+                        <div className="p-4 border-b flex justify-between items-center bg-stone-50">
+                            <h3 className="font-serif italic font-medium">Editor de Contenido</h3>
+                            <button onClick={onClose}><X size={20} className="text-stone-400"/></button>
                         </div>
-                        
-                        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                        <div className="p-6">
                             {!isAdmin ? (
-                                <div className="text-center py-8">
-                                    <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4"><Lock /></div>
-                                    <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Contraseña" 
-                                        className="w-full max-w-xs px-4 py-3 border rounded-lg mb-4 text-center mx-auto block" />
-                                    <Button onClick={() => login(pass) || alert("Contraseña incorrecta")}>Entrar</Button>
+                                <div className="space-y-4">
+                                    <input type="password" placeholder="Contraseña..." className="w-full p-3 bg-stone-50 rounded-lg outline-none focus:ring-1 focus:ring-stone-300" 
+                                        value={pass} onChange={e => setPass(e.target.value)}/>
+                                    <button onClick={() => login(pass) || alert("Error")} className="w-full bg-stone-900 text-white py-3 rounded-lg">Acceder</button>
                                 </div>
                             ) : (
                                 <div>
-                                    <div className="mb-4 text-xs text-center font-bold px-2 py-2 rounded bg-yellow-100 text-yellow-800 flex items-center justify-center gap-2">
-                                        {isFirebaseReady ? <span className="w-2 h-2 rounded-full bg-green-500"></span> : <span className="w-2 h-2 rounded-full bg-orange-500"></span>}
-                                        {isFirebaseReady ? "Nube Conectada" : "Modo Local"}
-                                    </div>
-                                    
-                                    <div className="flex gap-2 overflow-x-auto mb-6 pb-2 border-b">
-                                        {['hero', 'gallery', 'contact', 'pilates'].map(t => (
-                                            <button key={t} onClick={() => setTab(t)} 
-                                                className={`px-4 py-2 rounded-full text-sm font-bold capitalize transition-colors ${tab === t ? 'bg-brand-green text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
-                                                {t === 'hero' ? 'Portada' : t === 'gallery' ? 'Galería' : t}
-                                            </button>
+                                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                                        {['hero','contact','pilates'].map(t => (
+                                            <button key={t} onClick={() => setTab(t)} className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${tab===t ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-500'}`}>{t}</button>
                                         ))}
                                     </div>
-                                    
-                                    <div className="space-y-4">
-                                        {Object.entries(content[tab]).map(([key, val]) => (
-                                            <div key={key}>
-                                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{key}</label>
-                                                <textarea value={val} onChange={(e) => updateContent(tab, key, e.target.value)}
-                                                    className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-brand-green outline-none bg-gray-50" rows={val.length > 60 ? 3 : 1} />
+                                    <div className="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2">
+                                        {Object.entries(content[tab]).map(([k,v]) => (
+                                            <div key={k}>
+                                                <label className="text-[10px] uppercase font-bold text-stone-400 mb-1 block">{k}</label>
+                                                <textarea value={v} onChange={e=>updateContent(tab,k,e.target.value)} className="w-full p-2 bg-stone-50 border border-stone-100 rounded text-sm focus:border-stone-400 outline-none" rows={3}/>
                                             </div>
                                         ))}
                                     </div>
-                                    
-                                    <div className="mt-8 pt-4 border-t flex justify-end gap-2">
-                                        <button onClick={resetToDefaults} className="px-3 py-2 bg-red-50 text-red-600 rounded-lg flex gap-1 items-center text-sm hover:bg-red-100"><RotateCcw size={14}/> Reset</button>
-                                        <button onClick={logout} className="px-3 py-2 bg-gray-800 text-white rounded-lg flex gap-1 items-center text-sm hover:bg-black"><LogOut size={14}/> Salir</button>
+                                    <div className="mt-6 pt-4 border-t flex justify-between">
+                                        <button onClick={reset} className="text-red-400 text-xs hover:text-red-600"><RotateCcw size={14}/></button>
+                                        <button onClick={logout} className="text-stone-400 text-xs hover:text-stone-900 flex items-center gap-1">Salir <LogOut size={14}/></button>
                                     </div>
                                 </div>
                             )}
@@ -412,274 +324,183 @@
             );
         };
 
-        const Navbar = () => {
-            const [scrolled, setScrolled] = useState(false);
-            const [mobileOpen, setMobileOpen] = useState(false);
-            const [adminOpen, setAdminOpen] = useState(false);
-            const { content } = useContent();
-
-            useEffect(() => {
-                const fn = () => setScrolled(window.scrollY > 20);
-                window.addEventListener('scroll', fn);
-                return () => window.removeEventListener('scroll', fn);
-            }, []);
-
-            return (
-                <>
-                    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur shadow-sm py-4' : 'bg-transparent py-6'}`}>
-                        <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <img src="assets/logo.png" className="h-12 w-auto object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }}/>
-                                <span className="text-2xl font-serif font-bold text-brand-green hidden">Nuevo Palmar</span>
-                            </div>
-
-                            <div className="hidden md:flex items-center space-x-8">
-                                {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map((item, i) => (
-                                    <a key={i} href={`#${item.toLowerCase() === 'inicio' ? 'home' : item === 'Nosotros' ? 'about' : item.toLowerCase()}`} 
-                                       className={`text-sm font-medium hover:text-brand-green transition-colors ${scrolled ? 'text-gray-700' : 'text-gray-800'}`}>
-                                        {item}
-                                    </a>
-                                ))}
-                                <a href={`tel:${content.contact.phone.replace(/\s/g, '')}`} className="flex items-center gap-2 bg-brand-green text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-0.5">
-                                    <Phone size={16} /> {content.contact.phone}
-                                </a>
-                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark transition-colors"><Settings size={20}/></button>
-                            </div>
-
-                            <div className="md:hidden flex items-center gap-4">
-                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark"><Settings size={20}/></button>
-                                <button onClick={() => setMobileOpen(!mobileOpen)} className="text-brand-dark">{mobileOpen ? <X /> : <Menu />}</button>
-                            </div>
-                        </div>
-
-                        {mobileOpen && (
-                            <div className="md:hidden bg-white border-t p-4 flex flex-col gap-4 shadow-xl animate-fade-in">
-                                {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map(item => (
-                                    <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileOpen(false)} className="text-gray-700 font-medium py-2 border-b border-gray-50">{item}</a>
-                                ))}
-                            </div>
-                        )}
-                    </nav>
-                    <AdminPanel isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
-                </>
-            );
-        };
-
         const App = () => {
             const { content } = useContent();
-            const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+            const [adminOpen, setAdminOpen] = useState(false);
 
             return (
-                <div className="min-h-screen">
-                    <Navbar />
-                    
-                    {/* HERO */}
-                    <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-brand-beige">
-                        <div className="absolute inset-0">
-                            <img src="assets/Portada Clinica.png" className="w-full h-full object-cover opacity-90 animate-[pulse_10s_infinite]" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent"></div>
-                        </div>
-                        <div className="max-w-7xl mx-auto px-4 relative z-10 w-full">
-                            <Reveal className="max-w-2xl">
-                                <span className="inline-block px-4 py-1 rounded-full bg-brand-green/10 text-brand-green text-sm font-semibold mb-6">{content.hero.badge}</span>
-                                <h1 className="font-serif text-5xl md:text-7xl text-brand-dark leading-tight mb-6">
-                                    {content.hero.titleLine1} <br/> <span className="text-brand-green">{content.hero.titleLine2}</span>
+                <div className="min-h-screen selection:bg-brand-green/20 selection:text-brand-green">
+                    <FloatingNav onOpenAdmin={() => setAdminOpen(true)} />
+                    <AdminModal isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+
+                    {/* HERO SPLIT SCREEN */}
+                    <section id="home" className="min-h-screen pt-24 md:pt-0 flex flex-col md:flex-row">
+                        <div className="flex-1 flex items-center justify-center p-6 md:p-20 order-2 md:order-1">
+                            <Reveal className="max-w-xl">
+                                <div className="flex items-center gap-3 mb-8">
+                                    <span className="h-px w-12 bg-brand-green"></span>
+                                    <span className="text-xs font-bold tracking-widest uppercase text-stone-500">{content.hero.badge}</span>
+                                </div>
+                                <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.9] text-stone-900 mb-8">
+                                    {content.hero.titleLine1} <br/>
+                                    <span className="italic text-stone-400">{content.hero.titleLine2}</span>
                                 </h1>
-                                <p className="text-xl text-gray-600 mb-8 leading-relaxed max-w-lg">{content.hero.description}</p>
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <a href="#contact"><Button>{content.hero.buttonPrimary} <ArrowRight className="ml-2 w-4 h-4" /></Button></a>
-                                    <a href="#services"><Button variant="outline">{content.hero.buttonSecondary}</Button></a>
+                                <p className="text-lg text-stone-500 leading-relaxed mb-10 max-w-md font-light">
+                                    {content.hero.description}
+                                </p>
+                                <div className="flex gap-6 items-center">
+                                    <a href="#contact" className="bg-stone-900 text-white px-8 py-4 rounded-full text-sm font-medium hover:bg-brand-green transition-colors duration-500 shadow-xl shadow-stone-200">
+                                        {content.hero.buttonPrimary}
+                                    </a>
+                                    <a href="#about" className="text-sm font-medium text-stone-500 hover:text-stone-900 flex items-center gap-2 group">
+                                        Conócenos <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
+                                    </a>
                                 </div>
-                                <div className="mt-12 flex gap-8 opacity-60 grayscale hover:grayscale-0 transition-all">
-                                    {['ASISA', 'MAPFRE', 'DKV', 'CASER'].map(s => <span key={s} className="font-bold text-gray-400">{s}</span>)}
+                            </Reveal>
+                        </div>
+                        <div className="flex-1 h-[50vh] md:h-screen relative p-4 md:p-6 order-1 md:order-2">
+                            <div className="w-full h-full rounded-3xl overflow-hidden relative shadow-2xl">
+                                <img src="assets/Portada Clinica.png" className="w-full h-full object-cover transition-transform duration-[2s] hover:scale-105" />
+                                <div className="absolute inset-0 bg-stone-900/10 hover:bg-transparent transition-colors duration-700"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ABOUT: MINIMAL TEXT */}
+                    <section id="about" className="py-32 px-6">
+                        <div className="max-w-4xl mx-auto text-center">
+                            <Reveal>
+                                <h2 className="font-serif text-3xl md:text-5xl text-stone-800 leading-tight mb-8">
+                                    "Rechazamos los tratamientos estandarizados. Creemos en la <span className="text-brand-green italic">atención personalizada</span> y el contacto humano."
+                                </h2>
+                                <div className="flex items-center justify-center gap-4">
+                                    <div className="w-12 h-12 rounded-full overflow-hidden bg-stone-200">
+                                         <img src="assets/Jose Diego.png" className="w-full h-full object-cover"/>
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-sm font-bold text-stone-900">José Diego Frutos</p>
+                                        <p className="text-xs text-stone-500 uppercase tracking-wider">Director</p>
+                                    </div>
                                 </div>
                             </Reveal>
                         </div>
                     </section>
 
-                    {/* ABOUT */}
-                    <section id="about" className="py-24 bg-white">
-                        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-2 gap-16 items-center">
-                            <div className="order-2 lg:order-1 relative">
-                                <Reveal delay={200}>
-                                    <div className="absolute -top-4 -left-4 w-2/3 h-2/3 bg-brand-beige rounded-3xl -z-10" />
-                                    <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/5] group">
-                                        <img src="assets/Jose Diego.png" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-8 text-white">
-                                            <p className="font-serif text-2xl">José Diego Frutos Bernal</p>
-                                            <p className="text-white/80">Director & Fisioterapeuta</p>
-                                        </div>
-                                    </div>
-                                </Reveal>
-                            </div>
-                            <div className="order-1 lg:order-2">
-                                <Reveal>
-                                    <h2 className="text-brand-green font-bold tracking-wider uppercase mb-2">Sobre Nosotros</h2>
-                                    <h3 className="font-serif text-4xl text-brand-dark mb-6">Excelencia Terapéutica</h3>
-                                    <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                                        Fisioterapeuta diplomado por la Universidad de Murcia (1999) y especialista en Terapia Manual Osteopática. 
-                                        José Diego lidera un equipo comprometido con la fisioterapia basada en la evidencia.
-                                    </p>
-                                    <div className="space-y-4 mb-8">
-                                        {["Terapia Manual Osteopática", "Fisioterapia Traumatológica", "Fisioterapia Geriátrica"].map(s => (
-                                            <div key={s} className="flex items-center gap-4">
-                                                <div className="w-8 h-8 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green"><CheckCircle2 size={16}/></div>
-                                                <span className="text-gray-700 font-medium">{s}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="p-6 bg-brand-beige rounded-xl border-l-4 border-brand-green italic text-gray-600">
-                                        "Rechazamos los tratamientos estandarizados en favor de una atención personalizada."
-                                    </div>
-                                </Reveal>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* SERVICES */}
-                    <section id="services" className="py-24 bg-brand-light">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <div className="text-center max-w-3xl mx-auto mb-16">
-                                <Reveal>
-                                    <h2 className="text-brand-green font-bold uppercase mb-2">Servicios</h2>
-                                    <h3 className="font-serif text-4xl text-brand-dark">Cuidado Integral</h3>
-                                </Reveal>
-                            </div>
-                            <div className="grid md:grid-cols-3 gap-8">
-                                {SERVICES_LIST.map((svc, i) => (
+                    {/* SERVICES: FLAT CARDS */}
+                    <section id="services" className="py-32 bg-white px-6">
+                        <div className="max-w-7xl mx-auto">
+                            <Reveal className="mb-20 flex justify-between items-end border-b border-stone-100 pb-8">
+                                <div>
+                                    <p className="text-xs font-bold tracking-widest text-stone-400 mb-2 uppercase">Nuestra Práctica</p>
+                                    <h3 className="font-serif text-4xl text-stone-900">Servicios Clínicos</h3>
+                                </div>
+                                <ArrowUpRight className="text-stone-300 w-12 h-12 hidden md:block" strokeWidth={1}/>
+                            </Reveal>
+                            
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
+                                {SERVICES_LIST.map((s, i) => (
                                     <Reveal key={i} delay={i*100}>
-                                        <div className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden">
-                                            <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors">
-                                                <svc.icon size={28} />
+                                        <div className="group cursor-default">
+                                            <div className="mb-6 text-brand-green opacity-80 group-hover:opacity-100 transition-opacity">
+                                                <s.icon size={32} strokeWidth={1.2} />
                                             </div>
-                                            <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
-                                            <p className="text-gray-600">{svc.desc}</p>
+                                            <h4 className="text-xl font-medium text-stone-900 mb-3 group-hover:text-brand-green transition-colors">{s.title}</h4>
+                                            <p className="text-stone-500 font-light leading-relaxed">{s.desc}</p>
+                                            <div className="mt-6 w-8 h-px bg-stone-200 group-hover:w-full group-hover:bg-brand-green transition-all duration-700"></div>
                                         </div>
                                     </Reveal>
                                 ))}
                             </div>
                         </div>
                     </section>
-                    
-                    {/* GALLERY SECTION */}
-                    <Gallery />
 
-                    {/* PARALLAX INTERIOR */}
-                    <section className="relative h-[60vh] bg-fixed bg-center bg-cover flex items-center justify-center" style={{ backgroundImage: "url('assets/interior.png')" }}>
-                        <div className="absolute inset-0 bg-black/40"></div>
-                        <div className="relative text-center text-white p-4">
+                    {/* PILATES: DARK & CLEAN */}
+                    <section id="pilates" className="py-32 bg-brand-dark text-stone-100 px-6 relative overflow-hidden">
+                        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center relative z-10">
                             <Reveal>
-                                <h2 className="font-serif text-4xl md:text-5xl mb-4">Instalaciones de Vanguardia</h2>
-                                <p className="text-xl opacity-90">Un espacio diseñado para tu recuperación.</p>
+                                <span className="text-brand-green font-serif italic text-xl mb-4 block">Studio</span>
+                                <h3 className="font-serif text-5xl md:text-6xl mb-8 leading-none">{content.pilates.title}</h3>
+                                <p className="text-stone-400 text-lg font-light mb-12 max-w-md">{content.pilates.description}</p>
+                                
+                                <div className="space-y-6">
+                                    {[
+                                        { label: "Individual", price: content.pilates.priceIndividual },
+                                        { label: "Pareja", price: content.pilates.pricePair },
+                                        { label: "Grupos (max 4)", price: content.pilates.priceGroup }
+                                    ].map((p, idx) => (
+                                        <div key={idx} className="flex justify-between items-center border-b border-white/10 pb-4 group hover:border-brand-green/50 transition-colors cursor-default">
+                                            <span className="font-medium text-lg group-hover:pl-2 transition-all">{p.label}</span>
+                                            <span className="font-serif italic text-stone-500">{p.price}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Reveal>
+                            <Reveal delay={200} className="relative h-[600px] hidden lg:block">
+                                <div className="absolute inset-0 bg-stone-800 rounded-none overflow-hidden">
+                                    <img src="assets/interior.png" className="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition-all duration-1000"/>
+                                </div>
                             </Reveal>
                         </div>
                     </section>
 
-                    {/* PILATES */}
-                    <section id="pilates" className="py-24 relative overflow-hidden bg-brand-dark">
-                        <div className="absolute inset-0 opacity-10 mix-blend-overlay">
-                             <img src="assets/Cara abstracta.jpeg" className="w-full h-full object-cover grayscale" />
-                        </div>
-                        <div className="max-w-7xl mx-auto px-4 relative z-10 grid lg:grid-cols-12 gap-12">
-                            <div className="lg:col-span-5 text-white">
-                                <Reveal>
-                                    <h2 className="text-brand-green font-bold uppercase mb-2">Escuela de Salud</h2>
-                                    <h3 className="font-serif text-4xl mb-6">{content.pilates.title}</h3>
-                                    <p className="text-gray-300 text-lg mb-8">{content.pilates.description}</p>
-                                    <div className="bg-white/10 backdrop-blur rounded-2xl p-6 mb-8 border border-white/10">
-                                        <div className="flex items-center gap-3 mb-2 font-bold text-lg"><Star className="text-brand-green fill-current"/> Evaluación Inicial</div>
-                                        <p className="text-gray-400 text-sm">Valoración funcional completa antes de comenzar.</p>
-                                    </div>
-                                    <a href={`mailto:${content.contact.email}?subject=Reserva Clase`}><Button variant="accent">Reservar Clase de Prueba</Button></a>
-                                </Reveal>
-                            </div>
-                            <div className="lg:col-span-7 grid md:grid-cols-3 gap-6">
-                                {[
-                                    { t: "Individual", p: content.pilates.priceIndividual, f: ["100% Personalizado", "Máquinas y Suelo"] },
-                                    { t: "Pareja", p: content.pilates.pricePair, f: ["Semi-privado", "Motivación conjunta"], rec: true },
-                                    { t: "Grupos", p: content.pilates.priceGroup, f: ["Máximo 4 personas", "Ambiente dinámico"] }
-                                ].map((plan, i) => (
-                                    <Reveal key={i} delay={i*150} className="h-full">
-                                        <div className={`rounded-2xl p-6 h-full flex flex-col ${plan.rec ? 'bg-white text-brand-dark shadow-2xl scale-105 z-10' : 'bg-white/5 border border-white/10 text-white'}`}>
-                                            {plan.rec && <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-green text-white px-3 py-1 text-xs font-bold rounded-full uppercase">Recomendado</span>}
-                                            <h4 className="font-bold text-lg mb-2">{plan.t}</h4>
-                                            <div className="text-2xl font-serif font-bold mb-6">{plan.p}</div>
-                                            <ul className="space-y-3 mb-8 flex-1">
-                                                {plan.f.map(f => <li key={f} className="flex gap-2 text-sm opacity-80"><Check size={16} className={plan.rec ? 'text-brand-green' : ''}/> {f}</li>)}
-                                            </ul>
-                                            <a href={`https://wa.me/34${content.contact.phone.replace(/\s/g, '')}`} className={`w-full py-2 rounded-lg text-center text-sm font-bold ${plan.rec ? 'bg-brand-dark text-white' : 'bg-white/10 hover:bg-white/20'}`}>Más Info</a>
+                    {/* GALLERY: MASONRY STYLE */}
+                    <section className="py-32 px-6">
+                        <div className="max-w-7xl mx-auto">
+                             <Reveal className="mb-16">
+                                <h3 className="font-serif text-4xl text-stone-900 text-center">Espacios</h3>
+                            </Reveal>
+                            <div className="grid md:grid-cols-3 gap-4 h-[60vh] min-h-[500px]">
+                                {GALLERY_ITEMS.map((item, i) => (
+                                    <div key={i} className={`relative overflow-hidden group ${i===0 ? 'md:col-span-2 md:row-span-2' : ''}`}>
+                                        <img src={item.img} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" />
+                                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors p-8 flex flex-col justify-end opacity-0 group-hover:opacity-100 duration-500">
+                                            <p className="text-white font-serif italic text-2xl drop-shadow-md">{item.title}</p>
                                         </div>
-                                    </Reveal>
+                                    </div>
                                 ))}
                             </div>
                         </div>
                     </section>
 
-                    {/* BLOG */}
-                    <section id="blog" className="py-24 bg-white">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <Reveal><h2 className="text-center font-serif text-4xl text-brand-dark mb-12">Blog y Consejos</h2></Reveal>
-                            <div className="grid md:grid-cols-3 gap-8">
-                                {[1,2,3].map(i => (
-                                    <Reveal key={i} delay={i*100}>
-                                        <article className="group cursor-pointer">
-                                            <div className="aspect-video rounded-2xl bg-gray-100 overflow-hidden mb-4">
-                                                <img src={`https://picsum.photos/400/300?random=${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
-                                            </div>
-                                            <h4 className="font-bold text-lg mb-2 group-hover:text-brand-green transition-colors">Artículo de Salud {i}</h4>
-                                            <p className="text-gray-600 text-sm">Consejos prácticos para mejorar tu bienestar diario y prevenir lesiones.</p>
-                                        </article>
-                                    </Reveal>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* CONTACT */}
-                    <section id="contact" className="py-24 bg-brand-light">
-                        <div className="max-w-7xl mx-auto px-4">
+                    {/* CONTACT: CLEAN */}
+                    <section id="contact" className="py-32 bg-stone-100 px-6">
+                        <div className="max-w-5xl mx-auto bg-white p-8 md:p-16 shadow-xl shadow-stone-200/50">
                             <Reveal>
-                                <div className="bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col lg:flex-row">
-                                    <div className="lg:w-1/3 p-10 bg-brand-dark text-white">
+                                <div className="grid md:grid-cols-2 gap-16">
+                                    <div>
                                         <h3 className="font-serif text-3xl mb-8">Contacto</h3>
-                                        <div className="space-y-6">
-                                            <div className="flex gap-4"><MapPin className="text-brand-green shrink-0"/> <div><p className="font-bold">Ubicación</p><p className="text-gray-400 text-sm">{content.contact.address}<br/>{content.contact.city}</p></div></div>
-                                            <div className="flex gap-4"><Phone className="text-brand-green shrink-0"/> <div><p className="font-bold">Llámanos</p><p className="text-gray-400 text-sm">{content.contact.phone}</p></div></div>
-                                            <div className="flex gap-4"><Mail className="text-brand-green shrink-0"/> <div><p className="font-bold">Escríbenos</p><p className="text-gray-400 text-sm break-all">{content.contact.email}</p></div></div>
+                                        <div className="space-y-8">
+                                            <div>
+                                                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">Visítanos</label>
+                                                <p className="text-lg text-stone-800 mt-1 font-light">{content.contact.address}</p>
+                                                <p className="text-lg text-stone-800 font-light">{content.contact.city}</p>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">Llámanos</label>
+                                                <p className="text-lg text-stone-800 mt-1 font-light hover:text-brand-green transition-colors">
+                                                    <a href={`tel:${content.contact.phone.replace(/\s/g,'')}`}>{content.contact.phone}</a>
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">Escríbenos</label>
+                                                <p className="text-lg text-stone-800 mt-1 font-light break-all hover:text-brand-green transition-colors">
+                                                    <a href={`mailto:${content.contact.email}`}>{content.contact.email}</a>
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="lg:w-2/3 min-h-[400px] relative group">
-                                        <iframe src={MAP_URL} 
-                                            className="absolute inset-0 w-full h-full border-0 grayscale group-hover:grayscale-0 transition-all duration-700" allowFullScreen loading="lazy"></iframe>
-                                        
-                                        {/* Overlay buttons for map interaction */}
-                                        <div className="absolute bottom-6 right-6 flex flex-col sm:flex-row gap-3 z-10">
-                                            <button 
-                                                onClick={() => setIsMapModalOpen(true)}
-                                                className="bg-white text-brand-dark px-5 py-2.5 rounded-xl shadow-lg font-bold text-sm flex items-center gap-2 hover:bg-brand-green hover:text-white transition-all transform hover:scale-105 border border-gray-100"
-                                            >
-                                                <Maximize2 size={18} /> Ampliar Mapa
-                                            </button>
-                                            <a 
-                                                href={DIRECTIONS_URL} 
-                                                target="_blank" 
-                                                rel="noreferrer"
-                                                className="bg-brand-green text-white px-5 py-2.5 rounded-xl shadow-lg font-bold text-sm flex items-center gap-2 hover:bg-green-700 transition-all transform hover:scale-105"
-                                            >
-                                                <ExternalLink size={18} /> Cómo llegar
-                                            </a>
-                                        </div>
+                                    <div className="h-[300px] md:h-auto bg-stone-100 relative grayscale hover:grayscale-0 transition-all duration-700">
+                                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3145.897350785168!2d-1.1627!3d37.9315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd63806295555555%3A0x123456789!2sAv.%20de%20Burgos%2C%2030120%20El%20Palmar%2C%20Murcia!5e0!3m2!1ses!2ses!4v1234567890" 
+                                        className="absolute inset-0 w-full h-full border-0" loading="lazy"></iframe>
                                     </div>
                                 </div>
                             </Reveal>
                         </div>
                     </section>
-                    
-                    <footer className="bg-brand-dark text-white py-8 text-center text-sm border-t border-white/10">
-                        <p>&copy; 2026 Clínica Nuevo Palmar. Diseño Estrategia Digital.</p>
+
+                    <footer className="py-12 text-center text-stone-400 text-xs uppercase tracking-widest bg-stone-50">
+                        <p>&copy; 2026 Nuevo Palmar. Minimalist Design.</p>
                     </footer>
-                    
-                    <MapModal isOpen={isMapModalOpen} onClose={() => setIsMapModalOpen(false)} />
                 </div>
             );
         };
