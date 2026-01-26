@@ -68,10 +68,10 @@
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
   }
 }
 </script>
@@ -117,7 +117,7 @@
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Image as ImageIcon
+            ZoomIn, Image as ImageIcon, Maximize2, ExternalLink
         } = lucideReact;
 
         // --- CONSTANTES & DATOS POR DEFECTO ---
@@ -148,6 +148,9 @@
                 priceGroup: "Consultar"
             }
         };
+
+        const MAP_URL = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3145.897350785168!2d-1.1627!3d37.9315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd63806295555555%3A0x123456789!2sAv.%20de%20Burgos%2C%2030120%20El%20Palmar%2C%20Murcia!5e0!3m2!1ses!2ses!4v1234567890";
+        const DIRECTIONS_URL = "https://www.google.com/maps/dir//Av.+de+Burgos,+30120+El+Palmar,+Murcia";
 
         const SERVICES_LIST = [
             { title: 'Osteopatía', desc: 'Terapia manual para la integridad estructural (visceral y craneal).', icon: Bone },
@@ -287,6 +290,25 @@
                                 </a>
                             </div>
                         </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const MapModal = ({ isOpen, onClose }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+                     <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full z-50" onClick={onClose}>
+                        <X size={24} />
+                    </button>
+                    <div className="w-full h-full max-w-6xl max-h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in relative">
+                         <iframe 
+                            src={MAP_URL}
+                            className="w-full h-full border-0" 
+                            allowFullScreen 
+                            loading="lazy"
+                        ></iframe>
                     </div>
                 </div>
             );
@@ -451,6 +473,7 @@
 
         const App = () => {
             const { content } = useContent();
+            const [isMapModalOpen, setIsMapModalOpen] = useState(false);
 
             return (
                 <div className="min-h-screen">
@@ -631,9 +654,27 @@
                                             <div className="flex gap-4"><Mail className="text-brand-green shrink-0"/> <div><p className="font-bold">Escríbenos</p><p className="text-gray-400 text-sm break-all">{content.contact.email}</p></div></div>
                                         </div>
                                     </div>
-                                    <div className="lg:w-2/3 min-h-[400px] relative">
-                                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3145.897350785168!2d-1.1627!3d37.9315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd63806295555555%3A0x123456789!2sAv.%20de%20Burgos%2C%2030120%20El%20Palmar%2C%20Murcia!5e0!3m2!1ses!2ses!4v1234567890" 
-                                            className="absolute inset-0 w-full h-full border-0" allowFullScreen loading="lazy"></iframe>
+                                    <div className="lg:w-2/3 min-h-[400px] relative group">
+                                        <iframe src={MAP_URL} 
+                                            className="absolute inset-0 w-full h-full border-0 grayscale group-hover:grayscale-0 transition-all duration-700" allowFullScreen loading="lazy"></iframe>
+                                        
+                                        {/* Overlay buttons for map interaction */}
+                                        <div className="absolute bottom-6 right-6 flex flex-col sm:flex-row gap-3 z-10">
+                                            <button 
+                                                onClick={() => setIsMapModalOpen(true)}
+                                                className="bg-white text-brand-dark px-5 py-2.5 rounded-xl shadow-lg font-bold text-sm flex items-center gap-2 hover:bg-brand-green hover:text-white transition-all transform hover:scale-105 border border-gray-100"
+                                            >
+                                                <Maximize2 size={18} /> Ampliar Mapa
+                                            </button>
+                                            <a 
+                                                href={DIRECTIONS_URL} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="bg-brand-green text-white px-5 py-2.5 rounded-xl shadow-lg font-bold text-sm flex items-center gap-2 hover:bg-green-700 transition-all transform hover:scale-105"
+                                            >
+                                                <ExternalLink size={18} /> Cómo llegar
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </Reveal>
@@ -643,6 +684,8 @@
                     <footer className="bg-brand-dark text-white py-8 text-center text-sm border-t border-white/10">
                         <p>&copy; 2026 Clínica Nuevo Palmar. Diseño Estrategia Digital.</p>
                     </footer>
+                    
+                    <MapModal isOpen={isMapModalOpen} onClose={() => setIsMapModalOpen(false)} />
                 </div>
             );
         };
