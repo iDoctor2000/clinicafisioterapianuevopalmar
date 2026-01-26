@@ -3,7 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clínica Nuevo Palmar | Fisioterapia & Pilates</title>
+    
+    <!-- SEO & METADATA -->
+    <title>Clínica Nuevo Palmar | Fisioterapia, Osteopatía & Pilates en Murcia</title>
+    <meta name="description" content="Clínica de fisioterapia y pilates en El Palmar (Murcia). Más de 25 años de experiencia en osteopatía, punción seca, rehabilitación deportiva y terapia manual. Director: José Diego Frutos.">
+    <meta name="keywords" content="fisioterapia el palmar, pilates murcia, osteopatía, rehabilitación deportiva, punción seca, terapia manual, clínica fisioterapia murcia, jose diego frutos">
+    <meta name="author" content="Clínica Nuevo Palmar">
+    <meta name="robots" content="index, follow">
+
+    <!-- OPEN GRAPH (Redes Sociales) -->
+    <meta property="og:title" content="Clínica Nuevo Palmar | Fisioterapia & Pilates">
+    <meta property="og:description" content="Recupera tu bienestar con nuestros tratamientos personalizados. Expertos en fisioterapia avanzada y pilates terapéutico.">
+    <meta property="og:image" content="assets/Portada Clinica.png">
+    <meta property="og:type" content="website">
     
     <!-- FAVICON -->
     <link rel="icon" type="image/png" href="assets/favicon.png">
@@ -265,7 +277,7 @@
             if (!image) return null;
             return (
                 <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-                    <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full" onClick={onClose}>
+                    <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full" onClick={onClose} aria-label="Cerrar modal">
                         <X size={24} />
                     </button>
                     <div className="max-w-5xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col md:flex-row max-h-[90vh]" onClick={e => e.stopPropagation()}>
@@ -293,7 +305,7 @@
             if (!isOpen) return null;
             return (
                 <div className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-                     <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full z-50" onClick={onClose}>
+                     <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full z-50" onClick={onClose} aria-label="Cerrar mapa">
                         <X size={24} />
                     </button>
                     <div className="w-full h-full max-w-6xl max-h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in relative">
@@ -302,6 +314,7 @@
                             className="w-full h-full border-0" 
                             allowFullScreen 
                             loading="lazy"
+                            title="Mapa de ubicación Clínica Nuevo Palmar"
                         ></iframe>
                     </div>
                 </div>
@@ -363,7 +376,7 @@
                             <h2 className="text-xl font-bold flex items-center gap-2">
                                 {isAdmin ? '⚙️ Editor' : '🔒 Acceso Privado'}
                             </h2>
-                            <button onClick={onClose}><X /></button>
+                            <button onClick={onClose} aria-label="Cerrar panel admin"><X /></button>
                         </div>
                         
                         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
@@ -429,7 +442,12 @@
                     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur shadow-sm py-4' : 'bg-transparent py-6'}`}>
                         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <img src="assets/logo.png" className="h-12 w-auto object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }}/>
+                                <img 
+                                  src="assets/logo.png" 
+                                  alt="Logotipo Clínica Nuevo Palmar"
+                                  className="h-12 w-auto object-contain" 
+                                  onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }}
+                                />
                                 <span className="text-2xl font-serif font-bold text-brand-green hidden">Nuevo Palmar</span>
                             </div>
 
@@ -443,12 +461,12 @@
                                 <a href={`tel:${content.contact.phone.replace(/\s/g, '')}`} className="flex items-center gap-2 bg-brand-green text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-0.5">
                                     <Phone size={16} /> {content.contact.phone}
                                 </a>
-                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark transition-colors"><Settings size={20}/></button>
+                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark transition-colors" aria-label="Abrir panel admin"><Settings size={20}/></button>
                             </div>
 
                             <div className="md:hidden flex items-center gap-4">
-                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark"><Settings size={20}/></button>
-                                <button onClick={() => setMobileOpen(!mobileOpen)} className="text-brand-dark">{mobileOpen ? <X /> : <Menu />}</button>
+                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark" aria-label="Abrir panel admin"><Settings size={20}/></button>
+                                <button onClick={() => setMobileOpen(!mobileOpen)} className="text-brand-dark" aria-label="Menú móvil">{mobileOpen ? <X /> : <Menu />}</button>
                             </div>
                         </div>
 
@@ -476,7 +494,11 @@
                     {/* HERO */}
                     <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-brand-beige">
                         <div className="absolute inset-0">
-                            <img src="assets/Portada Clinica.png" className="w-full h-full object-cover opacity-90 animate-[pulse_10s_infinite]" />
+                            <img 
+                              src="assets/Portada Clinica.png" 
+                              alt="Fachada principal de la Clínica Nuevo Palmar"
+                              className="w-full h-full object-cover opacity-90 animate-[pulse_10s_infinite]" 
+                            />
                             <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent"></div>
                         </div>
                         <div className="max-w-7xl mx-auto px-4 relative z-10 w-full">
@@ -504,7 +526,11 @@
                                 <Reveal delay={200}>
                                     <div className="absolute -top-4 -left-4 w-2/3 h-2/3 bg-brand-beige rounded-3xl -z-10" />
                                     <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/5] group">
-                                        <img src="assets/Jose Diego.png" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                        <img 
+                                          src="assets/Jose Diego.png" 
+                                          alt="José Diego Frutos Bernal, Director y Fisioterapeuta"
+                                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                        />
                                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-8 text-white">
                                             <p className="font-serif text-2xl">José Diego Frutos Bernal</p>
                                             <p className="text-white/80">Director & Fisioterapeuta</p>
@@ -565,7 +591,7 @@
                     <Gallery />
 
                     {/* PARALLAX INTERIOR */}
-                    <section className="relative h-[60vh] bg-fixed bg-center bg-cover flex items-center justify-center" style={{ backgroundImage: "url('assets/interior.png')" }}>
+                    <section className="relative h-[60vh] bg-fixed bg-center bg-cover flex items-center justify-center" style={{ backgroundImage: "url('assets/interior.png')" }} aria-label="Interior de la clínica, instalaciones de vanguardia">
                         <div className="absolute inset-0 bg-black/40"></div>
                         <div className="relative text-center text-white p-4">
                             <Reveal>
@@ -578,7 +604,7 @@
                     {/* PILATES */}
                     <section id="pilates" className="py-24 relative overflow-hidden bg-brand-dark">
                         <div className="absolute inset-0 opacity-10 mix-blend-overlay">
-                             <img src="assets/Cara abstracta.jpeg" className="w-full h-full object-cover grayscale" />
+                             <img src="assets/Cara abstracta.jpeg" alt="Decoración artística escuela de salud" className="w-full h-full object-cover grayscale" />
                         </div>
                         <div className="max-w-7xl mx-auto px-4 relative z-10 grid lg:grid-cols-12 gap-12">
                             <div className="lg:col-span-5 text-white">
@@ -624,7 +650,11 @@
                                     <Reveal key={i} delay={i*100}>
                                         <article className="group cursor-pointer">
                                             <div className="aspect-video rounded-2xl bg-gray-100 overflow-hidden mb-4">
-                                                <img src={`https://picsum.photos/400/300?random=${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                                                <img 
+                                                  src={`https://picsum.photos/400/300?random=${i}`} 
+                                                  alt={`Imagen ilustrativa artículo de salud ${i}`}
+                                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                />
                                             </div>
                                             <h4 className="font-bold text-lg mb-2 group-hover:text-brand-green transition-colors">Artículo de Salud {i}</h4>
                                             <p className="text-gray-600 text-sm">Consejos prácticos para mejorar tu bienestar diario y prevenir lesiones.</p>
@@ -650,7 +680,11 @@
                                     </div>
                                     <div className="lg:w-2/3 min-h-[400px] relative group">
                                         <iframe src={MAP_URL} 
-                                            className="absolute inset-0 w-full h-full border-0 grayscale group-hover:grayscale-0 transition-all duration-700" allowFullScreen loading="lazy"></iframe>
+                                            className="absolute inset-0 w-full h-full border-0 grayscale group-hover:grayscale-0 transition-all duration-700" 
+                                            allowFullScreen 
+                                            loading="lazy"
+                                            title="Mapa ubicación clínica"
+                                        ></iframe>
                                         
                                         {/* Overlay buttons for map interaction */}
                                         <div className="absolute bottom-6 right-6 flex flex-col sm:flex-row gap-3 z-10">
