@@ -6,14 +6,14 @@
     
     <!-- SEO & METADATA -->
     <title>Clínica Nuevo Palmar | Fisioterapia, Osteopatía & Pilates en Murcia</title>
-    <meta name="description" content="Clínica de fisioterapia y pilates en El Palmar (Murcia). Más de 25 años de experiencia en osteopatía, punción seca, rehabilitación deportiva y terapia manual. Director: José Diego Frutos.">
+    <meta name="description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
     <meta name="keywords" content="fisioterapia el palmar, pilates murcia, osteopatía, rehabilitación deportiva, punción seca, terapia manual, clínica fisioterapia murcia, jose diego frutos">
     <meta name="author" content="Clínica Nuevo Palmar">
     <meta name="robots" content="index, follow">
 
     <!-- OPEN GRAPH -->
     <meta property="og:title" content="Clínica Nuevo Palmar | Fisioterapia & Pilates">
-    <meta property="og:description" content="Recupera tu bienestar con nuestros tratamientos personalizados. Expertos en fisioterapia avanzada y pilates terapéutico.">
+    <meta property="og:description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
     <meta property="og:image" content="assets/Portada Clinica.png">
     <meta property="og:type" content="website">
     
@@ -129,7 +129,7 @@
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle
+            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle, Quote
         } from 'lucide-react';
 
         // --- DATOS POR DEFECTO ---
@@ -166,6 +166,7 @@
 
         const SERVICES_LIST = [
             { 
+                id: 'osteopatia',
                 title: 'Osteopatía', 
                 description: 'Terapia manual para la integridad estructural (visceral y craneal). Restauramos el equilibrio del cuerpo mediante técnicas suaves y efectivas.', 
                 icon: Bone,
@@ -173,6 +174,7 @@
                 category: 'Estructural'
             },
             { 
+                id: 'puncion',
                 title: 'Punción Seca', 
                 description: 'Técnica invasiva de alta efectividad muscular para puntos gatillo. Alivio inmediato del dolor miofascial crónico y agudo.', 
                 icon: Activity,
@@ -180,6 +182,7 @@
                 category: 'Invasiva'
             },
             { 
+                id: 'deportiva',
                 title: 'Lesiones Deportivas', 
                 description: 'Desde traumatismos y esguinces hasta gestos deportivos. Readaptación funcional personalizada para volver a competir al máximo nivel.', 
                 icon: Activity,
@@ -187,6 +190,7 @@
                 category: 'Deportiva'
             },
             { 
+                id: 'trafico',
                 title: 'Accidentes Tráfico', 
                 description: 'Gestión integral, rehabilitación y valoración del daño corporal. Recuperación completa asistida sin costes directos para ti.', 
                 icon: Car,
@@ -194,6 +198,7 @@
                 category: 'Rehabilitación'
             },
             { 
+                id: 'manual',
                 title: 'Terapia Manual', 
                 description: 'Desde estiramientos hasta quiropraxia avanzada. El poder de las manos para sanar, aliviar tensiones y mejorar la movilidad.', 
                 icon: Heart,
@@ -201,12 +206,19 @@
                 category: 'Manual'
             },
             { 
+                id: 'geriatria',
                 title: 'Fisioterapia Geriátrica', 
                 description: 'Tratamiento especializado para personas mayores. Mantenimiento de la movilidad, independencia y calidad de vida.', 
                 icon: UserCheck,
                 img: 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&q=80&w=800',
                 category: 'Geriátrica'
             }
+        ];
+
+        const TESTIMONIALS = [
+            { id: 1, name: "María García", rating: 5, text: "Después de mi accidente, el equipo fue fundamental. Su profesionalidad no tiene igual." },
+            { id: 2, name: "Juan López", rating: 5, text: "Llevaba años con dolor de espalda. Los especialistas en columna me devolvieron la calidad de vida." },
+            { id: 3, name: "Sofía Martínez", rating: 5, text: "El trato humano es excepcional. Se nota la experiencia de José Diego." },
         ];
 
         // --- FESTIVOS REGION DE MURCIA (2024-2025 aprox) ---
@@ -648,18 +660,43 @@
             );
         };
 
-        const Gallery = () => {
+        const Services = () => {
             const [selectedImage, setSelectedImage] = useState(null);
-            const { content } = useContent();
+            
             return (
-                <section id="gallery" className="py-24 bg-white relative">
+                <section id="services" className="py-24 bg-brand-light">
                     <div className="max-w-7xl mx-auto px-4">
+                        <div className="text-center max-w-3xl mx-auto mb-16">
+                            <Reveal>
+                                <h2 className="text-brand-green font-bold uppercase mb-2">Servicios Clínicos</h2>
+                                <h3 className="font-serif text-4xl text-brand-dark mb-6">Cartera Integral de Servicios</h3>
+                                <p className="text-gray-600 text-lg">Abordamos tu salud desde una perspectiva global, combinando técnicas manuales tradicionales con la última evidencia científica.</p>
+                            </Reveal>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-3 gap-8 mb-24">
+                            {SERVICES_LIST.map((svc, i) => (
+                                <Reveal key={i} delay={i*100}>
+                                    <div 
+                                        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden cursor-pointer"
+                                        onClick={() => setSelectedImage(svc)}
+                                    >
+                                        <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity"><ArrowUpRight className="text-brand-green h-6 w-6" /></div>
+                                        <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors"><svc.icon size={28} /></div>
+                                        <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
+                                        <p className="text-gray-600">{svc.description}</p>
+                                    </div>
+                                </Reveal>
+                            ))}
+                        </div>
+
                         <Reveal>
-                            <div className="text-center mb-16">
-                                <h2 className="text-brand-green font-bold uppercase mb-2">{content.gallery.title}</h2>
-                                <h3 className="font-serif text-4xl text-brand-dark">{content.gallery.subtitle}</h3>
+                            <div className="text-center mb-12 border-t border-gray-200 pt-16">
+                                <h3 className="font-serif text-3xl text-brand-dark">Galería de Tratamientos</h3>
+                                <p className="text-gray-600 mt-2">Nuestras instalaciones y técnicas en acción</p>
                             </div>
                         </Reveal>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {SERVICES_LIST.map((item, index) => (
                                 <Reveal key={index} delay={index * 100}>
@@ -678,6 +715,70 @@
                         </div>
                     </div>
                     <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} />
+                </section>
+            );
+        };
+
+        const Testimonials = () => {
+            const [activeIndex, setActiveIndex] = useState(0);
+
+            const next = () => setActiveIndex((prev) => (prev + 1) % TESTIMONIALS.length);
+            const prev = () => setActiveIndex((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+
+            useEffect(() => {
+                const interval = setInterval(next, 6000);
+                return () => clearInterval(interval);
+            }, []);
+
+            return (
+                <section className="py-24 bg-brand-dark text-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-64 h-64 bg-brand-green/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-green/5 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
+
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                        <Reveal>
+                            <div className="text-center mb-16">
+                                <h2 className="text-brand-green font-semibold tracking-wider uppercase mb-2">Testimonios</h2>
+                                <h3 className="font-serif text-3xl md:text-4xl text-white">Pacientes Felices</h3>
+                            </div>
+                        </Reveal>
+
+                        <Reveal delay={200}>
+                            <div className="max-w-4xl mx-auto relative">
+                                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 md:p-12 relative min-h-[300px] flex flex-col items-center justify-center text-center">
+                                    <Quote className="text-brand-green/20 w-16 h-16 absolute top-6 left-6 -scale-x-100" />
+                                    
+                                    <div className="flex gap-1 mb-6 relative z-10">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} size={20} className={`${i < TESTIMONIALS[activeIndex].rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
+                                        ))}
+                                    </div>
+
+                                    <p className="font-serif text-xl md:text-2xl italic leading-relaxed mb-8 text-gray-200 relative z-10">
+                                        "{TESTIMONIALS[activeIndex].text}"
+                                    </p>
+
+                                    <div className="relative z-10">
+                                        <h4 className="font-bold text-lg">{TESTIMONIALS[activeIndex].name}</h4>
+                                        <p className="text-brand-green text-sm font-semibold tracking-wider uppercase mt-1">Paciente Verificado</p>
+                                    </div>
+                                </div>
+
+                                <button onClick={prev} className="absolute top-1/2 -left-4 md:-left-12 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-brand-green transition-all text-white backdrop-blur-md z-20 group" aria-label="Anterior">
+                                    <ChevronLeft className="group-hover:-translate-x-0.5 transition-transform" />
+                                </button>
+                                <button onClick={next} className="absolute top-1/2 -right-4 md:-right-12 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-brand-green transition-all text-white backdrop-blur-md z-20 group" aria-label="Siguiente">
+                                    <ChevronRight className="group-hover:translate-x-0.5 transition-transform" />
+                                </button>
+
+                                <div className="flex justify-center gap-2 mt-8">
+                                    {TESTIMONIALS.map((_, idx) => (
+                                        <button key={idx} onClick={() => setActiveIndex(idx)} className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeIndex ? 'w-8 bg-brand-green' : 'w-2 bg-gray-600 hover:bg-gray-500'}`} aria-label={`Ir al testimonio ${idx + 1}`} />
+                                    ))}
+                                </div>
+                            </div>
+                        </Reveal>
+                    </div>
                 </section>
             );
         };
@@ -744,13 +845,20 @@
                 return () => window.removeEventListener('scroll', fn);
             }, []);
 
+            const scrollToTop = (e) => {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
             return (
                 <>
                     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur shadow-sm py-4' : 'bg-transparent py-6'}`}>
                         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <img src="assets/logo.png" alt="Logotipo" className="h-12 w-auto object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
-                                <span className="text-2xl font-serif font-bold text-brand-green hidden">Nuevo Palmar</span>
+                                <a href="#" onClick={scrollToTop} className="flex items-center gap-3 cursor-pointer">
+                                    <img src="assets/logo.png" alt="Logotipo" className="h-12 w-auto object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+                                    <span className="text-2xl font-serif font-bold text-brand-green hidden">Nuevo Palmar</span>
+                                </a>
                             </div>
                             <div className="hidden md:flex items-center space-x-8">
                                 {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map((item, i) => (
@@ -781,6 +889,14 @@
             const { content } = useContent();
             const [isMapModalOpen, setIsMapModalOpen] = useState(false);
             const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+            // Scroll to top on mount
+            useEffect(() => {
+                if ('scrollRestoration' in history) {
+                    history.scrollRestoration = 'manual';
+                }
+                window.scrollTo(0, 0);
+            }, []);
 
             return (
                 <div className="min-h-screen">
@@ -831,25 +947,7 @@
                         </div>
                     </section>
 
-                    {/* SERVICES */}
-                    <section id="services" className="py-24 bg-brand-light">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <div className="text-center max-w-3xl mx-auto mb-16"><Reveal><h2 className="text-brand-green font-bold uppercase mb-2">Servicios</h2><h3 className="font-serif text-4xl text-brand-dark">Cuidado Integral</h3></Reveal></div>
-                            <div className="grid md:grid-cols-3 gap-8">
-                                {SERVICES_LIST.map((svc, i) => (
-                                    <Reveal key={i} delay={i*100}>
-                                        <div className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden">
-                                            <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors"><svc.icon size={28} /></div>
-                                            <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
-                                            <p className="text-gray-600">{svc.description}</p>
-                                        </div>
-                                    </Reveal>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                    
-                    <Gallery />
+                    <Services />
 
                     {/* PARALLAX */}
                     <section className="relative h-[60vh] bg-fixed bg-center bg-cover flex items-center justify-center" style={{ backgroundImage: "url('assets/interior.png')" }} aria-label="Instalaciones">
@@ -917,6 +1015,8 @@
                             </div>
                         </div>
                     </section>
+
+                    <Testimonials />
 
                     {/* CONTACT */}
                     <section id="contact" className="py-24 bg-brand-light">
