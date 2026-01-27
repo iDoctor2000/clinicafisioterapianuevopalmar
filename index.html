@@ -137,7 +137,7 @@
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
             ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle, Quote,
-            Plus, Minus, User, MessageCircle
+            Plus, Minus, User, MessageCircle, Fingerprint
         } from 'lucide-react';
 
         // --- DATOS POR DEFECTO ---
@@ -342,7 +342,8 @@
                     login: (p) => { if(p==="JoseDiego2026"){setIsAdmin(true); return true;} return false; },
                     logout: () => setIsAdmin(false), 
                     resetToDefaults: () => { if(confirm("¿Restaurar?")) { setContent(DEFAULT_CONTENT); if(!window.db) localStorage.removeItem('site_content_v1'); }},
-                    isFirebaseReady 
+                    isFirebaseReady,
+                    setIsAdmin // Exposed for biometric login
                 }}>
                     {children}
                 </ContentContext.Provider>
@@ -405,7 +406,6 @@
                 today.setHours(0,0,0,0);
                 if (date < today) return true;
                 if (date.getDay() === 0 || date.getDay() === 6) return true;
-                // Add 1 to month because formatting is 0-indexed in JS but 1-indexed in our string
                 const month = (date.getMonth() + 1).toString().padStart(2, '0');
                 const dayStr = date.getDate().toString().padStart(2, '0');
                 const dateString = `${date.getFullYear()}-${month}-${dayStr}`;
@@ -838,9 +838,24 @@
         }
 
         const AdminPanel = ({ isOpen, onClose }) => {
-            const { content, updateContent, isAdmin, login, logout, resetToDefaults, isFirebaseReady } = useContent();
+            const { content, updateContent, isAdmin, login, logout, resetToDefaults, isFirebaseReady, setIsAdmin } = useContent();
             const [pass, setPass] = useState("");
             const [tab, setTab] = useState('hero');
+            const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
+            const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+            useEffect(() => {
+                const checkBio = async () => {
+                    if (window.PublicKeyCredential && (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) {
+                        setIsBiometricAvailable(true);
+                    }
+                    if (localStorage.getItem('bio_id')) {
+                        setBiometricEnabled(true);
+                    }
+                };
+                if(isOpen) checkBio();
+            }, [isOpen]);
+
             if (!isOpen) return null;
             
             // Tabs config
@@ -853,6 +868,60 @@
                 { id: 'pilates', label: 'Pilates' }
             ];
 
+            const registerBiometric = async () => {
+                try {
+                    const challenge = new Uint8Array(32);
+                    window.crypto.getRandomValues(challenge);
+                    const userId = new Uint8Array(16);
+                    window.crypto.getRandomValues(userId);
+                    
+                    const credential = await navigator.credentials.create({
+                        publicKey: {
+                            challenge,
+                            rp: { name: "Clínica Nuevo Palmar", id: window.location.hostname },
+                            user: { id: userId, name: "admin", displayName: "Admin" },
+                            pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+                            timeout: 60000,
+                            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+                        }
+                    });
+                    
+                    if (credential) {
+                        const rawId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+                        localStorage.setItem('bio_id', rawId);
+                        setBiometricEnabled(true);
+                        alert("¡Biometría activada con éxito!");
+                    }
+                } catch (e) {
+                    console.error("Bio registration failed", e);
+                    alert("No se pudo activar. Usa localhost o HTTPS.");
+                }
+            };
+
+            const loginBiometric = async () => {
+                try {
+                    const savedId = localStorage.getItem('bio_id');
+                    if (!savedId) return;
+                    
+                    const challenge = new Uint8Array(32);
+                    window.crypto.getRandomValues(challenge);
+                    
+                    await navigator.credentials.get({
+                        publicKey: {
+                            challenge,
+                            allowCredentials: [{
+                                id: Uint8Array.from(atob(savedId), c => c.charCodeAt(0)),
+                                type: 'public-key',
+                            }],
+                            userVerification: "required"
+                        }
+                    });
+                    setIsAdmin(true); // Direct login via context
+                } catch (e) {
+                    console.error("Bio login failed", e);
+                }
+            };
+
             return (
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -864,7 +933,14 @@
                             {!isAdmin ? (
                                 <div className="text-center py-8">
                                     <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4"><Lock /></div>
-                                    <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Contraseña" className="w-full max-w-xs px-4 py-3 border rounded-lg mb-4 text-center mx-auto block" />
+                                    <div className="flex gap-2 justify-center max-w-xs mx-auto mb-4">
+                                        <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Contraseña" className="flex-1 px-4 py-3 border rounded-lg text-center" />
+                                        {biometricEnabled && (
+                                            <button onClick={loginBiometric} className="px-3 bg-brand-green/10 text-brand-green rounded-lg hover:bg-brand-green/20" title="Usar Huella/Cara">
+                                                <Fingerprint size={24} />
+                                            </button>
+                                        )}
+                                    </div>
                                     <Button onClick={() => login(pass) || alert("Contraseña incorrecta")}>Entrar</Button>
                                 </div>
                             ) : (
@@ -880,9 +956,23 @@
                                     </div>
                                     
                                     {tab === 'config' && (
-                                        <div className="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
-                                            <h4 className="font-bold mb-1">Variables para WhatsApp:</h4>
-                                            <p className="mb-2">Usa <code>{`{name}`}</code>, <code>{`{date}`}</code>, <code>{`{time}`}</code> y <code>{`{comments}`}</code> en la plantilla.</p>
+                                        <div className="space-y-4 mb-6">
+                                            <div className="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
+                                                <h4 className="font-bold mb-1">Variables para WhatsApp:</h4>
+                                                <p className="mb-2">Usa <code>{`{name}`}</code>, <code>{`{date}`}</code>, <code>{`{time}`}</code> y <code>{`{comments}`}</code> en la plantilla.</p>
+                                            </div>
+                                            {!biometricEnabled && isBiometricAvailable && (
+                                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                                    <div className="flex items-center gap-3">
+                                                        <Fingerprint className="text-gray-500" />
+                                                        <div className="text-sm">
+                                                            <p className="font-bold text-gray-700">Acceso Biométrico</p>
+                                                            <p className="text-gray-500">Activa FaceID/TouchID para entrar sin contraseña.</p>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={registerBiometric} className="px-3 py-1.5 text-xs font-bold bg-brand-green text-white rounded-lg">Activar</button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
