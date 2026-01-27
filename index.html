@@ -166,6 +166,7 @@
 
         const SERVICES_LIST = [
             { 
+                id: 'osteopatia',
                 title: 'Osteopatía', 
                 description: 'Terapia manual para la integridad estructural (visceral y craneal). Restauramos el equilibrio del cuerpo mediante técnicas suaves y efectivas.', 
                 icon: Bone,
@@ -173,6 +174,7 @@
                 category: 'Estructural'
             },
             { 
+                id: 'puncion',
                 title: 'Punción Seca', 
                 description: 'Técnica invasiva de alta efectividad muscular para puntos gatillo. Alivio inmediato del dolor miofascial crónico y agudo.', 
                 icon: Activity,
@@ -180,6 +182,7 @@
                 category: 'Invasiva'
             },
             { 
+                id: 'deportiva',
                 title: 'Lesiones Deportivas', 
                 description: 'Desde traumatismos y esguinces hasta gestos deportivos. Readaptación funcional personalizada para volver a competir al máximo nivel.', 
                 icon: Activity,
@@ -187,6 +190,7 @@
                 category: 'Deportiva'
             },
             { 
+                id: 'trafico',
                 title: 'Accidentes Tráfico', 
                 description: 'Gestión integral, rehabilitación y valoración del daño corporal. Recuperación completa asistida sin costes directos para ti.', 
                 icon: Car,
@@ -194,6 +198,7 @@
                 category: 'Rehabilitación'
             },
             { 
+                id: 'manual',
                 title: 'Terapia Manual', 
                 description: 'Desde estiramientos hasta quiropraxia avanzada. El poder de las manos para sanar, aliviar tensiones y mejorar la movilidad.', 
                 icon: Heart,
@@ -201,6 +206,7 @@
                 category: 'Manual'
             },
             { 
+                id: 'geriatria',
                 title: 'Fisioterapia Geriátrica', 
                 description: 'Tratamiento especializado para personas mayores. Mantenimiento de la movilidad, independencia y calidad de vida.', 
                 icon: UserCheck,
@@ -654,18 +660,43 @@
             );
         };
 
-        const Gallery = () => {
+        const Services = () => {
             const [selectedImage, setSelectedImage] = useState(null);
-            const { content } = useContent();
+            
             return (
-                <section id="gallery" className="py-24 bg-white relative">
+                <section id="services" className="py-24 bg-brand-light">
                     <div className="max-w-7xl mx-auto px-4">
+                        <div className="text-center max-w-3xl mx-auto mb-16">
+                            <Reveal>
+                                <h2 className="text-brand-green font-bold uppercase mb-2">Servicios Clínicos</h2>
+                                <h3 className="font-serif text-4xl text-brand-dark mb-6">Cartera Integral de Servicios</h3>
+                                <p className="text-gray-600 text-lg">Abordamos tu salud desde una perspectiva global, combinando técnicas manuales tradicionales con la última evidencia científica.</p>
+                            </Reveal>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-3 gap-8 mb-24">
+                            {SERVICES_LIST.map((svc, i) => (
+                                <Reveal key={i} delay={i*100}>
+                                    <div 
+                                        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden cursor-pointer"
+                                        onClick={() => setSelectedImage(svc)}
+                                    >
+                                        <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity"><ArrowUpRight className="text-brand-green h-6 w-6" /></div>
+                                        <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors"><svc.icon size={28} /></div>
+                                        <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
+                                        <p className="text-gray-600">{svc.description}</p>
+                                    </div>
+                                </Reveal>
+                            ))}
+                        </div>
+
                         <Reveal>
-                            <div className="text-center mb-16">
-                                <h2 className="text-brand-green font-bold uppercase mb-2">{content.gallery.title}</h2>
-                                <h3 className="font-serif text-4xl text-brand-dark">{content.gallery.subtitle}</h3>
+                            <div className="text-center mb-12 border-t border-gray-200 pt-16">
+                                <h3 className="font-serif text-3xl text-brand-dark">Galería de Tratamientos</h3>
+                                <p className="text-gray-600 mt-2">Nuestras instalaciones y técnicas en acción</p>
                             </div>
                         </Reveal>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {SERVICES_LIST.map((item, index) => (
                                 <Reveal key={index} delay={index * 100}>
@@ -901,25 +932,7 @@
                         </div>
                     </section>
 
-                    {/* SERVICES */}
-                    <section id="services" className="py-24 bg-brand-light">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <div className="text-center max-w-3xl mx-auto mb-16"><Reveal><h2 className="text-brand-green font-bold uppercase mb-2">Servicios</h2><h3 className="font-serif text-4xl text-brand-dark">Cuidado Integral</h3></Reveal></div>
-                            <div className="grid md:grid-cols-3 gap-8">
-                                {SERVICES_LIST.map((svc, i) => (
-                                    <Reveal key={i} delay={i*100}>
-                                        <div className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden">
-                                            <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors"><svc.icon size={28} /></div>
-                                            <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
-                                            <p className="text-gray-600">{svc.description}</p>
-                                        </div>
-                                    </Reveal>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                    
-                    <Gallery />
+                    <Services />
 
                     {/* PARALLAX */}
                     <section className="relative h-[60vh] bg-fixed bg-center bg-cover flex items-center justify-center" style={{ backgroundImage: "url('assets/interior.png')" }} aria-label="Instalaciones">
