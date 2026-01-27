@@ -43,6 +43,7 @@
               'fade-in': 'fadeIn 0.3s ease-out',
               'scale-in': 'scaleIn 0.3s ease-out',
               'breath': 'breath 2.5s ease-in-out infinite',
+              'subtle-pulse': 'subtlePulse 3s ease-in-out infinite',
             },
             keyframes: {
               fadeIn: {
@@ -57,6 +58,10 @@
                 '0%': { transform: 'scale(0.9)', opacity: '0.85' },
                 '50%': { transform: 'scale(1.05)', opacity: '1' },
                 '100%': { transform: 'scale(0.9)', opacity: '0.85' },
+              },
+              subtlePulse: {
+                '0%, 100%': { transform: 'scale(1)' },
+                '50%': { transform: 'scale(1.1)' },
               }
             }
           }
@@ -92,6 +97,8 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
         /* Estilos para el calendario */
         .react-calendar-tile:disabled { opacity: 0.3; cursor: not-allowed; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="font-sans text-brand-dark bg-white antialiased">
@@ -129,7 +136,8 @@
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle, Quote
+            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle, Quote,
+            Plus, Minus, User, MessageCircle
         } from 'lucide-react';
 
         // --- DATOS POR DEFECTO ---
@@ -141,6 +149,11 @@
                 description: "25 años de trayectoria trasladados a un ecosistema de salud integral. Fisioterapia honesta, pilates terapéutico y trato humano en El Palmar.",
                 buttonPrimary: "Reservar Cita",
                 buttonSecondary: "Ver Tratamientos"
+            },
+            config: {
+                whatsappPhone: "34968885931",
+                whatsappTemplate: "Hola, soy {name}. Me gustaría solicitar una cita el {date} a las {time}. Comentarios: {comments}",
+                holidays: "2024-01-01, 2024-01-06, 2024-03-19, 2024-03-28, 2024-03-29, 2024-05-01, 2024-06-09, 2024-08-15, 2024-10-12, 2024-11-01, 2024-12-06, 2024-12-09, 2024-12-25, 2025-01-01"
             },
             gallery: {
                 title: "Galería de Servicios",
@@ -158,6 +171,14 @@
                 priceIndividual: "Consultar",
                 pricePair: "Consultar",
                 priceGroup: "Consultar"
+            },
+            blog: {
+                post1_title: "Beneficios del Pilates Terapéutico",
+                post1_excerpt: "Descubre cómo el pilates puede transformar tu postura y eliminar dolores crónicos de espalda.",
+                post2_title: "Prevención de Lesiones",
+                post2_excerpt: "Pequeños cambios en tu rutina diaria que protegen tus articulaciones a largo plazo.",
+                post3_title: "Terapia Manual vs Masaje",
+                post3_excerpt: "Diferencias clave entre un masaje relajante y un tratamiento clínico fisioterapéutico."
             }
         };
 
@@ -221,10 +242,17 @@
             { id: 3, name: "Sofía Martínez", rating: 5, text: "El trato humano es excepcional. Se nota la experiencia de José Diego." },
         ];
 
-        // --- FESTIVOS REGION DE MURCIA (2024-2025 aprox) ---
-        const MURCIA_HOLIDAYS = [
-            '2024-01-01', '2024-01-06', '2024-03-19', '2024-03-28', '2024-03-29', '2024-05-01', '2024-06-09', '2024-08-15', '2024-10-12', '2024-11-01', '2024-12-06', '2024-12-09', '2024-12-25',
-            '2025-01-01', '2025-01-06', '2025-03-19', '2025-04-17', '2025-04-18', '2025-05-01', '2025-06-09', '2025-08-15', '2025-10-12', '2025-11-01', '2025-12-06', '2025-12-08', '2025-12-25'
+        const FAQS = [
+            { q: "¿Trabajáis con compañías de seguros?", a: "Sí, trabajamos con las principales aseguradoras como ASISA, MAPFRE, DKV y CASER. Consúltanos para verificar tu cobertura específica." },
+            { q: "¿Tengo que llevar ropa especial?", a: "Recomendamos ropa cómoda que permita la movilidad y facilite el acceso a la zona a tratar. Disponemos de vestuarios." },
+            { q: "¿Hay aparcamiento cerca?", a: "Sí, la zona de Avenida de Burgos cuenta con zonas de aparcamiento público y fácil acceso." },
+            { q: "¿Cuánto dura una sesión?", a: "Las sesiones de fisioterapia suelen durar entre 45 y 60 minutos, dependiendo de la patología y el tratamiento necesario." }
+        ];
+
+        const TEAM = [
+            { name: "José Diego Frutos", role: "Director & Fisioterapeuta", num: "Col. 345", img: "assets/Jose Diego.png" },
+            { name: "Ana Martínez", role: "Especialista en Pilates", num: "Col. 892", img: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=400" },
+            { name: "Carlos Ruiz", role: "Fisioterapia Deportiva", num: "Col. 1240", img: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=400" }
         ];
 
         // --- CONTEXT ---
@@ -344,30 +372,31 @@
                 primary: "bg-brand-green hover:bg-green-700 text-white",
                 outline: "border-2 border-brand-green text-brand-green hover:bg-brand-green hover:text-white bg-white/50 backdrop-blur-sm",
                 accent: "bg-brand-accent hover:bg-red-600 text-white",
-                dark: "bg-brand-dark hover:bg-gray-800 text-white"
+                dark: "bg-brand-dark hover:bg-gray-800 text-white",
+                whatsapp: "bg-[#25D366] hover:bg-[#128C7E] text-white"
             };
             return <button className={`${base} ${styles[variant]} ${className}`} {...props}>{children}</button>;
         };
 
-        // --- BOOKING MODAL ---
+        // --- BOOKING MODAL (UPDATED WITH WHATSAPP) ---
         const BookingModal = ({ isOpen, onClose }) => {
-            const [step, setStep] = useState(1); // 1: Date, 2: Time, 3: Form, 4: Success
+            const { content } = useContent();
+            const [step, setStep] = useState(1); 
             const [selectedDate, setSelectedDate] = useState(null);
             const [selectedTime, setSelectedTime] = useState(null);
             const [currentMonth, setCurrentMonth] = useState(new Date());
-            
-            // Form & Validation State
             const [formData, setFormData] = useState({ name: '', phone: '', comments: '' });
             const [touched, setTouched] = useState({ name: false, phone: false });
             const [errors, setErrors] = useState({ name: '', phone: '' });
 
             if (!isOpen) return null;
 
-            // --- HELPERS ---
+            const holidays = content.config.holidays.split(',').map(d => d.trim());
+
             const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
             const getFirstDayOfMonth = (date) => {
                 let day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-                return day === 0 ? 6 : day - 1; // Ajuste para que Lunes sea 0
+                return day === 0 ? 6 : day - 1; 
             };
 
             const isDateDisabled = (day) => {
@@ -376,12 +405,15 @@
                 today.setHours(0,0,0,0);
                 if (date < today) return true;
                 if (date.getDay() === 0 || date.getDay() === 6) return true;
-                const dateString = date.toISOString().split('T')[0];
-                if (MURCIA_HOLIDAYS.includes(dateString)) return true;
+                // Add 1 to month because formatting is 0-indexed in JS but 1-indexed in our string
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const dayStr = date.getDate().toString().padStart(2, '0');
+                const dateString = `${date.getFullYear()}-${month}-${dayStr}`;
+                if (holidays.includes(dateString)) return true;
                 return false;
             };
 
-            // --- VALIDATION LOGIC ---
+            // ... (Validation functions same as before)
             const validateField = (name, value) => {
                 if (name === 'name') {
                     if (!value.trim()) return "El nombre es obligatorio.";
@@ -389,7 +421,6 @@
                 }
                 if (name === 'phone') {
                     if (!value.trim()) return "El teléfono es obligatorio.";
-                    // Regex simple para telefonos españoles (fijos 9/8, moviles 6/7)
                     const phoneRegex = /^[6789]\d{8}$/;
                     if (!phoneRegex.test(value.replace(/\s/g, ''))) return "Introduce un teléfono válido (9 dígitos).";
                 }
@@ -405,10 +436,7 @@
             const handleChange = (e) => {
                 const { name, value } = e.target;
                 setFormData(prev => ({ ...prev, [name]: value }));
-                // Si ya se ha tocado el campo, validar en tiempo real
-                if (touched[name]) {
-                    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
-                }
+                if (touched[name]) setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
             };
 
             const isFormValid = () => {
@@ -433,17 +461,26 @@
 
             const handleSubmit = (e) => {
                 e.preventDefault();
-                // Validar todo antes de enviar
                 const nameErr = validateField('name', formData.name);
                 const phoneErr = validateField('phone', formData.phone);
-                
                 setTouched({ name: true, phone: true });
                 setErrors({ name: nameErr, phone: phoneErr });
-
                 if (nameErr || phoneErr) return;
+                setStep(4);
+            };
 
-                // Submit simulado
-                setTimeout(() => setStep(4), 1000);
+            const sendWhatsApp = () => {
+                const phone = content.config.whatsappPhone.replace(/\D/g, '');
+                const dateStr = selectedDate?.toLocaleDateString('es-ES');
+                let message = content.config.whatsappTemplate
+                    .replace('{name}', formData.name)
+                    .replace('{date}', dateStr)
+                    .replace('{time}', selectedTime)
+                    .replace('{comments}', formData.comments || "Sin comentarios");
+                
+                const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+                window.open(url, '_blank');
+                onClose();
             };
 
             const renderCalendar = () => {
@@ -507,18 +544,6 @@
                             {step === 2 && (
                                 <div className="animate-fade-in">
                                     <button onClick={() => setStep(1)} className="text-sm text-gray-500 mb-4 hover:text-brand-dark flex items-center gap-1"><ChevronLeft size={16}/> Volver al calendario</button>
-                                    
-                                    {/* RESUMEN FECHA SELECCIONADA */}
-                                    <div className="bg-brand-light/50 p-4 rounded-xl mb-6 flex items-center gap-3 border border-brand-green/10">
-                                        <CalendarIcon className="text-brand-green shrink-0" size={20} />
-                                        <div>
-                                            <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Fecha seleccionada</p>
-                                            <p className="text-brand-dark font-medium capitalize">
-                                                {selectedDate?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                                            </p>
-                                        </div>
-                                    </div>
-
                                     <h3 className="text-xl font-serif font-bold mb-4">Turnos Disponibles</h3>
                                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                                         {generateTimeSlots().map(time => (
@@ -537,8 +562,6 @@
                             {step === 3 && (
                                 <form onSubmit={handleSubmit} className="animate-fade-in space-y-5">
                                     <button type="button" onClick={() => setStep(2)} className="text-sm text-gray-500 mb-2 hover:text-brand-dark flex items-center gap-1"><ChevronLeft size={16}/> Volver a horas</button>
-                                    
-                                    {/* RESUMEN COMPLETO INTERACTIVO */}
                                     <div className="bg-brand-light p-6 rounded-xl mb-6 border border-brand-green/20 relative overflow-hidden">
                                         <div className="absolute top-0 right-0 w-20 h-20 bg-brand-green/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                                         <h3 className="font-serif text-lg font-bold text-brand-dark mb-4 relative z-10">Resumen de tu Reserva</h3>
@@ -555,69 +578,35 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* CAMPOS CON VALIDACIÓN */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo <span className="text-red-500">*</span></label>
-                                        <input 
-                                            name="name"
-                                            value={formData.name} 
-                                            onChange={handleChange}
-                                            onBlur={handleBlur}
-                                            placeholder="Ej: Ana García" 
-                                            className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 
-                                                ${touched.name && errors.name 
-                                                    ? 'border-red-500 focus:ring-red-100 bg-red-50' 
-                                                    : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} 
-                                        />
-                                        {touched.name && errors.name && (
-                                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.name}</p>
-                                        )}
+                                        <input name="name" value={formData.name} onChange={handleChange} onBlur={handleBlur} placeholder="Ej: Ana García" className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 ${touched.name && errors.name ? 'border-red-500 focus:ring-red-100 bg-red-50' : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} />
+                                        {touched.name && errors.name && (<p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.name}</p>)}
                                     </div>
-
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Móvil <span className="text-red-500">*</span></label>
-                                        <input 
-                                            name="phone"
-                                            type="tel"
-                                            value={formData.phone} 
-                                            onChange={handleChange}
-                                            onBlur={handleBlur}
-                                            placeholder="Ej: 600 123 456" 
-                                            className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 
-                                                ${touched.phone && errors.phone 
-                                                    ? 'border-red-500 focus:ring-red-100 bg-red-50' 
-                                                    : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} 
-                                        />
-                                        {touched.phone && errors.phone && (
-                                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.phone}</p>
-                                        )}
+                                        <input name="phone" type="tel" value={formData.phone} onChange={handleChange} onBlur={handleBlur} placeholder="Ej: 600 123 456" className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 ${touched.phone && errors.phone ? 'border-red-500 focus:ring-red-100 bg-red-50' : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} />
+                                        {touched.phone && errors.phone && (<p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.phone}</p>)}
                                     </div>
-
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Comentarios (Opcional)</label>
-                                        <textarea 
-                                            name="comments"
-                                            value={formData.comments} 
-                                            onChange={handleChange}
-                                            placeholder="Indícanos si tienes alguna patología previa..." 
-                                            className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all" 
-                                            rows="3" 
-                                        />
+                                        <textarea name="comments" value={formData.comments} onChange={handleChange} placeholder="Indícanos si tienes alguna patología previa..." className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all" rows="3" />
                                     </div>
-
-                                    <Button type="submit" className="w-full" disabled={!isFormValid() && (touched.name || touched.phone)}>Confirmar Reserva</Button>
+                                    <Button type="submit" className="w-full" disabled={!isFormValid() && (touched.name || touched.phone)}>Continuar</Button>
                                 </form>
                             )}
 
                             {step === 4 && (
                                 <div className="text-center py-8 animate-fade-in">
                                     <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Check size={40} />
+                                        <MessageCircle size={40} />
                                     </div>
-                                    <h3 className="text-2xl font-bold text-brand-dark mb-2">¡Reserva Solicitada!</h3>
-                                    <p className="text-gray-600 mb-8">Hemos recibido tu solicitud para el <strong>{selectedDate?.toLocaleDateString()}</strong> a las <strong>{selectedTime}</strong>.<br/>Te contactaremos por WhatsApp/Teléfono para confirmar.</p>
-                                    <Button onClick={onClose} variant="outline">Cerrar</Button>
+                                    <h3 className="text-2xl font-bold text-brand-dark mb-2">Casi listo...</h3>
+                                    <p className="text-gray-600 mb-8">Para confirmar tu cita definitivamente, envía los datos a nuestro WhatsApp oficial automáticamente pulsando el botón:</p>
+                                    <Button onClick={sendWhatsApp} variant="whatsapp" className="w-full flex items-center justify-center gap-2 mb-4 py-4 text-lg shadow-green-200">
+                                        <MessageCircle size={24} /> Confirmar por WhatsApp
+                                    </Button>
+                                    <button onClick={onClose} className="text-gray-400 text-sm hover:text-gray-600 underline">Cancelar</button>
                                 </div>
                             )}
                         </div>
@@ -678,11 +667,11 @@
                             {SERVICES_LIST.map((svc, i) => (
                                 <Reveal key={i} delay={i*100}>
                                     <div 
-                                        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden cursor-pointer"
+                                        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-brand-green/5 border border-gray-100 h-full relative overflow-hidden cursor-pointer"
                                         onClick={() => setSelectedImage(svc)}
                                     >
                                         <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity"><ArrowUpRight className="text-brand-green h-6 w-6" /></div>
-                                        <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors"><svc.icon size={28} /></div>
+                                        <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors animate-subtle-pulse"><svc.icon size={28} /></div>
                                         <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
                                         <p className="text-gray-600">{svc.description}</p>
                                     </div>
@@ -783,11 +772,87 @@
             );
         };
 
+        // --- NEW TEAM COMPONENT ---
+        const Team = () => {
+            return (
+                <section className="py-24 bg-brand-beige">
+                     <div className="max-w-7xl mx-auto px-4">
+                        <Reveal>
+                            <div className="text-center mb-16">
+                                <h2 className="text-brand-green font-bold uppercase mb-2">Nuestro Equipo</h2>
+                                <h3 className="font-serif text-4xl text-brand-dark">Especialistas en tu Salud</h3>
+                            </div>
+                        </Reveal>
+                        <div className="grid md:grid-cols-3 gap-8">
+                            {TEAM.map((member, i) => (
+                                <Reveal key={i} delay={i*150}>
+                                    <div className="bg-white rounded-2xl overflow-hidden shadow-lg group">
+                                        <div className="h-80 overflow-hidden">
+                                            <img src={member.img} alt={member.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                        </div>
+                                        <div className="p-6 text-center">
+                                            <h4 className="font-serif text-xl font-bold text-brand-dark mb-1">{member.name}</h4>
+                                            <p className="text-brand-green font-medium mb-3">{member.role}</p>
+                                            <span className="inline-block px-3 py-1 bg-gray-100 text-gray-500 text-xs rounded-full">{member.num}</span>
+                                        </div>
+                                    </div>
+                                </Reveal>
+                            ))}
+                        </div>
+                     </div>
+                </section>
+            );
+        };
+
+        // --- NEW FAQ COMPONENT ---
+        const FAQ = () => {
+            const [open, setOpen] = useState(0);
+            return (
+                <section className="py-24 bg-white">
+                    <div className="max-w-4xl mx-auto px-4">
+                        <Reveal>
+                            <div className="text-center mb-16">
+                                <h2 className="text-brand-green font-bold uppercase mb-2">Dudas Frecuentes</h2>
+                                <h3 className="font-serif text-4xl text-brand-dark">Te ayudamos</h3>
+                            </div>
+                            <div className="space-y-4">
+                                {FAQS.map((faq, i) => (
+                                    <div key={i} className={`border rounded-2xl transition-all duration-300 ${open === i ? 'border-brand-green bg-brand-green/5 shadow-md' : 'border-gray-200 hover:border-brand-green/50'}`}>
+                                        <button 
+                                            onClick={() => setOpen(open === i ? -1 : i)}
+                                            className="w-full flex justify-between items-center p-6 text-left font-bold text-brand-dark"
+                                        >
+                                            {faq.q}
+                                            {open === i ? <Minus className="text-brand-green"/> : <Plus className="text-gray-400"/>}
+                                        </button>
+                                        <div className={`overflow-hidden transition-all duration-300 ${open === i ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                            <p className="p-6 pt-0 text-gray-600 leading-relaxed">{faq.a}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </Reveal>
+                    </div>
+                </section>
+            );
+        }
+
         const AdminPanel = ({ isOpen, onClose }) => {
             const { content, updateContent, isAdmin, login, logout, resetToDefaults, isFirebaseReady } = useContent();
             const [pass, setPass] = useState("");
             const [tab, setTab] = useState('hero');
             if (!isOpen) return null;
+            
+            // Tabs config
+            const tabs = [
+                { id: 'hero', label: 'Portada' },
+                { id: 'gallery', label: 'Galería' },
+                { id: 'config', label: 'Configuración' },
+                { id: 'blog', label: 'Blog' },
+                { id: 'contact', label: 'Contacto' },
+                { id: 'pilates', label: 'Pilates' }
+            ];
+
             return (
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -808,16 +873,24 @@
                                         {isFirebaseReady ? <span className="w-2 h-2 rounded-full bg-green-500"></span> : <span className="w-2 h-2 rounded-full bg-orange-500"></span>}
                                         {isFirebaseReady ? "Nube Conectada" : "Modo Local"}
                                     </div>
-                                    <div className="flex gap-2 overflow-x-auto mb-6 pb-2 border-b">
-                                        {['hero', 'gallery', 'contact', 'pilates'].map(t => (
-                                            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-full text-sm font-bold capitalize transition-colors ${tab === t ? 'bg-brand-green text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{t}</button>
+                                    <div className="flex gap-2 overflow-x-auto mb-6 pb-2 border-b custom-scrollbar">
+                                        {tabs.map(t => (
+                                            <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-full text-sm font-bold capitalize transition-colors whitespace-nowrap ${tab === t.id ? 'bg-brand-green text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{t.label}</button>
                                         ))}
                                     </div>
+                                    
+                                    {tab === 'config' && (
+                                        <div className="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
+                                            <h4 className="font-bold mb-1">Variables para WhatsApp:</h4>
+                                            <p className="mb-2">Usa <code>{`{name}`}</code>, <code>{`{date}`}</code>, <code>{`{time}`}</code> y <code>{`{comments}`}</code> en la plantilla.</p>
+                                        </div>
+                                    )}
+
                                     <div className="space-y-4">
-                                        {Object.entries(content[tab]).map(([key, val]) => (
+                                        {content[tab] && Object.entries(content[tab]).map(([key, val]) => (
                                             <div key={key}>
-                                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{key}</label>
-                                                <textarea value={val} onChange={(e) => updateContent(tab, key, e.target.value)} className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-brand-green outline-none bg-gray-50" rows={val.length > 60 ? 3 : 1} />
+                                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{key.replace(/_/g, ' ')}</label>
+                                                <textarea value={val} onChange={(e) => updateContent(tab, key, e.target.value)} className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-brand-green outline-none bg-gray-50" rows={val.length > 60 || key === 'holidays' ? 4 : 1} />
                                             </div>
                                         ))}
                                     </div>
@@ -946,6 +1019,8 @@
                             </div>
                         </div>
                     </section>
+                    
+                    <Team />
 
                     <Services />
 
@@ -1007,8 +1082,8 @@
                                     <Reveal key={i} delay={i*100}>
                                         <article className="group cursor-pointer">
                                             <div className="aspect-video rounded-2xl bg-gray-100 overflow-hidden mb-4"><img src={`https://picsum.photos/400/300?random=${i}`} alt={`Articulo ${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/></div>
-                                            <h4 className="font-bold text-lg mb-2 group-hover:text-brand-green transition-colors">Artículo de Salud {i}</h4>
-                                            <p className="text-gray-600 text-sm">Consejos prácticos para mejorar tu bienestar diario y prevenir lesiones.</p>
+                                            <h4 className="font-bold text-lg mb-2 group-hover:text-brand-green transition-colors">{content.blog[`post${i}_title`]}</h4>
+                                            <p className="text-gray-600 text-sm">{content.blog[`post${i}_excerpt`]}</p>
                                         </article>
                                     </Reveal>
                                 ))}
@@ -1017,6 +1092,7 @@
                     </section>
 
                     <Testimonials />
+                    <FAQ />
 
                     {/* CONTACT */}
                     <section id="contact" className="py-24 bg-brand-light">
