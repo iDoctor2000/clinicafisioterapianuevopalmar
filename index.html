@@ -43,6 +43,7 @@
               'fade-in': 'fadeIn 0.3s ease-out',
               'scale-in': 'scaleIn 0.3s ease-out',
               'breath': 'breath 2.5s ease-in-out infinite',
+              'subtle-pulse': 'subtlePulse 3s ease-in-out infinite',
             },
             keyframes: {
               fadeIn: {
@@ -57,6 +58,10 @@
                 '0%': { transform: 'scale(0.9)', opacity: '0.85' },
                 '50%': { transform: 'scale(1.05)', opacity: '1' },
                 '100%': { transform: 'scale(0.9)', opacity: '0.85' },
+              },
+              subtlePulse: {
+                '0%, 100%': { transform: 'scale(1)' },
+                '50%': { transform: 'scale(1.1)' },
               }
             }
           }
@@ -678,11 +683,11 @@
                             {SERVICES_LIST.map((svc, i) => (
                                 <Reveal key={i} delay={i*100}>
                                     <div 
-                                        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden cursor-pointer"
+                                        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-brand-green/5 border border-gray-100 h-full relative overflow-hidden cursor-pointer"
                                         onClick={() => setSelectedImage(svc)}
                                     >
                                         <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity"><ArrowUpRight className="text-brand-green h-6 w-6" /></div>
-                                        <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors"><svc.icon size={28} /></div>
+                                        <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors animate-subtle-pulse"><svc.icon size={28} /></div>
                                         <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
                                         <p className="text-gray-600">{svc.description}</p>
                                     </div>
