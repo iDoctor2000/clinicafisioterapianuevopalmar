@@ -6,14 +6,14 @@
     
     <!-- SEO & METADATA -->
     <title>Clínica Nuevo Palmar | Fisioterapia, Osteopatía & Pilates en Murcia</title>
-    <meta name="description" content="Clínica de fisioterapia y pilates en El Palmar (Murcia). Más de 25 años de experiencia en osteopatía, punción seca, rehabilitación deportiva y terapia manual. Director: José Diego Frutos.">
+    <meta name="description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
     <meta name="keywords" content="fisioterapia el palmar, pilates murcia, osteopatía, rehabilitación deportiva, punción seca, terapia manual, clínica fisioterapia murcia, jose diego frutos">
     <meta name="author" content="Clínica Nuevo Palmar">
     <meta name="robots" content="index, follow">
 
     <!-- OPEN GRAPH -->
     <meta property="og:title" content="Clínica Nuevo Palmar | Fisioterapia & Pilates">
-    <meta property="og:description" content="Recupera tu bienestar con nuestros tratamientos personalizados. Expertos en fisioterapia avanzada y pilates terapéutico.">
+    <meta property="og:description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
     <meta property="og:image" content="assets/Portada Clinica.png">
     <meta property="og:type" content="website">
     
@@ -845,13 +845,20 @@
                 return () => window.removeEventListener('scroll', fn);
             }, []);
 
+            const scrollToTop = (e) => {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
             return (
                 <>
                     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur shadow-sm py-4' : 'bg-transparent py-6'}`}>
                         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <img src="assets/logo.png" alt="Logotipo" className="h-12 w-auto object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
-                                <span className="text-2xl font-serif font-bold text-brand-green hidden">Nuevo Palmar</span>
+                                <a href="#" onClick={scrollToTop} className="flex items-center gap-3 cursor-pointer">
+                                    <img src="assets/logo.png" alt="Logotipo" className="h-12 w-auto object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+                                    <span className="text-2xl font-serif font-bold text-brand-green hidden">Nuevo Palmar</span>
+                                </a>
                             </div>
                             <div className="hidden md:flex items-center space-x-8">
                                 {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map((item, i) => (
@@ -882,6 +889,14 @@
             const { content } = useContent();
             const [isMapModalOpen, setIsMapModalOpen] = useState(false);
             const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+            // Scroll to top on mount
+            useEffect(() => {
+                if ('scrollRestoration' in history) {
+                    history.scrollRestoration = 'manual';
+                }
+                window.scrollTo(0, 0);
+            }, []);
 
             return (
                 <div className="min-h-screen">
