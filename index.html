@@ -143,8 +143,8 @@
                 buttonSecondary: "Ver Tratamientos"
             },
             gallery: {
-                title: "Galería",
-                subtitle: "Nuestras Instalaciones y Tratamientos"
+                title: "Galería de Servicios",
+                subtitle: "Nuestras Especialidades"
             },
             contact: {
                 phone: "968 885 931",
@@ -165,21 +165,48 @@
         const DIRECTIONS_URL = "https://www.google.com/maps/dir//Av.+de+Burgos,+30120+El+Palmar,+Murcia";
 
         const SERVICES_LIST = [
-            { title: 'Osteopatía', desc: 'Terapia manual para la integridad estructural (visceral y craneal).', icon: Bone },
-            { title: 'Punción Seca', desc: 'Técnica invasiva de alta efectividad muscular para puntos gatillo.', icon: Activity },
-            { title: 'Lesiones Deportivas', desc: 'Desde traumatismos y esguinces hasta gestos deportivos.', icon: Activity },
-            { title: 'Accidentes Tráfico', desc: 'Gestión integral, rehabilitación y valoración del daño corporal.', icon: Car },
-            { title: 'Terapia Manual', desc: 'Desde estiramientos hasta quiropraxia avanzada.', icon: Heart },
-            { title: 'Fisioterapia Geriátrica', desc: 'Tratamiento especializado para personas de edad avanzada.', icon: UserCheck }
-        ];
-
-        const GALLERY_ITEMS = [
-            { id: 1, title: 'Cabina de Tratamiento', category: 'Instalaciones', img: 'https://images.unsplash.com/photo-1628177142898-7136c2e96d22?auto=format&fit=crop&q=80&w=800' },
-            { id: 2, title: 'Terapia Manual', category: 'Fisioterapia', img: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800' },
-            { id: 3, title: 'Pilates Reformer', category: 'Pilates', img: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800' },
-            { id: 4, title: 'Rehabilitación Deportiva', category: 'Lesiones', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=800' },
-            { id: 5, title: 'Punción Seca', category: 'Técnicas', img: 'https://plus.unsplash.com/premium_photo-1661764256397-af154e87b1b3?auto=format&fit=crop&q=80&w=800' },
-            { id: 6, title: 'Osteopatía', category: 'Tratamientos', img: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&q=80&w=800' },
+            { 
+                title: 'Osteopatía', 
+                description: 'Terapia manual para la integridad estructural (visceral y craneal). Restauramos el equilibrio del cuerpo mediante técnicas suaves y efectivas.', 
+                icon: Bone,
+                img: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&q=80&w=800',
+                category: 'Estructural'
+            },
+            { 
+                title: 'Punción Seca', 
+                description: 'Técnica invasiva de alta efectividad muscular para puntos gatillo. Alivio inmediato del dolor miofascial crónico y agudo.', 
+                icon: Activity,
+                img: 'https://plus.unsplash.com/premium_photo-1661764256397-af154e87b1b3?auto=format&fit=crop&q=80&w=800',
+                category: 'Invasiva'
+            },
+            { 
+                title: 'Lesiones Deportivas', 
+                description: 'Desde traumatismos y esguinces hasta gestos deportivos. Readaptación funcional personalizada para volver a competir al máximo nivel.', 
+                icon: Activity,
+                img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=800',
+                category: 'Deportiva'
+            },
+            { 
+                title: 'Accidentes Tráfico', 
+                description: 'Gestión integral, rehabilitación y valoración del daño corporal. Recuperación completa asistida sin costes directos para ti.', 
+                icon: Car,
+                img: 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=800',
+                category: 'Rehabilitación'
+            },
+            { 
+                title: 'Terapia Manual', 
+                description: 'Desde estiramientos hasta quiropraxia avanzada. El poder de las manos para sanar, aliviar tensiones y mejorar la movilidad.', 
+                icon: Heart,
+                img: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800',
+                category: 'Manual'
+            },
+            { 
+                title: 'Fisioterapia Geriátrica', 
+                description: 'Tratamiento especializado para personas mayores. Mantenimiento de la movilidad, independencia y calidad de vida.', 
+                icon: UserCheck,
+                img: 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&q=80&w=800',
+                category: 'Geriátrica'
+            }
         ];
 
         // --- FESTIVOS REGION DE MURCIA (2024-2025 aprox) ---
@@ -599,7 +626,7 @@
                         <div className="md:w-1/3 p-8 flex flex-col justify-center bg-white">
                             <span className="text-xs font-bold text-brand-green uppercase tracking-wider mb-2">{image.category}</span>
                             <h3 className="text-3xl font-serif text-brand-dark mb-4">{image.title}</h3>
-                            <p className="text-gray-600 leading-relaxed mb-6">Descubre nuestras instalaciones y tratamientos especializados. En Clínica Nuevo Palmar combinamos tecnología y terapia manual.</p>
+                            <p className="text-gray-600 leading-relaxed mb-6">{image.description}</p>
                             <div className="mt-auto pt-6 border-t border-gray-100">
                                 <a href="#contact" onClick={onClose} className="flex items-center gap-2 text-brand-dark font-medium hover:text-brand-green transition-colors">Solicitar información <ArrowRight size={16} /></a>
                             </div>
@@ -634,8 +661,8 @@
                             </div>
                         </Reveal>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {GALLERY_ITEMS.map((item, index) => (
-                                <Reveal key={item.id} delay={index * 100}>
+                            {SERVICES_LIST.map((item, index) => (
+                                <Reveal key={index} delay={index * 100}>
                                     <div className="group relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all hover:-translate-y-1" onClick={() => setSelectedImage(item)}>
                                         <img src={item.img} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                         <div className="absolute inset-0 bg-brand-dark/0 group-hover:bg-brand-dark/40 transition-all duration-300 flex items-center justify-center">
@@ -814,7 +841,7 @@
                                         <div className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 h-full relative overflow-hidden">
                                             <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors"><svc.icon size={28} /></div>
                                             <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
-                                            <p className="text-gray-600">{svc.desc}</p>
+                                            <p className="text-gray-600">{svc.description}</p>
                                         </div>
                                     </Reveal>
                                 ))}
