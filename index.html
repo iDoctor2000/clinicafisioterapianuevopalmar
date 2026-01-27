@@ -129,7 +129,7 @@
             Phone, MapPin, Mail, Clock, Menu, X, Settings, 
             ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
             Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle
+            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle, Quote
         } from 'lucide-react';
 
         // --- DATOS POR DEFECTO ---
@@ -207,6 +207,12 @@
                 img: 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&q=80&w=800',
                 category: 'Geriátrica'
             }
+        ];
+
+        const TESTIMONIALS = [
+            { id: 1, name: "María García", rating: 5, text: "Después de mi accidente, el equipo fue fundamental. Su profesionalidad no tiene igual." },
+            { id: 2, name: "Juan López", rating: 5, text: "Llevaba años con dolor de espalda. Los especialistas en columna me devolvieron la calidad de vida." },
+            { id: 3, name: "Sofía Martínez", rating: 5, text: "El trato humano es excepcional. Se nota la experiencia de José Diego." },
         ];
 
         // --- FESTIVOS REGION DE MURCIA (2024-2025 aprox) ---
@@ -682,6 +688,70 @@
             );
         };
 
+        const Testimonials = () => {
+            const [activeIndex, setActiveIndex] = useState(0);
+
+            const next = () => setActiveIndex((prev) => (prev + 1) % TESTIMONIALS.length);
+            const prev = () => setActiveIndex((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+
+            useEffect(() => {
+                const interval = setInterval(next, 6000);
+                return () => clearInterval(interval);
+            }, []);
+
+            return (
+                <section className="py-24 bg-brand-dark text-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-64 h-64 bg-brand-green/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-green/5 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
+
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                        <Reveal>
+                            <div className="text-center mb-16">
+                                <h2 className="text-brand-green font-semibold tracking-wider uppercase mb-2">Testimonios</h2>
+                                <h3 className="font-serif text-3xl md:text-4xl text-white">Pacientes Felices</h3>
+                            </div>
+                        </Reveal>
+
+                        <Reveal delay={200}>
+                            <div className="max-w-4xl mx-auto relative">
+                                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 md:p-12 relative min-h-[300px] flex flex-col items-center justify-center text-center">
+                                    <Quote className="text-brand-green/20 w-16 h-16 absolute top-6 left-6 -scale-x-100" />
+                                    
+                                    <div className="flex gap-1 mb-6 relative z-10">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} size={20} className={`${i < TESTIMONIALS[activeIndex].rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
+                                        ))}
+                                    </div>
+
+                                    <p className="font-serif text-xl md:text-2xl italic leading-relaxed mb-8 text-gray-200 relative z-10">
+                                        "{TESTIMONIALS[activeIndex].text}"
+                                    </p>
+
+                                    <div className="relative z-10">
+                                        <h4 className="font-bold text-lg">{TESTIMONIALS[activeIndex].name}</h4>
+                                        <p className="text-brand-green text-sm font-semibold tracking-wider uppercase mt-1">Paciente Verificado</p>
+                                    </div>
+                                </div>
+
+                                <button onClick={prev} className="absolute top-1/2 -left-4 md:-left-12 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-brand-green transition-all text-white backdrop-blur-md z-20 group" aria-label="Anterior">
+                                    <ChevronLeft className="group-hover:-translate-x-0.5 transition-transform" />
+                                </button>
+                                <button onClick={next} className="absolute top-1/2 -right-4 md:-right-12 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-brand-green transition-all text-white backdrop-blur-md z-20 group" aria-label="Siguiente">
+                                    <ChevronRight className="group-hover:translate-x-0.5 transition-transform" />
+                                </button>
+
+                                <div className="flex justify-center gap-2 mt-8">
+                                    {TESTIMONIALS.map((_, idx) => (
+                                        <button key={idx} onClick={() => setActiveIndex(idx)} className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeIndex ? 'w-8 bg-brand-green' : 'w-2 bg-gray-600 hover:bg-gray-500'}`} aria-label={`Ir al testimonio ${idx + 1}`} />
+                                    ))}
+                                </div>
+                            </div>
+                        </Reveal>
+                    </div>
+                </section>
+            );
+        };
+
         const AdminPanel = ({ isOpen, onClose }) => {
             const { content, updateContent, isAdmin, login, logout, resetToDefaults, isFirebaseReady } = useContent();
             const [pass, setPass] = useState("");
@@ -917,6 +987,8 @@
                             </div>
                         </div>
                     </section>
+
+                    <Testimonials />
 
                     {/* CONTACT */}
                     <section id="contact" className="py-24 bg-brand-light">
