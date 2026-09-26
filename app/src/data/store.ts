@@ -35,6 +35,7 @@ interface Estado {
   iniciarSesion: (userId: string) => void;
   /** Solo SUPABASE. */
   iniciarSesionEmail: (email: string, password: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  crearCuentaEmail: (email: string, password: string) => Promise<{ ok: true; pendienteConfirmar: boolean } | { ok: false; error: string }>;
   cerrarSesion: () => Promise<void>;
   /** Solo SUPABASE: vuelve a leer la instantánea del servidor. */
   recargar: () => Promise<void>;
@@ -146,6 +147,24 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
         await cargarYResolver(r.usuario);
         activarEscucha();
         return { ok: true };
+      } catch (e) {
+        const error = e instanceof Error ? e.message : String(e);
+        set({ errorCarga: error });
+        return { ok: false, error };
+      } finally {
+        set({ cargando: false });
+      }
+    },
+
+    crearCuentaEmail: async (email, password) => {
+      const r = await auth.crearCuenta(email, password);
+      if (!r.ok) return r;
+      if (r.pendienteConfirmar || !r.usuario) return { ok: true, pendienteConfirmar: true };
+      set({ cargando: true, errorCarga: null });
+      try {
+        await cargarYResolver(r.usuario);
+        activarEscucha();
+        return { ok: true, pendienteConfirmar: false };
       } catch (e) {
         const error = e instanceof Error ? e.message : String(e);
         set({ errorCarga: error });

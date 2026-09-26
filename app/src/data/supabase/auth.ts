@@ -22,6 +22,8 @@ export function mensajeErrorAuth(e: unknown): string {
   if (/rate limit|too many requests|over_email_send_rate_limit/i.test(msg)) return 'Demasiados intentos. Espera unos minutos y vuelve a probarlo.';
   if (/password should be at least|weak_password/i.test(msg)) return 'La contraseña debe tener al menos 6 caracteres.';
   if (/user not found/i.test(msg)) return 'No existe ninguna cuenta con ese email.';
+  if (/already registered|already been registered|user_already_exists/i.test(msg)) return 'Ya existe una cuenta con ese email. Entra con tu contraseña o usa "He olvidado mi contraseña".';
+  if (/signups? not allowed|signup_disabled/i.test(msg)) return 'El registro está desactivado. Pídelo en recepción.';
   return msg;
 }
 
@@ -31,6 +33,28 @@ export async function iniciarSesionEmail(email: string, password: string): Promi
     if (error) return { ok: false, error: mensajeErrorAuth(error) };
     const usuario = deUser(data.user);
     return usuario ? { ok: true, usuario } : { ok: false, error: 'No se ha podido iniciar sesión.' };
+  } catch (e) {
+    return { ok: false, error: mensajeErrorAuth(e) };
+  }
+}
+
+/**
+ * Primera vez: la persona crea su contraseña con el email que dio en recepción.
+ * Si el proyecto no exige confirmar el correo, devuelve el usuario ya autenticado;
+ * si la exige, devuelve `pendienteConfirmar` y hay que abrir el correo.
+ */
+export async function crearCuenta(email: string, password: string): Promise<
+  { ok: true; usuario: UsuarioAuth | null; pendienteConfirmar: boolean } | { ok: false; error: string }
+> {
+  try {
+    const { data, error } = await servidor().auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: urlApp() } });
+    if (error) return { ok: false, error: mensajeErrorAuth(error) };
+    // Con "confirm email" activado, Supabase devuelve un usuario sin sesión (o con identities vacías si ya existía).
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      return { ok: false, error: 'Ya existe una cuenta con ese email. Entra con tu contraseña o usa "He olvidado mi contraseña".' };
+    }
+    if (!data.session) return { ok: true, usuario: null, pendienteConfirmar: true };
+    return { ok: true, usuario: deUser(data.user), pendienteConfirmar: false };
   } catch (e) {
     return { ok: false, error: mensajeErrorAuth(e) };
   }
