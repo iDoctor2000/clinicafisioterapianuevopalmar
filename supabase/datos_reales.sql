@@ -76,7 +76,8 @@ begin
   select id into a_geronto from public.actividades where nombre = 'Gerontopilates';
 
   -- ---------------------------------------------------------------- horario semanal (1 = lunes … 6 = sábado)
-  -- Reformer: 6 plazas. Resto: 8 plazas. Duración 55 min. Monitora por defecto: Irene (cambiar desde la app).
+  -- Reformer: 6 plazas. Resto: 8 plazas. Duración 55 min.
+  -- Monitora: María en las clases de yoga; Irene en el resto (se cambia desde la app en Horarios).
   for r in
     select * from (values
       -- Mañanas
@@ -91,7 +92,8 @@ begin
     ) as h(dia, hora, actividad_id)
   loop
     insert into public.plantillas_clase (actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
-    select r.actividad_id, r.dia, r.hora::time, 55, v_irene,
+    select r.actividad_id, r.dia, r.hora::time, 55,
+           case when r.actividad_id in (a_hatha, a_yogaflow) then v_maria else v_irene end,
            case when a.categoria = 'REFORMER' then 6 else 8 end
     from public.actividades a where a.id = r.actividad_id;
   end loop;
@@ -149,5 +151,5 @@ begin
 
   -- ---------------------------------------------------------------- clases de las próximas semanas
   perform public.mantenimiento_diario();
-  raise notice 'Horario, actividades y tarifas reales cargados. Monitora por defecto: Irene. María creada como monitora.';
+  raise notice 'Horario, actividades y tarifas reales cargados. María imparte las clases de yoga; Irene el resto.';
 end $$;
