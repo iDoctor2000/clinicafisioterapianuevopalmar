@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, DoorClosed, Info, User, Users } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { clasesDelDia, recuperacionesDisponiblesDe, vistaClase, type ClaseVista, type ReservaVista } from '@/data/selectores';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import type { ISODate } from '@/domain/types';
-import { DIAS_SEMANA_CORTO, diaSemanaDe, fechaLarga, horaFin, hoyISO, sumarDias } from '@/domain/fechas';
+import { DIAS_SEMANA_CORTO, diaSemanaDe, fechaLarga, horaFin, hoyISO, inicioSemana, sumarDias } from '@/domain/fechas';
 import { parseISO, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Boton, Chip, Hoja, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useCliente } from './useCliente';
 import { actividadIncluida, cap, evaluarReservaDe, recuperacionCubre, reservaActivaEn, vistaReserva } from './consultas';
-import { Encabezado, HojaCancelar, Nota, PuntoActividad } from './comun';
+import { Encabezado, HojaCancelar, Nota, Pestanas, PuntoActividad } from './comun';
+import { HorarioSemana } from './HorarioSemana';
 
 const DIAS_TIRA = 14;
 const MAX_SEMANAS = 8;
@@ -24,11 +25,13 @@ export function Horario() {
 
   const [inicio, setInicio] = useState<ISODate>(hoy);
   const [fecha, setFecha] = useState<ISODate>(hoy);
+  const [vista, setVista] = useState<'DIA' | 'SEMANA'>('DIA');
   const [detalleId, setDetalleId] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState<ReservaVista | null>(null);
 
   const dias = useMemo(() => Array.from({ length: DIAS_TIRA }, (_, i) => sumarDias(inicio, i)), [inicio]);
   const limiteInicio = sumarDias(hoy, MAX_SEMANAS * 7 - DIAS_TIRA);
+  const limiteFin = sumarDias(limiteInicio, DIAS_TIRA - 1);
   const clases = clasesDelDia(db, fecha);
   const cierre = db.config.diasCierre.find((d) => d.fecha === fecha) ?? null;
   const recuperaciones = recuperacionesDisponiblesDe(db, cliente.id, hoy);
@@ -43,6 +46,14 @@ export function Horario() {
     setInicio(acotado);
     setFecha(acotado);
   };
+  // Vista Semana: la semana natural (lunes-domingo) de la fecha elegida, dentro del mismo rango que la tira.
+  const lunesActual = inicioSemana(fecha);
+  const puedeSemanaAnterior = lunesActual > inicioSemana(hoy);
+  const puedeSemanaSiguiente = sumarDias(lunesActual, 7) <= limiteFin;
+  const moverSemanaNatural = (n: number) => {
+    const lunes = sumarDias(lunesActual, n * 7);
+    irAFecha(lunes < hoy ? hoy : lunes);
+  };
 
   // Desplaza la tira para que el día elegido quede a la vista.
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -53,6 +64,52 @@ export function Horario() {
 
   const detalleClase = detalleId ? db.clases.find((c) => c.id === detalleId) ?? null : null;
   const detalleVista: ClaseVista | null = detalleClase ? vistaClase(db, detalleClase) : null;
+
+  /** Fila de una clase (lista diaria y semanal): misma lógica de chips y atenuado. */
+  const filaClase = (v: ClaseVista, compacta = false): ReactNode => {
+    const mia = reservaActivaEn(db, cliente.id, v.clase.id);
+    const cancelada = v.clase.estado === 'CANCELADA';
+    const incluida = actividadIncluida(tarifa, contrato, v.actividad) || recuperacionCubre(recuperaciones, v.actividad.categoria);
+    const alternativa = v.clase.claseAlternativaId ? db.clases.find((c) => c.id === v.clase.claseAlternativaId) ?? null : null;
+    const pasada = v.clase.fecha === hoy && v.clase.horaInicio < format(ahora, 'HH:mm');
+    const atenuada = (cancelada || !incluida || pasada) && !mia;
+    return (
+      <Tarjeta className={cn(atenuada && 'bg-white/60', mia && 'border-brand-300')}>
+        <button type="button" data-clase={v.clase.id} onClick={() => setDetalleId(v.clase.id)} className={cn('w-full text-left flex items-center gap-3 tap rounded-2xl hover:bg-sand/60', compacta ? 'px-3 py-2.5 min-h-[64px]' : 'p-4')}>
+          <div className={cn('w-[4.25rem] shrink-0 text-center rounded-xl py-2', atenuada ? 'bg-sand-deep text-ink-muted' : mia ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-800')}>
+            <div className="text-xl font-bold leading-none">{v.clase.horaInicio}</div>
+            {!compacta && <div className={cn('text-xs mt-1', mia && !atenuada ? 'text-white/85' : '')}>{v.clase.duracionMin} min</div>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <PuntoActividad color={v.actividad.color} className={cn(atenuada && 'opacity-50')} />
+              <span className={cn('font-semibold text-lg truncate', cancelada && 'line-through', atenuada && 'text-ink-soft')}>{v.actividad.nombre}</span>
+            </div>
+            {!compacta && v.monitor && <div className="text-sm text-ink-muted">Con {v.monitor.nombre}</div>}
+            <div className={cn('flex flex-wrap gap-1.5', compacta ? 'mt-1' : 'mt-1.5')}>
+              {cancelada ? <Chip tono="rojo">Cancelada</Chip>
+                : mia ? <Chip tono="verde">Tienes plaza</Chip>
+                : pasada ? <Chip tono="gris">Ya ha empezado</Chip>
+                : v.libres > 0 ? <Chip tono={v.libres <= 2 ? 'ambar' : 'gris'}>{v.libres === 1 ? '1 plaza libre' : `${v.libres} plazas libres`}</Chip>
+                : <Chip tono="rojo">Completa</Chip>}
+              {!incluida && !cancelada && !mia && <Chip tono="gris">{compacta ? 'No incluida' : 'No incluida en tu tarifa'}</Chip>}
+            </div>
+          </div>
+          <ChevronRight className="h-5 w-5 text-ink-muted shrink-0" />
+        </button>
+        {cancelada && !compacta && (
+          <div className="px-4 pb-4 -mt-1">
+            {v.clase.motivoCancelacion && <p className="text-sm text-ink-soft mb-2">Motivo: {v.clase.motivoCancelacion}</p>}
+            {alternativa && (
+              <Boton variante="suave" tamano="sm" onClick={() => { irAFecha(alternativa.fecha); setDetalleId(alternativa.id); }}>
+                Ver clase alternativa ({fechaLarga(alternativa.fecha)} a las {alternativa.horaInicio})
+              </Boton>
+            )}
+          </div>
+        )}
+      </Tarjeta>
+    );
+  };
 
   const reservar = async (claseId: string) => {
     const r = await ejecutar('reservar', { claseId });
@@ -67,8 +124,12 @@ export function Horario() {
 
   return (
     <div>
-      <Encabezado titulo="Horario" subtitulo="Elige un día y toca una clase para ver los detalles." />
+      <Encabezado titulo="Horario" subtitulo={vista === 'DIA' ? 'Elige un día y toca una clase para ver los detalles.' : 'Toca una clase para ver los detalles o reservar.'} />
 
+      <Pestanas valor={vista} onCambio={setVista} items={[{ id: 'DIA', etiqueta: 'Día' }, { id: 'SEMANA', etiqueta: 'Semana' }]} />
+
+      {vista === 'DIA' && (
+        <>
       <div className="flex items-center justify-between gap-2 mb-2">
         <button type="button" onClick={() => moverSemana(-1)} disabled={inicio <= hoy} aria-label="Semana anterior" className="h-12 w-12 rounded-full bg-white shadow-card flex items-center justify-center text-ink-soft tap disabled:opacity-30">
           <ChevronLeft className="h-6 w-6" />
@@ -110,53 +171,19 @@ export function Horario() {
         <Tarjeta><Vacio icono={CalendarDays} titulo="No hay clases este día" texto="Prueba con otro día de la semana." /></Tarjeta>
       ) : (
         <ul className="space-y-3">
-          {clases.map((v) => {
-            const mia = reservaActivaEn(db, cliente.id, v.clase.id);
-            const cancelada = v.clase.estado === 'CANCELADA';
-            const incluida = actividadIncluida(tarifa, contrato, v.actividad) || recuperacionCubre(recuperaciones, v.actividad.categoria);
-            const alternativa = v.clase.claseAlternativaId ? db.clases.find((c) => c.id === v.clase.claseAlternativaId) ?? null : null;
-            const pasada = v.clase.fecha === hoy && v.clase.horaInicio < format(ahora, 'HH:mm');
-            const atenuada = (cancelada || !incluida || pasada) && !mia;
-            return (
-              <li key={v.clase.id}>
-                <Tarjeta className={cn(atenuada && 'bg-white/60', mia && 'border-brand-300')}>
-                  <button type="button" data-clase={v.clase.id} onClick={() => setDetalleId(v.clase.id)} className="w-full text-left p-4 flex items-center gap-3 tap rounded-2xl hover:bg-sand/60">
-                    <div className={cn('w-[4.25rem] shrink-0 text-center rounded-xl py-2', atenuada ? 'bg-sand-deep text-ink-muted' : mia ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-800')}>
-                      <div className="text-xl font-bold leading-none">{v.clase.horaInicio}</div>
-                      <div className={cn('text-xs mt-1', mia && !atenuada ? 'text-white/85' : '')}>{v.clase.duracionMin} min</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <PuntoActividad color={v.actividad.color} className={cn(atenuada && 'opacity-50')} />
-                        <span className={cn('font-semibold text-lg truncate', cancelada && 'line-through', atenuada && 'text-ink-soft')}>{v.actividad.nombre}</span>
-                      </div>
-                      {v.monitor && <div className="text-sm text-ink-muted">Con {v.monitor.nombre}</div>}
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {cancelada ? <Chip tono="rojo">Cancelada</Chip>
-                          : mia ? <Chip tono="verde">Tienes plaza</Chip>
-                          : pasada ? <Chip tono="gris">Ya ha empezado</Chip>
-                          : v.libres > 0 ? <Chip tono={v.libres <= 2 ? 'ambar' : 'gris'}>{v.libres === 1 ? '1 plaza libre' : `${v.libres} plazas libres`}</Chip>
-                          : <Chip tono="rojo">Completa</Chip>}
-                        {!incluida && !cancelada && !mia && <Chip tono="gris">No incluida en tu tarifa</Chip>}
-                      </div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-ink-muted shrink-0" />
-                  </button>
-                  {cancelada && (
-                    <div className="px-4 pb-4 -mt-1">
-                      {v.clase.motivoCancelacion && <p className="text-sm text-ink-soft mb-2">Motivo: {v.clase.motivoCancelacion}</p>}
-                      {alternativa && (
-                        <Boton variante="suave" tamano="sm" onClick={() => { irAFecha(alternativa.fecha); setDetalleId(alternativa.id); }}>
-                          Ver clase alternativa ({fechaLarga(alternativa.fecha)} a las {alternativa.horaInicio})
-                        </Boton>
-                      )}
-                    </div>
-                  )}
-                </Tarjeta>
-              </li>
-            );
-          })}
+          {clases.map((v) => <li key={v.clase.id}>{filaClase(v)}</li>)}
         </ul>
+      )}
+        </>
+      )}
+
+      {vista === 'SEMANA' && (
+        <HorarioSemana
+          fecha={fecha} hoy={hoy} desde={hoy} hasta={limiteFin} cierres={db.config.diasCierre}
+          clasesDe={(d) => clasesDelDia(db, d)} renderClase={(v) => filaClase(v, true)}
+          puedeAnterior={puedeSemanaAnterior} puedeSiguiente={puedeSemanaSiguiente}
+          onAnterior={() => moverSemanaNatural(-1)} onSiguiente={() => moverSemanaNatural(1)}
+        />
       )}
 
       <p className="text-sm text-ink-muted mt-5 mb-2 flex items-start gap-2"><Info className="h-4 w-4 mt-0.5 shrink-0" /> Puedes reservar con hasta {db.config.diasVentanaReserva} días de antelación. Para cancelar y poder recuperar la clase, hazlo con más de {db.config.minutosAntelacionCancelacion} minutos de antelación.</p>

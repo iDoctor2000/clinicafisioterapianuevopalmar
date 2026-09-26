@@ -310,3 +310,122 @@ export function reservasDeClienteSeparadas(db: Db, clienteId: Id, ahora: Date): 
   const ord = (a: Reserva, b: Reserva) => { const ca = clases.get(a.claseId)!; const cb = clases.get(b.claseId)!; return ca.fecha.localeCompare(cb.fecha) || ca.horaInicio.localeCompare(cb.horaInicio); };
   return { proximas: proximas.sort(ord), pasadas: pasadas.sort((a, b) => -ord(a, b)) };
 }
+
+// ---------------------------------------------------------------------------
+// Vistas Semana y Mes del calendario
+// ---------------------------------------------------------------------------
+
+/** "28 sep – 4 oct" (con año solo si la semana cambia de año). */
+export function textoRangoSemana(fecha: ISODate): string {
+  const lunes = inicioSemana(fecha);
+  const domingo = sumarDias(lunes, 6);
+  const f = (d: ISODate, patron: string) => format(parseISO(d), patron, { locale: es }).replace('.', '');
+  if (lunes.slice(0, 4) !== domingo.slice(0, 4)) return `${f(lunes, 'd MMM yyyy')} – ${f(domingo, 'd MMM yyyy')}`;
+  if (lunes.slice(0, 7) === domingo.slice(0, 7)) return `${f(lunes, 'd')} – ${f(domingo, 'd MMM')}`;
+  return `${f(lunes, 'd MMM')} – ${f(domingo, 'd MMM')}`;
+}
+
+export function minutosDe(hora: string): number {
+  const [h, m] = hora.split(':').map(Number);
+  return h * 60 + m;
+}
+
+export interface RejillaSemana {
+  /** Minuto del día en que empieza la rejilla (primera clase, redondeado hacia abajo al tramo). */
+  desdeMin: number;
+  /** Minuto del día en que termina la rejilla (fin de la última clase, redondeado hacia arriba). */
+  hastaMin: number;
+  /** Tamaño del tramo: 60 si todas las clases empiezan en punto, 30 si no. */
+  tramoMin: number;
+  /** Etiquetas de hora ("09:00", "10:00"…) de cada tramo. */
+  tramos: { min: number; etiqueta: string }[];
+}
+
+/** Franja horaria real que ocupan las clases de la semana (de la primera a la última). */
+export function rejillaSemana(clases: ClaseVista[]): RejillaSemana | null {
+  if (clases.length === 0) return null;
+  const tramoMin = clases.every((v) => minutosDe(v.clase.horaInicio) % 60 === 0) ? 60 : 30;
+  let desde = Infinity;
+  let hasta = -Infinity;
+  for (const v of clases) {
+    const ini = minutosDe(v.clase.horaInicio);
+    desde = Math.min(desde, ini);
+    hasta = Math.max(hasta, ini + v.clase.duracionMin);
+  }
+  const desdeMin = Math.floor(desde / tramoMin) * tramoMin;
+  const hastaMin = Math.ceil(hasta / tramoMin) * tramoMin;
+  const tramos: RejillaSemana['tramos'] = [];
+  for (let m = desdeMin; m < hastaMin; m += tramoMin) tramos.push({ min: m, etiqueta: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` });
+  return { desdeMin, hastaMin, tramoMin, tramos };
+}
+
+/** Reparte en carriles las clases de un día que se solapan en el tiempo. */
+export function carrilesDe(clases: ClaseVista[]): { vista: ClaseVista; carril: number; carriles: number }[] {
+  const orden = [...clases].sort((a, b) => a.clase.horaInicio.localeCompare(b.clase.horaInicio) || b.clase.duracionMin - a.clase.duracionMin);
+  const salida: { vista: ClaseVista; carril: number; carriles: number }[] = [];
+  let grupo: { vista: ClaseVista; carril: number; carriles: number }[] = [];
+  let finGrupo = -1;
+  const finesCarril: number[] = [];
+  const cerrarGrupo = () => { for (const g of grupo) g.carriles = finesCarril.length; grupo = []; finesCarril.length = 0; };
+  for (const vista of orden) {
+    const ini = minutosDe(vista.clase.horaInicio);
+    const fin = ini + vista.clase.duracionMin;
+    if (ini >= finGrupo) cerrarGrupo();
+    let carril = finesCarril.findIndex((f) => f <= ini);
+    if (carril === -1) { carril = finesCarril.length; finesCarril.push(fin); } else finesCarril[carril] = fin;
+    const item = { vista, carril, carriles: 1 };
+    grupo.push(item);
+    salida.push(item);
+    finGrupo = Math.max(finGrupo, fin);
+  }
+  cerrarGrupo();
+  return salida;
+}
+
+/** Semanas (lunes-primero) que cubren el mes de la fecha; como máximo 6 filas. */
+export function semanasDelMes(fecha: ISODate): ISODate[][] {
+  const d = parseISO(fecha);
+  const primero = inicioSemana(aISODate(startOfMonth(d)));
+  const ultimo = aISODate(endOfMonth(d));
+  const semanas: ISODate[][] = [];
+  for (let lunes = primero; lunes <= ultimo && semanas.length < 6; lunes = sumarDias(lunes, 7)) semanas.push(diasEntre(lunes, sumarDias(lunes, 6)));
+  return semanas;
+}
+
+export function clasesPorFechaEntre(db: Db, desde: ISODate, hasta: ISODate): Map<ISODate, ClaseVista[]> {
+  const m = new Map<ISODate, ClaseVista[]>();
+  for (const c of db.clases) {
+    if (!estaEntre(c.fecha, desde, hasta)) continue;
+    const lista = m.get(c.fecha) ?? [];
+    lista.push(vistaClase(db, c));
+    m.set(c.fecha, lista);
+  }
+  for (const lista of m.values()) lista.sort((a, b) => a.clase.horaInicio.localeCompare(b.clase.horaInicio));
+  return m;
+}
+
+export interface OcupacionDia {
+  /** Clases programadas (no canceladas). */
+  clases: number;
+  ocupadas: number;
+  plazas: number;
+  /** 0-100. */
+  porcentaje: number;
+  nivel: 'verde' | 'ambar' | 'rojo';
+  completo: boolean;
+}
+
+/** Ocupación global de un día: plazas ocupadas / plazas totales de sus clases programadas. */
+export function ocupacionDia(clases: ClaseVista[]): OcupacionDia {
+  let n = 0;
+  let ocupadas = 0;
+  let plazas = 0;
+  for (const v of clases) {
+    if (v.clase.estado !== 'PROGRAMADA') continue;
+    n += 1;
+    ocupadas += v.ocupadas;
+    plazas += v.clase.plazas;
+  }
+  const porcentaje = plazas > 0 ? Math.round((Math.min(ocupadas, plazas) / plazas) * 100) : 0;
+  return { clases: n, ocupadas, plazas, porcentaje, nivel: porcentaje > 85 ? 'rojo' : porcentaje >= 50 ? 'ambar' : 'verde', completo: plazas > 0 && ocupadas >= plazas };
+}

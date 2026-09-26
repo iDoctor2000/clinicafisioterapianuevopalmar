@@ -4,7 +4,7 @@ import { es } from 'date-fns/locale';
 import type { Actividad, Categoria, Contrato, Id, ISODate, ISOInstant, PlantillaClase, Recuperacion, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import { evaluarReserva, sesionesPrevistas, type EvaluacionReserva } from '@/domain/rules';
-import { aISODate, esPasada, fechaCorta, DIAS_SEMANA_LABEL } from '@/domain/fechas';
+import { aISODate, diasEntre, esPasada, fechaCorta, inicioSemana, sumarDias, DIAS_SEMANA_LABEL } from '@/domain/fechas';
 import { indexar, type Db } from '@/data/db';
 import { contratoActivoDe, recuperacionesDisponiblesDe, reservasDeCliente, tarifaDe, type ReservaVista } from '@/data/selectores';
 
@@ -138,4 +138,28 @@ export function fechaRelativa(instante: ISOInstant, ahora: Date = new Date()): s
 /** Días que faltan hasta una fecha (0 = hoy). */
 export function diasHasta(fecha: ISODate, ahora: Date = new Date()): number {
   return differenceInCalendarDays(parseISO(fecha), ahora);
+}
+
+// ---------------------------------------------------------------------------
+// Vista semanal del horario
+// ---------------------------------------------------------------------------
+
+/** Días de la semana (lunes-primero) de la fecha, acotados al rango [desde, hasta]. */
+export function diasDeSemanaAcotados(fecha: ISODate, desde: ISODate, hasta: ISODate): ISODate[] {
+  const lunes = inicioSemana(fecha);
+  return diasEntre(lunes, sumarDias(lunes, 6)).filter((d) => d >= desde && d <= hasta);
+}
+
+/** "28 sep – 4 oct" */
+export function textoSemana(fecha: ISODate): string {
+  const lunes = inicioSemana(fecha);
+  const domingo = sumarDias(lunes, 6);
+  const f = (d: ISODate, patron: string) => format(parseISO(d), patron, { locale: es }).replace('.', '');
+  if (lunes.slice(0, 7) === domingo.slice(0, 7)) return `${f(lunes, 'd')} – ${f(domingo, 'd MMM')}`;
+  return `${f(lunes, 'd MMM')} – ${f(domingo, 'd MMM')}`;
+}
+
+/** "Lunes 28" */
+export function diaConNumero(fecha: ISODate): string {
+  return cap(format(parseISO(fecha), 'EEEE d', { locale: es }));
 }
