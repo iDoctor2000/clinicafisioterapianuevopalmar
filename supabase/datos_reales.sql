@@ -3,11 +3,12 @@
 -- Sustituye el horario y las tarifas de ejemplo. Seguro de ejecutar antes de
 -- tener clientes: solo borra clases sin reservas.
 --
--- ANTES DE EJECUTAR: cambia el email de María en la línea v_email_maria.
+-- María queda con un email provisional (cambiar después desde la app, en Equipo).
+-- Crea además un cliente de pruebas (mfb25s@gmail.com) con tarifa de 2 días dirigidas, turno libre.
 -- =============================================================================
 do $$
 declare
-  v_email_maria text := 'PON-AQUI-EL-EMAIL-DE-MARIA';
+  v_email_maria text := 'maria@nuevopalmar.provisional';
   v_irene  uuid;
   v_maria  uuid;
   -- actividades
@@ -147,6 +148,18 @@ begin
   if t_cs_r is null then
     insert into public.tarifas (nombre, descripcion, tipo, recuperacion_permitida, recuperacion_max_pendientes, precio_centimos, activa, orden)
     values ('Clase suelta · Reformer', 'Una clase de Reformer + Torre suelta, sin compromiso. 15 €. Se gestiona en recepción.', 'CLASE_SUELTA', false, 0, 1500, true, 10);
+  end if;
+
+  -- ---------------------------------------------------------------- cliente de pruebas
+  if not exists (select 1 from public.clientes where lower(email) = 'mfb25s@gmail.com') then
+    insert into public.clientes (nombre, apellidos, email, telefono, activo)
+    values ('Cliente', 'de pruebas', 'mfb25s@gmail.com', '', true)
+    returning id into v_maria; -- reutilizamos la variable como id temporal
+    insert into public.clientes_clinica (cliente_id) values (v_maria) on conflict do nothing;
+    insert into public.contratos (cliente_id, tarifa_id, fecha_inicio, fecha_fin, modalidad, notas)
+    values (v_maria, t_dir2, current_date, (current_date + interval '3 months')::date, 'LIBRE', 'Contrato de pruebas');
+    update public.clientes c set user_id = u.id from auth.users u
+     where c.id = v_maria and c.user_id is null and lower(u.email) = 'mfb25s@gmail.com';
   end if;
 
   -- ---------------------------------------------------------------- clases de las próximas semanas
