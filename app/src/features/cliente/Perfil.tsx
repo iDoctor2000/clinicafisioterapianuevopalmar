@@ -36,8 +36,8 @@ export function Perfil() {
   const cambiado = form.telefono !== cliente.telefono || form.email !== cliente.email || form.direccion !== cliente.direccion;
   const franjas = horarioFijoDe(db, contrato);
 
-  const guardar = () => {
-    const r = ejecutar('actualizarPreferenciasCliente', { telefono: form.telefono.trim(), email: form.email.trim(), direccion: form.direccion.trim() });
+  const guardar = async () => {
+    const r = await ejecutar('actualizarPreferenciasCliente', { telefono: form.telefono.trim(), email: form.email.trim(), direccion: form.direccion.trim() });
     if (r.ok) toast.ok('Tus datos se han guardado.');
     else toast.error(r.error);
   };
@@ -57,7 +57,7 @@ export function Perfil() {
     } else {
       toast.ok('Ya no recibirás avisos en el móvil.');
     }
-    const r = ejecutar('actualizarPreferenciasCliente', { notificacionesPush: activar });
+    const r = await ejecutar('actualizarPreferenciasCliente', { notificacionesPush: activar });
     if (!r.ok) toast.error(r.error);
   };
 

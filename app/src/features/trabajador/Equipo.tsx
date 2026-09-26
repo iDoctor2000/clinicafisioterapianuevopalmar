@@ -52,10 +52,10 @@ function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | nul
   const [f, setF] = useState<Omit<Trabajador, 'id'>>(trabajador ?? { nombre: '', apellidos: '', email: '', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_VER', 'RESERVAS_GESTIONAR', 'ASISTENCIA_REGISTRAR'], esMonitor: false, color: COLORES[1], activo: true, userId: null });
   const esYo = trabajador?.id === sesion.trabajadorId;
   const alternar = (p: Permiso) => setF({ ...f, permisos: f.permisos.includes(p) ? f.permisos.filter((x) => x !== p) : [...f.permisos, p] });
-  const guardar = () => {
+  const guardar = async () => {
     if (!f.nombre.trim() || !f.email.trim()) return toast.error('Nombre y correo son obligatorios.');
     if (esYo && f.rol !== 'ADMIN' && trabajador?.rol === 'ADMIN') return toast.error('No puedes quitarte a ti mismo el rol de administrador.');
-    const r = ejecutar('guardarTrabajador', { trabajador: { ...f, id: trabajador?.id, nombre: f.nombre.trim(), apellidos: f.apellidos.trim(), email: f.email.trim() } });
+    const r = await ejecutar('guardarTrabajador', { trabajador: { ...f, id: trabajador?.id, nombre: f.nombre.trim(), apellidos: f.apellidos.trim(), email: f.email.trim() } });
     if (r.ok) { toast.ok('Trabajador guardado.'); onCerrar(); } else toast.error(r.error);
   };
   return (

@@ -144,9 +144,9 @@ export function HojaCancelar({ vista, onCerrar }: { vista: ReservaVista | null; 
     explicacion = `Quedan menos de ${limite} minutos para la clase: si cancelas no podrás recuperarla, pero avisarás al monitor.`;
   }
 
-  const confirmar = () => {
+  const confirmar = async () => {
     setEnviando(true);
-    const r = ejecutar('cancelarReserva', { reservaId: reserva.id });
+    const r = await ejecutar('cancelarReserva', { reservaId: reserva.id });
     setEnviando(false);
     if (r.ok) {
       toast.ok(r.valor.recuperable ? 'Plaza cancelada. Tienes una clase para recuperar.' : 'Plaza cancelada. Hemos avisado al monitor.');

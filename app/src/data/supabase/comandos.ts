@@ -1,0 +1,242 @@
+/**
+ * Ejecución de los comandos de `data/comandos.ts` contra Supabase.
+ *
+ * Los comandos con reglas de negocio llaman a las RPC de 0003_funciones.sql
+ * (que validan permisos y lanzan mensajes en español). Los CRUD simples usan
+ * insert/update/upsert directos, protegidos por RLS (0002_seguridad.sql).
+ *
+ * Los ids nuevos se generan aquí (uuid) para no depender de un `select` tras
+ * la escritura, que RLS podría no permitir. El valor devuelto se resuelve
+ * sobre el `Db` recargado después del comando (función `valor(db)`).
+ */
+import type { Clase, Cliente, Id, Recuperacion, Reserva, Sesion } from '@/domain/types';
+import { tienePermiso } from '@/domain/types';
+import { aISODate, sumarDias } from '@/domain/fechas';
+import type { Db } from '../db';
+import type { ArgsComando, NombreComando, ValorComando } from '../tiposComandos';
+import { mensajeError, servidor } from './cliente';
+import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePlantilla, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
+
+export type ResultadoRemoto<T = unknown> = { ok: true; valor: (db: Db) => T } | { ok: false; error: string };
+
+type Impl = { [K in NombreComando]: (args: ArgsComando<K>, sesion: Sesion) => Promise<(db: Db) => ValorComando<K>> };
+
+/** Días de horizonte al regenerar clases tras cambiar el horario (igual que el demo). */
+const DIAS_HORIZONTE = 70;
+
+const nuevoUuid = (): Id => crypto.randomUUID();
+
+/** Lanza si la respuesta de PostgREST trae error. */
+function comprobar<T>(r: { data: T; error: { message: string } | null }): T {
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+async function rpc<T = unknown>(nombre: string, params: Record<string, unknown>): Promise<T> {
+  return comprobar(await servidor().rpc(nombre, params)) as T;
+}
+
+/** Crea las clases que falten hasta el horizonte (el demo lo hace en cada cambio de horario). */
+async function regenerarClases(): Promise<void> {
+  const hoy = aISODate(new Date());
+  await rpc('generar_clases', { p_desde: hoy, p_hasta: sumarDias(hoy, DIAS_HORIZONTE) });
+}
+
+const impl: Impl = {
+  // -------------------------------------------------------------------------
+  // Reservas
+  // -------------------------------------------------------------------------
+  async reservar(args, sesion) {
+    const r = await rpc<{ reserva_id: string; via: string; mensaje: string | null }>('reservar', {
+      p_clase_id: args.claseId, p_cliente_id: sesion.tipo === 'CLIENTE' ? null : args.clienteId ?? null,
+    });
+    const clienteId = sesion.tipo === 'CLIENTE' ? sesion.clienteId : args.clienteId ?? '';
+    return (db) => db.reservas.find((x) => x.id === r.reserva_id) ?? reservaProvisional(r.reserva_id, args.claseId, clienteId, sesion);
+  },
+
+  async cancelarReserva(args) {
+    const r = await rpc<{ recuperable: boolean }>('cancelar_reserva', { p_reserva_id: args.reservaId, p_forzar_recuperable: args.forzarRecuperable === true });
+    return () => ({ recuperable: r.recuperable === true });
+  },
+
+  async anadirAlumno(args, sesion) {
+    const r = await rpc<{ reserva_id: string }>('anadir_alumno', { p_clase_id: args.claseId, p_cliente_id: args.clienteId, p_modo: args.modo });
+    return (db) => db.reservas.find((x) => x.id === r.reserva_id) ?? reservaProvisional(r.reserva_id, args.claseId, args.clienteId, sesion);
+  },
+
+  async quitarAlumno(args) {
+    await rpc('cancelar_reserva', { p_reserva_id: args.reservaId, p_forzar_recuperable: true });
+    return () => undefined;
+  },
+
+  async registrarAsistencia(args) {
+    await rpc('registrar_asistencia', { p_reserva_id: args.reservaId, p_asistencia: args.asistencia });
+    return () => undefined;
+  },
+
+  async autorizarRecuperacion(args, sesion) {
+    const id = await rpc<string>('autorizar_recuperacion', {
+      p_cliente_id: args.clienteId, p_categoria_origen: args.categoriaOrigen, p_categorias_permitidas: args.categoriasPermitidas,
+      p_caduca_el: args.caducaEl, p_nota: args.nota,
+    });
+    const provisional: Recuperacion = {
+      id, clienteId: args.clienteId, contratoId: null, reservaOrigenId: null, categoriaOrigen: args.categoriaOrigen,
+      categoriasPermitidas: Array.from(new Set([args.categoriaOrigen, ...args.categoriasPermitidas])), motivo: 'AUTORIZACION_MANUAL', estado: 'DISPONIBLE',
+      caducaEl: args.caducaEl, usadaEnReservaId: null, creadaEl: new Date().toISOString(), creadaPor: sesion.userId, nota: args.nota,
+    };
+    return (db) => db.recuperaciones.find((x) => x.id === id) ?? provisional;
+  },
+
+  // -------------------------------------------------------------------------
+  // Clases y horarios
+  // -------------------------------------------------------------------------
+  async cancelarClase(args) {
+    const afectados = await rpc<number>('cancelar_clase', {
+      p_clase_id: args.claseId, p_motivo: args.motivo, p_clase_alternativa_id: args.claseAlternativaId, p_avisar: args.avisar,
+    });
+    return () => ({ afectados: Number(afectados) || 0 });
+  },
+
+  async crearClaseExtraordinaria(args) {
+    const id = nuevoUuid();
+    comprobar(await servidor().from('clases').insert(deClaseNueva({ id, ...args })));
+    const provisional: Clase = {
+      id, plantillaId: null, actividadId: args.actividadId, fecha: args.fecha, horaInicio: args.horaInicio, duracionMin: args.duracionMin, monitorId: args.monitorId,
+      plazas: args.plazas, estado: 'PROGRAMADA', extraordinaria: true, claseAlternativaId: null, motivoCancelacion: null, canceladaEl: null, canceladaPor: null,
+    };
+    return (db) => db.clases.find((x) => x.id === id) ?? provisional;
+  },
+
+  async guardarPlantilla(args) {
+    const p = { ...args.plantilla, id: args.plantilla.id ?? nuevoUuid() };
+    comprobar(await servidor().from('plantillas_clase').upsert(dePlantilla(p)));
+    await regenerarClases();
+    return (db) => db.plantillas.find((x) => x.id === p.id) ?? p;
+  },
+
+  // -------------------------------------------------------------------------
+  // Clientes y contratos
+  // -------------------------------------------------------------------------
+  async guardarCliente(args, sesion) {
+    const sb = servidor();
+    const esNuevo = !args.cliente.id;
+    const cliente: Cliente = { ...args.cliente, id: args.cliente.id ?? nuevoUuid() };
+    const fila = deCliente(cliente);
+    if (esNuevo) comprobar(await sb.from('clientes').insert(fila));
+    else comprobar(await sb.from('clientes').update(fila).eq('id', cliente.id));
+    // La parte clínica va en su tabla y solo puede escribirla quien tiene CLINICA_VER.
+    if (tienePermiso(sesion, 'CLINICA_VER')) {
+      comprobar(await sb.from('clientes_clinica').upsert(deClinica(cliente.id, cliente.clinica, sesion.userId), { onConflict: 'cliente_id' }));
+    }
+    return (db) => db.clientes.find((x) => x.id === cliente.id) ?? { ...cliente, clinica: tienePermiso(sesion, 'CLINICA_VER') ? cliente.clinica : { ...CLINICA_VACIA } };
+  },
+
+  async crearContrato(args) {
+    const c = args.contrato;
+    const id = await rpc<string>('crear_contrato', {
+      p_cliente_id: c.clienteId, p_tarifa_id: c.tarifaId, p_fecha_inicio: c.fechaInicio, p_fecha_fin: c.fechaFin, p_modalidad: c.modalidad,
+      p_franjas: c.modalidad === 'FIJO' ? c.franjasFijas.map((f) => f.plantillaId) : [], p_actividades_permitidas: c.actividadesPermitidasIds,
+      p_notas: c.notas, p_sesiones_restantes: c.sesionesRestantes,
+    });
+    return (db) => db.contratos.find((x) => x.id === id) ?? { ...c, id, estado: 'ACTIVO', creadoEl: new Date().toISOString(), creadoPor: 'sistema' };
+  },
+
+  async finalizarContrato(args) {
+    await rpc('finalizar_contrato', { p_contrato_id: args.contratoId, p_cancelar_reservas_futuras: args.cancelarReservasFuturas });
+    return () => undefined;
+  },
+
+  // -------------------------------------------------------------------------
+  // Avisos y perfil del cliente
+  // -------------------------------------------------------------------------
+  async publicarAviso(args, sesion) {
+    const id = await rpc<string>('publicar_aviso', { p_titulo: args.titulo, p_cuerpo: args.cuerpo, ...deDestino(args.destino), p_importante: args.importante });
+    return (db) => db.avisos.find((x) => x.id === id) ?? { id, ...args, destinatariosIds: [], publicadoEl: new Date().toISOString(), publicadoPor: sesion.userId };
+  },
+
+  async marcarAvisoLeido(args, sesion) {
+    if (sesion.tipo !== 'CLIENTE') return () => undefined;
+    const r = await servidor().from('aviso_lecturas').upsert({ aviso_id: args.avisoId, cliente_id: sesion.clienteId }, { onConflict: 'aviso_id,cliente_id', ignoreDuplicates: true });
+    // Ya leído (clave duplicada): no es un error para el usuario.
+    if (r.error && !/duplicate|23505/i.test(r.error.message)) throw r.error;
+    return () => undefined;
+  },
+
+  async actualizarPreferenciasCliente(args, sesion) {
+    if (sesion.tipo !== 'CLIENTE') throw new Error('Solo para clientes.');
+    const cambios: Record<string, unknown> = {};
+    if (args.notificacionesPush !== undefined) cambios.notificaciones_push = args.notificacionesPush;
+    if (args.telefono !== undefined) cambios.telefono = args.telefono;
+    if (args.email !== undefined) cambios.email = args.email;
+    if (args.direccion !== undefined) cambios.direccion = args.direccion;
+    if (Object.keys(cambios).length > 0) comprobar(await servidor().from('clientes').update(cambios).eq('id', sesion.clienteId));
+    return () => undefined;
+  },
+
+  // -------------------------------------------------------------------------
+  // Catálogo y configuración
+  // -------------------------------------------------------------------------
+  async guardarTarifa(args) {
+    const sb = servidor();
+    const t = { ...args.tarifa, id: args.tarifa.id ?? nuevoUuid() };
+    const { tarifa, cupos } = deTarifa(t);
+    comprobar(await sb.from('tarifas').upsert(tarifa));
+    comprobar(await sb.from('tarifa_cupos').delete().eq('tarifa_id', t.id));
+    if (cupos.length > 0) comprobar(await sb.from('tarifa_cupos').insert(cupos));
+    return (db) => db.tarifas.find((x) => x.id === t.id) ?? t;
+  },
+
+  async guardarActividad(args) {
+    const a = { ...args.actividad, id: args.actividad.id ?? nuevoUuid() };
+    comprobar(await servidor().from('actividades').upsert(deActividad(a)));
+    return (db) => db.actividades.find((x) => x.id === a.id) ?? a;
+  },
+
+  async guardarTrabajador(args) {
+    const sb = servidor();
+    const t = { ...args.trabajador, id: args.trabajador.id ?? nuevoUuid() };
+    const { trabajador, permisos } = deTrabajador(t);
+    comprobar(await sb.from('trabajadores').upsert(trabajador));
+    comprobar(await sb.from('trabajador_permisos').delete().eq('trabajador_id', t.id));
+    if (permisos.length > 0) comprobar(await sb.from('trabajador_permisos').insert(permisos));
+    return (db) => db.trabajadores.find((x) => x.id === t.id) ?? t;
+  },
+
+  async actualizarConfig(args) {
+    const sb = servidor();
+    const fila = deConfig(args.config);
+    if (Object.keys(fila).length > 0) comprobar(await sb.from('config_centro').upsert({ id: true, ...fila }, { onConflict: 'id' }));
+    if (args.config.diasCierre) {
+      // Se reemplaza la lista completa (la tabla tiene la fecha como clave).
+      comprobar(await sb.from('dias_cierre').delete().not('fecha', 'is', null));
+      const filas = deDiasCierre(args.config.diasCierre);
+      if (filas.length > 0) comprobar(await sb.from('dias_cierre').insert(filas));
+      // Cancelar las clases ya programadas en los nuevos cierres lo hace mantenimiento_diario (pg_cron);
+      // generamos las clases que falten para que el calendario quede coherente ya.
+      try {
+        await regenerarClases();
+      } catch (e) {
+        console.warn('[supabase] No se han podido regenerar las clases tras cambiar los cierres:', mensajeError(e));
+      }
+    }
+    return () => undefined;
+  },
+};
+
+function reservaProvisional(id: Id, claseId: Id, clienteId: Id, sesion: Sesion): Reserva {
+  return {
+    id, claseId, clienteId, contratoId: null, origen: sesion.tipo === 'CLIENTE' ? 'CLIENTE' : 'MANUAL', estado: 'RESERVADA', asistencia: 'PENDIENTE',
+    recuperacionUsadaId: null, creadaEl: new Date().toISOString(), creadaPor: sesion.userId, canceladaEl: null, canceladaPor: null,
+  };
+}
+
+/** Ejecuta un comando contra Supabase. Nunca lanza: devuelve `{ok:false, error}` con el mensaje de Postgres tal cual. */
+export async function ejecutarRemoto<K extends NombreComando>(nombre: K, args: ArgsComando<K>, sesion: Sesion): Promise<ResultadoRemoto<ValorComando<K>>> {
+  try {
+    const fn = impl[nombre] as (a: ArgsComando<K>, s: Sesion) => Promise<(db: Db) => ValorComando<K>>;
+    const valor = await fn(args, sesion);
+    return { ok: true, valor };
+  } catch (e) {
+    return { ok: false, error: mensajeError(e) };
+  }
+}

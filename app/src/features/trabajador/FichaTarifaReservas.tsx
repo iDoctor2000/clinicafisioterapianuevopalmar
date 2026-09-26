@@ -30,9 +30,9 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
   const previstas = contrato && contrato.modalidad === 'FIJO' ? sesionesPrevistas(contrato, db.plantillas, db.config).total : null;
   const reservasFuturas = finalizar ? db.reservas.filter((r) => r.contratoId === finalizar.id && r.estado === 'RESERVADA' && (db.clases.find((c) => c.id === r.claseId)?.fecha ?? '') >= hoy).length : 0;
 
-  const confirmarFin = () => {
+  const confirmarFin = async () => {
     if (!finalizar) return;
-    const r = ejecutar('finalizarContrato', { contratoId: finalizar.id, cancelarReservasFuturas: cancelarFuturas });
+    const r = await ejecutar('finalizarContrato', { contratoId: finalizar.id, cancelarReservasFuturas: cancelarFuturas });
     if (r.ok) toast.ok('Contrato finalizado.'); else toast.error(r.error);
     setFinalizar(null);
   };
@@ -141,11 +141,11 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
   };
   const previstas = modalidadReal === 'FIJO' ? sesionesPrevistas({ fechaInicio: inicio, fechaFin: fin, franjasFijas: franjas.map((plantillaId) => ({ plantillaId })) }, db.plantillas, db.config).total : null;
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!tarifa) return;
     if (fin < inicio) return toast.error('La fecha de fin debe ser posterior al inicio.');
     if (modalidadReal === 'FIJO' && franjas.length === 0) return toast.error('Elige al menos una franja fija.');
-    const r = ejecutar('crearContrato', {
+    const r = await ejecutar('crearContrato', {
       contrato: { clienteId: cliente.id, tarifaId: tarifa.id, fechaInicio: inicio, fechaFin: fin, modalidad: modalidadReal, franjasFijas: modalidadReal === 'FIJO' ? franjas.map((plantillaId) => ({ plantillaId })) : [], sesionesRestantes: tarifa.bono?.sesiones ?? null, actividadesPermitidasIds: [], notas: notas.trim() },
     });
     if (r.ok) { toast.ok('Contratación creada. Las reservas de horario fijo se han generado automáticamente.'); onCerrar(); } else toast.error(r.error);
@@ -212,9 +212,9 @@ export function PestanaReservas({ cliente }: { cliente: Cliente }) {
   const claseCancelar = cancelar ? clases.get(cancelar.claseId) : null;
   const clasif = claseCancelar ? clasificarCancelacion(claseCancelar, ahora, db.config) : null;
 
-  const confirmarCancelar = () => {
+  const confirmarCancelar = async () => {
     if (!cancelar) return;
-    const r = ejecutar('cancelarReserva', { reservaId: cancelar.id });
+    const r = await ejecutar('cancelarReserva', { reservaId: cancelar.id });
     if (r.ok) toast.ok(r.valor.recuperable ? 'Reserva cancelada. Se ha generado una recuperación.' : 'Reserva cancelada sin recuperación.'); else toast.error(r.error);
     setCancelar(null);
   };
@@ -270,8 +270,8 @@ function HojaReservarPara({ cliente, onCerrar }: { cliente: Cliente; onCerrar: (
   const [fecha, setFecha] = useState(hoy);
   const clases = clasesDelDia(db, fecha).filter((v) => v.clase.estado === 'PROGRAMADA');
   const mias = new Set(db.reservas.filter((r) => r.clienteId === cliente.id && r.estado === 'RESERVADA').map((r) => r.claseId));
-  const reservar = (claseId: string) => {
-    const r = ejecutar('reservar', { claseId, clienteId: cliente.id });
+  const reservar = async (claseId: string) => {
+    const r = await ejecutar('reservar', { claseId, clienteId: cliente.id });
     if (r.ok) { toast.ok('Reserva creada.'); onCerrar(); } else toast.error(r.error);
   };
   return (

@@ -45,3 +45,13 @@ export function nuevoId(prefijo = 'id'): Id {
 export function indexar<T extends { id: Id }>(items: T[]): Map<Id, T> {
   return new Map(items.map((i) => [i.id, i]));
 }
+
+/** Instantánea sin datos (estado inicial en modo Supabase, antes de cargar). */
+export function dbVacio(): Db {
+  return {
+    version: DB_VERSION,
+    config: { nombre: 'Nuevo Palmar Pilates', minutosAntelacionCancelacion: 60, diasVentanaReserva: 14, recuperacionCaducaConContrato: true, diasCaducidadRecuperacion: 30, diasCierre: [], zonaHoraria: 'Europe/Madrid' },
+    actividades: [], tarifas: [], clientes: [], contratos: [], plantillas: [], clases: [], reservas: [], recuperaciones: [],
+    avisos: [], lecturas: [], trabajadores: [], usuarios: [], auditoria: [],
+  };
+}

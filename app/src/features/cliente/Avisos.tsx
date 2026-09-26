@@ -19,9 +19,9 @@ export function Avisos() {
   const noLeidos = avisos.filter((a) => !a.leido).length;
   const abierto = abiertoId ? avisos.find((a) => a.aviso.id === abiertoId) ?? null : null;
 
-  const abrir = (id: string) => {
+  const abrir = async (id: string) => {
     setAbiertoId(id);
-    ejecutar('marcarAvisoLeido', { avisoId: id });
+    await ejecutar('marcarAvisoLeido', { avisoId: id });
   };
 
   return (
