@@ -1027,6 +1027,7 @@
                                 {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map((item, i) => (
                                     <a key={i} href={`#${item.toLowerCase() === 'inicio' ? 'home' : item === 'Nosotros' ? 'about' : item.toLowerCase()}`} className={`text-sm font-medium hover:text-brand-green transition-colors ${scrolled ? 'text-gray-700' : 'text-gray-800'}`}>{item}</a>
                                 ))}
+                                <a href="app/" className={`text-sm font-semibold px-4 py-2 rounded-full border transition-colors ${scrolled ? 'border-brand-green text-brand-green hover:bg-brand-green hover:text-white' : 'border-gray-800 text-gray-800 hover:bg-gray-800 hover:text-white'}`}>Área Pilates</a>
                                 <a href={`tel:${content.contact.phone.replace(/\s/g, '')}`} className="flex items-center gap-2 bg-brand-green text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-0.5"><Phone size={16} /> {content.contact.phone}</a>
                                 <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark transition-colors" aria-label="Abrir panel admin"><Settings size={20}/></button>
                             </div>
@@ -1040,6 +1041,7 @@
                                 {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map(item => (
                                     <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileOpen(false)} className="text-gray-700 font-medium py-2 border-b border-gray-50">{item}</a>
                                 ))}
+                                <a href="app/" className="mt-2 text-center bg-brand-green text-white font-semibold py-3 rounded-full">Área Pilates · Reservas</a>
                             </div>
                         )}
                     </nav>

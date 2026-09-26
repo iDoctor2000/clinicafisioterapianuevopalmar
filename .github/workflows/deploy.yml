@@ -1,0 +1,58 @@
+name: Publicar web y app en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Instalar dependencias de la app
+        working-directory: app
+        run: npm ci
+      - name: Pruebas de reglas de negocio
+        working-directory: app
+        run: npm test
+      - name: Compilar la app
+        working-directory: app
+        env:
+          # Ruta pública de la app: subcarpeta /app/ dentro de la web de la clínica.
+          # Si se configura un dominio propio (CNAME), cambiar a "/app/".
+          VITE_BASE: /${{ github.event.repository.name }}/app/
+        run: npm run build
+      - name: Montar el sitio (web + app)
+        run: |
+          mkdir -p _site/app
+          cp -r index.html metadata.json assets .nojekyll _site/
+          [ -f CNAME ] && cp CNAME _site/ || true
+          cp -r app/dist/. _site/app/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

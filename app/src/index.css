@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-sand text-ink font-sans antialiased;
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+  /* Tamaño de texto generoso: público poco habituado a móviles */
+  html { font-size: 17px; }
+  h1, h2, h3 { @apply font-serif text-ink; letter-spacing: -0.01em; }
+  button, [role="button"] { -webkit-tap-highlight-color: transparent; }
+  *:focus-visible { @apply outline-none ring-4 ring-brand-300 ring-offset-2 ring-offset-sand; }
+  input, select, textarea { font-size: 17px; }
+}
+
+@layer utilities {
+  .pb-safe { padding-bottom: calc(var(--safe-bottom) + 0.5rem); }
+  .pt-safe { padding-top: var(--safe-top); }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+  .tap { @apply active:scale-[0.98] transition-transform duration-100; }
+}
