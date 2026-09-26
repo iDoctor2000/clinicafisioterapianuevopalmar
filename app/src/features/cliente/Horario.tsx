@@ -54,8 +54,8 @@ export function Horario() {
   const detalleClase = detalleId ? db.clases.find((c) => c.id === detalleId) ?? null : null;
   const detalleVista: ClaseVista | null = detalleClase ? vistaClase(db, detalleClase) : null;
 
-  const reservar = (claseId: string) => {
-    const r = ejecutar('reservar', { claseId });
+  const reservar = async (claseId: string) => {
+    const r = await ejecutar('reservar', { claseId });
     if (r.ok) {
       const v = vistaReserva(r.db, r.valor);
       toast.ok(`Plaza reservada: ${v.actividad.nombre}, ${fechaLarga(v.clase.fecha)} a las ${v.clase.horaInicio}.`);

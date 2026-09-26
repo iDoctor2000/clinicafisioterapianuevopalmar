@@ -81,9 +81,9 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
   const [f, setF] = useState<Omit<PlantillaClase, 'id'>>(
     plantilla ?? { actividadId: acts[0]?.id ?? '', diaSemana: diaInicial, horaInicio: '10:00', duracionMin: 55, monitorId: mons[0]?.id ?? '', plazas: 8, activa: true, vigenciaDesde: null, vigenciaHasta: null },
   );
-  const guardar = () => {
+  const guardar = async () => {
     if (!f.actividadId || !f.monitorId || !f.horaInicio) return toast.error('Completa actividad, hora y monitor.');
-    const r = ejecutar('guardarPlantilla', { plantilla: { ...f, id: plantilla?.id, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) } });
+    const r = await ejecutar('guardarPlantilla', { plantilla: { ...f, id: plantilla?.id, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) } });
     if (r.ok) { toast.ok(plantilla ? 'Franja actualizada.' : 'Franja creada. Se han generado sus clases.'); onCerrar(); } else toast.error(r.error);
   };
   return (

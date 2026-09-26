@@ -34,13 +34,13 @@ export function DetalleClase() {
   const alternativa = clase.claseAlternativaId ? db.clases.find((c) => c.id === clase.claseAlternativaId) : null;
   const cs = clasesSueltasDe(vista);
 
-  const marcar = (r: Reserva, asistencia: 'ASISTE' | 'NO_ASISTE') => {
-    const res = ejecutar('registrarAsistencia', { reservaId: r.id, asistencia: r.asistencia === asistencia ? 'PENDIENTE' : asistencia });
+  const marcar = async (r: Reserva, asistencia: 'ASISTE' | 'NO_ASISTE') => {
+    const res = await ejecutar('registrarAsistencia', { reservaId: r.id, asistencia: r.asistencia === asistencia ? 'PENDIENTE' : asistencia });
     if (!res.ok) toast.error(res.error);
   };
-  const confirmarQuitar = () => {
+  const confirmarQuitar = async () => {
     if (!quitar) return;
-    const res = ejecutar('quitarAlumno', { reservaId: quitar.id });
+    const res = await ejecutar('quitarAlumno', { reservaId: quitar.id });
     if (res.ok) toast.ok(`${nombreCompleto(clientes.get(quitar.clienteId))} ya no está en la clase.`); else toast.error(res.error);
     setQuitar(null);
   };
@@ -171,9 +171,9 @@ function HojaAnadirAlumno({ abierta, onCerrar, claseId, yaApuntados }: { abierta
   const [error, setError] = useState<string | null>(null);
   const hoy = hoyISO();
   const cerrar = () => { setCliente(null); setError(null); onCerrar(); };
-  const anadir = (modo: 'TARIFA' | 'CLASE_SUELTA' | 'MANUAL') => {
+  const anadir = async (modo: 'TARIFA' | 'CLASE_SUELTA' | 'MANUAL') => {
     if (!cliente) return;
-    const r = ejecutar('anadirAlumno', { claseId, clienteId: cliente.id, modo });
+    const r = await ejecutar('anadirAlumno', { claseId, clienteId: cliente.id, modo });
     if (r.ok) { toast.ok(`${nombreCompleto(cliente)} añadido/a a la clase.`); cerrar(); } else setError(r.error);
   };
   const resumen = cliente ? resumenCliente(db, cliente, hoy) : null;
@@ -239,8 +239,8 @@ function HojaCancelarClase({ abierta, onCerrar, claseId, afectados }: { abierta:
   const clase = db.clases.find((c) => c.id === claseId);
   if (!clase) return null;
   const alternativas = alternativasPara(db, clase, hoyISO());
-  const confirmar = () => {
-    const r = ejecutar('cancelarClase', { claseId, motivo: motivo.trim(), claseAlternativaId: alternativa || null, avisar });
+  const confirmar = async () => {
+    const r = await ejecutar('cancelarClase', { claseId, motivo: motivo.trim(), claseAlternativaId: alternativa || null, avisar });
     if (r.ok) { toast.ok(`Clase cancelada. ${r.valor.afectados} alumno${r.valor.afectados === 1 ? '' : 's'} afectado${r.valor.afectados === 1 ? '' : 's'}.`); onCerrar(); } else toast.error(r.error);
   };
   return (

@@ -160,9 +160,9 @@ export function HojaNuevaClase({ abierta, onCerrar, fechaInicial, onCreada }: { 
   if (ultimaFecha !== fechaInicial) { setUltimaFecha(fechaInicial); setF((x) => ({ ...x, fecha: fechaInicial })); }
   const cierre = esDiaCierre(f.fecha, db.config);
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!f.actividadId || !f.fecha || !f.horaInicio || !f.monitorId) return toast.error('Completa todos los campos.');
-    const r = ejecutar('crearClaseExtraordinaria', { ...f, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) });
+    const r = await ejecutar('crearClaseExtraordinaria', { ...f, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) });
     if (r.ok) { toast.ok('Clase extraordinaria creada.'); onCreada(f.fecha); } else toast.error(r.error);
   };
 

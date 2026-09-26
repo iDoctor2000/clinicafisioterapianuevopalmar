@@ -41,11 +41,11 @@ export function Avisos() {
   const claseSel = db.clases.find((c) => c.id === claseId);
   const claseSelFueraDeLista = claseSel && !proximas.some((v) => v.clase.id === claseId);
 
-  const publicar = () => {
+  const publicar = async () => {
     if (!titulo.trim()) return toast.error('Escribe un título.');
     if (!cuerpo.trim()) return toast.error('Escribe el texto del aviso.');
     if (destinatarios.length === 0) return toast.error('No hay destinatarios.');
-    const r = ejecutar('publicarAviso', { titulo: titulo.trim(), cuerpo: cuerpo.trim(), destino, importante });
+    const r = await ejecutar('publicarAviso', { titulo: titulo.trim(), cuerpo: cuerpo.trim(), destino, importante });
     if (r.ok) { toast.ok(`Aviso publicado a ${destinatarios.length} cliente${destinatarios.length === 1 ? '' : 's'}.`); setTitulo(''); setCuerpo(''); setImportante(false); setClienteIds([]); if (claseParam) setParams({}); } else toast.error(r.error);
   };
 

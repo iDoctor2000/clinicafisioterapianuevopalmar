@@ -4,3 +4,4 @@ dev-dist
 .env
 .env.local
 *.local
+*.tsbuildinfo

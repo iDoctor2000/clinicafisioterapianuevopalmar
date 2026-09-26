@@ -36,6 +36,10 @@ jobs:
           # Ruta pública de la app: subcarpeta /app/ dentro de la web de la clínica.
           # Si se configura un dominio propio (CNAME), cambiar a "/app/".
           VITE_BASE: /${{ github.event.repository.name }}/app/
+          # Conexión con Supabase (variables de repositorio: Settings → Secrets and variables → Actions → Variables).
+          # Si están vacías, la app se publica en modo demo (datos de ejemplo, sin contraseña).
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
         run: npm run build
       - name: Montar el sitio (web + app)
         run: |

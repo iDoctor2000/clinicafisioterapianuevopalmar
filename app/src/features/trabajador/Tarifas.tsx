@@ -72,12 +72,12 @@ function HojaTarifa({ tarifa, orden, onCerrar }: { tarifa: Tarifa | null; orden:
   const cupo = (c: Categoria) => f.cupos.find((x) => x.categoria === c)?.sesionesSemana ?? 0;
   const setCupo = (c: Categoria, n: number) => setF({ ...f, cupos: [...f.cupos.filter((x) => x.categoria !== c), ...(n > 0 ? [{ categoria: c, sesionesSemana: n }] : [])] });
   const setTipo = (tipo: TipoTarifa) => setF({ ...f, tipo, bono: tipo === 'BONO' ? f.bono ?? { sesiones: 10, categoria: 'DIRIGIDA', validezMeses: 6 } : null, cupos: tipo === 'RECURRENTE' ? f.cupos : [] });
-  const guardar = () => {
+  const guardar = async () => {
     if (!f.nombre.trim()) return toast.error('El nombre es obligatorio.');
     const p = precio.trim().replace(',', '.');
     const precioCentimos = p === '' ? null : Math.round(Number(p) * 100);
     if (precioCentimos != null && Number.isNaN(precioCentimos)) return toast.error('Precio no válido.');
-    const r = ejecutar('guardarTarifa', { tarifa: { ...f, id: tarifa?.id, nombre: f.nombre.trim(), precioCentimos, orden: Number(f.orden) } });
+    const r = await ejecutar('guardarTarifa', { tarifa: { ...f, id: tarifa?.id, nombre: f.nombre.trim(), precioCentimos, orden: Number(f.orden) } });
     if (r.ok) { toast.ok('Tarifa guardada.'); onCerrar(); } else toast.error(r.error);
   };
   return (
@@ -132,9 +132,9 @@ function HojaTarifa({ tarifa, orden, onCerrar }: { tarifa: Tarifa | null; orden:
 function HojaActividad({ actividad, onCerrar }: { actividad: Actividad | null; onCerrar: () => void }) {
   const { ejecutar } = useTrabajador();
   const [f, setF] = useState<Omit<Actividad, 'id'>>(actividad ?? { nombre: '', categoria: 'DIRIGIDA', descripcion: '', color: COLORES[0], activa: true });
-  const guardar = () => {
+  const guardar = async () => {
     if (!f.nombre.trim()) return toast.error('El nombre es obligatorio.');
-    const r = ejecutar('guardarActividad', { actividad: { ...f, id: actividad?.id, nombre: f.nombre.trim() } });
+    const r = await ejecutar('guardarActividad', { actividad: { ...f, id: actividad?.id, nombre: f.nombre.trim() } });
     if (r.ok) { toast.ok('Actividad guardada.'); onCerrar(); } else toast.error(r.error);
   };
   return (

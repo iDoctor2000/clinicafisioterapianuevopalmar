@@ -28,8 +28,8 @@ function Reglas() {
   const c = db.config;
   const [f, setF] = useState({ minutosAntelacionCancelacion: c.minutosAntelacionCancelacion, diasVentanaReserva: c.diasVentanaReserva, recuperacionCaducaConContrato: c.recuperacionCaducaConContrato, diasCaducidadRecuperacion: c.diasCaducidadRecuperacion });
   const cambiado = JSON.stringify(f) !== JSON.stringify({ minutosAntelacionCancelacion: c.minutosAntelacionCancelacion, diasVentanaReserva: c.diasVentanaReserva, recuperacionCaducaConContrato: c.recuperacionCaducaConContrato, diasCaducidadRecuperacion: c.diasCaducidadRecuperacion });
-  const guardar = () => {
-    const r = ejecutar('actualizarConfig', { config: { ...f, minutosAntelacionCancelacion: Number(f.minutosAntelacionCancelacion), diasVentanaReserva: Number(f.diasVentanaReserva), diasCaducidadRecuperacion: Number(f.diasCaducidadRecuperacion) } });
+  const guardar = async () => {
+    const r = await ejecutar('actualizarConfig', { config: { ...f, minutosAntelacionCancelacion: Number(f.minutosAntelacionCancelacion), diasVentanaReserva: Number(f.diasVentanaReserva), diasCaducidadRecuperacion: Number(f.diasCaducidadRecuperacion) } });
     if (r.ok) toast.ok('Ajustes guardados.'); else toast.error(r.error);
   };
   const horas = Math.floor(Number(f.minutosAntelacionCancelacion) / 60);
@@ -67,8 +67,8 @@ function Cierres() {
     setLista([...lista, { fecha: nuevo.fecha, motivo: nuevo.motivo.trim() || 'Cierre' }].sort((a, b) => a.fecha.localeCompare(b.fecha)));
     setNuevo({ fecha: '', motivo: '' });
   };
-  const guardar = () => {
-    const r = ejecutar('actualizarConfig', { config: { diasCierre: lista } });
+  const guardar = async () => {
+    const r = await ejecutar('actualizarConfig', { config: { diasCierre: lista } });
     if (r.ok) toast.ok('Días de cierre guardados. Las clases de esos días quedan canceladas sin penalizar.'); else toast.error(r.error);
     setConfirmar(false);
   };

@@ -77,8 +77,8 @@ export function FichaCliente() {
 function PestanaDatos({ cliente }: { cliente: Cliente }) {
   const { puede, ejecutar } = useTrabajador();
   const [editando, setEditando] = useState(false);
-  const guardar = (d: DatosCliente) => {
-    const r = ejecutar('guardarCliente', { cliente: { ...cliente, ...d } });
+  const guardar = async (d: DatosCliente) => {
+    const r = await ejecutar('guardarCliente', { cliente: { ...cliente, ...d } });
     if (r.ok) { toast.ok('Datos guardados.'); setEditando(false); } else toast.error(r.error);
   };
   if (editando) {
@@ -115,8 +115,8 @@ function PestanaClinica({ cliente }: { cliente: Cliente }) {
   const { puede, ejecutar } = useTrabajador();
   const [editando, setEditando] = useState(false);
   const [c, setC] = useState(cliente.clinica);
-  const guardar = () => {
-    const r = ejecutar('guardarCliente', { cliente: { ...cliente, clinica: { ...c, actualizadaEl: new Date().toISOString() } } });
+  const guardar = async () => {
+    const r = await ejecutar('guardarCliente', { cliente: { ...cliente, clinica: { ...c, actualizadaEl: new Date().toISOString() } } });
     if (r.ok) { toast.ok('Información clínica guardada.'); setEditando(false); } else toast.error(r.error);
   };
   const vacia = !cliente.clinica.lesiones && !cliente.clinica.patologias && !cliente.clinica.observaciones;
@@ -205,9 +205,9 @@ function HojaAutorizar({ cliente, onCerrar }: { cliente: Cliente; onCerrar: () =
   const [caduca, setCaduca] = useState(contrato?.fechaFin && contrato.fechaFin >= hoy ? contrato.fechaFin : sumarDias(hoy, db.config.diasCaducidadRecuperacion));
   const [nota, setNota] = useState('');
   const alternar = (c: Categoria) => setPermitidas((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]));
-  const guardar = () => {
+  const guardar = async () => {
     if (caduca < hoy) return toast.error('La fecha de caducidad debe ser futura.');
-    const r = ejecutar('autorizarRecuperacion', { clienteId: cliente.id, categoriaOrigen: origen, categoriasPermitidas: permitidas, caducaEl: caduca, nota: nota.trim() });
+    const r = await ejecutar('autorizarRecuperacion', { clienteId: cliente.id, categoriaOrigen: origen, categoriasPermitidas: permitidas, caducaEl: caduca, nota: nota.trim() });
     if (r.ok) { toast.ok('Recuperación autorizada.'); onCerrar(); } else toast.error(r.error);
   };
   return (
