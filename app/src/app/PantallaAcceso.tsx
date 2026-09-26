@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { ChevronRight, Eye, EyeOff, KeyRound, Lock, LogOut, Mail, RotateCcw, ShieldCheck, User, UserPlus, UserX, Users } from 'lucide-react';
 import { useStore } from '@/data/store';
-import { enviarRecuperacionContrasena, cambiarContrasena } from '@/data/supabase/auth';
+import { enviarRecuperacionContrasena, cambiarContrasena, entrarConGoogle } from '@/data/supabase/auth';
 import { Boton, Entrada, Tarjeta, toast } from '@/ui';
 import { nombreCompleto, tarifaDe, contratoActivoDe } from '@/data/selectores';
 import { cn } from '@/lib/cn';
@@ -53,6 +53,18 @@ function FormularioEntrada() {
   const [error, setError] = useState<string | null>(null);
   const [olvido, setOlvido] = useState(false);
   const [primeraVez, setPrimeraVez] = useState(false);
+  const [conGoogle, setConGoogle] = useState(false);
+
+  const google = async () => {
+    setConGoogle(true);
+    setError(null);
+    const r = await entrarConGoogle();
+    if (!r.ok) {
+      setConGoogle(false);
+      setError(r.error);
+    }
+    // Si va bien, el navegador se redirige a Google: no hay nada más que hacer aquí.
+  };
 
   const entrar = async (e: FormEvent) => {
     e.preventDefault();
@@ -70,9 +82,16 @@ function FormularioEntrada() {
   return (
     <Marco>
       <Tarjeta className="p-5 sm:p-6">
+        <Boton type="button" tamano="lg" ancho variante="secundario" cargando={conGoogle} onClick={google} className="mb-2">
+          <LogoGoogle /> Entrar con Google
+        </Boton>
+        <p className="text-center text-sm text-ink-muted mb-4">Usa el mismo correo de Google que diste en recepción.</p>
+        <div className="flex items-center gap-3 mb-4" aria-hidden="true">
+          <span className="h-px flex-1 bg-ink/10" /><span className="text-sm text-ink-muted">o con tu contraseña</span><span className="h-px flex-1 bg-ink/10" />
+        </div>
         <form onSubmit={entrar} className="space-y-4" noValidate>
           <Entrada
-            etiqueta="Email" type="email" inputMode="email" autoComplete="username" autoFocus placeholder="tu@correo.com"
+            etiqueta="Email" type="email" inputMode="email" autoComplete="username" placeholder="tu@correo.com"
             value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} className="text-lg h-14"
           />
           <label className="block">
@@ -118,6 +137,17 @@ function FormularioEntrada() {
   );
 }
 
+function LogoGoogle() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z" />
+      <path fill="#FBBC05" d="M10.4 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.8-6z" />
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.7-4.1-13.6-9.8l-7.8 6C6.5 42.6 14.6 48 24 48z" />
+    </svg>
+  );
+}
+
 /** Primera vez: crear la contraseña con el email que se dio en recepción. */
 function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver: () => void }) {
   const crear = useStore((s) => s.crearCuentaEmail);
@@ -158,7 +188,7 @@ function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver
   return (
     <Marco subtitulo="Crea tu contraseña">
       <Tarjeta className="p-5 sm:p-6">
-        <p className="text-ink-muted text-[15px] mb-4">Usa el <strong className="text-ink">mismo email</strong> que diste en recepción: así reconocemos tu ficha automáticamente.</p>
+        <p className="text-ink-muted text-[15px] mb-4">Usa el <strong className="text-ink">mismo email</strong> que diste en recepción: así reconocemos tu ficha automáticamente. Si tienes cuenta de Google con ese correo, puedes usar "Entrar con Google" directamente, sin crear contraseña.</p>
         <form onSubmit={enviar} className="space-y-4" noValidate>
           <Entrada
             etiqueta="Email" type="email" inputMode="email" autoComplete="username" autoFocus placeholder="tu@correo.com"

@@ -130,6 +130,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
         const usuario = await auth.usuarioActual();
         await cargarYResolver(usuario);
         if (usuario) activarEscucha();
+        auth.limpiarUrlTrasAcceso();
       } catch (e) {
         set({ errorCarga: e instanceof Error ? e.message : String(e) });
       } finally {

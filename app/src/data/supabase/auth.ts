@@ -60,6 +60,26 @@ export async function crearCuenta(email: string, password: string): Promise<
   }
 }
 
+/** Acceso con Google: redirige a Google y vuelve a la app con la sesión iniciada. */
+export async function entrarConGoogle(): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { error } = await servidor().auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: urlApp(), queryParams: { prompt: 'select_account' } },
+    });
+    return error ? { ok: false, error: mensajeErrorAuth(error) } : { ok: true };
+  } catch (e) {
+    return { ok: false, error: mensajeErrorAuth(e) };
+  }
+}
+
+/** Tras volver de Google (o de un enlace de correo), quita el código de la URL para que no se reutilice. */
+export function limpiarUrlTrasAcceso(): void {
+  if (/[?&](code|error|error_description)=/.test(window.location.search)) {
+    window.history.replaceState(null, '', `${urlApp()}${window.location.hash}`);
+  }
+}
+
 export async function cerrarSesion(): Promise<void> {
   try {
     await servidor().auth.signOut();
