@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { ChevronRight, Eye, EyeOff, KeyRound, Lock, LogOut, Mail, RotateCcw, ShieldCheck, User, UserX, Users } from 'lucide-react';
+import { ChevronRight, Eye, EyeOff, KeyRound, Lock, LogOut, Mail, RotateCcw, ShieldCheck, User, UserPlus, UserX, Users } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { enviarRecuperacionContrasena, cambiarContrasena } from '@/data/supabase/auth';
 import { Boton, Entrada, Tarjeta, toast } from '@/ui';
@@ -52,6 +52,7 @@ function FormularioEntrada() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [olvido, setOlvido] = useState(false);
+  const [primeraVez, setPrimeraVez] = useState(false);
 
   const entrar = async (e: FormEvent) => {
     e.preventDefault();
@@ -64,6 +65,7 @@ function FormularioEntrada() {
   };
 
   if (olvido) return <OlvidoContrasena emailInicial={email} onVolver={() => setOlvido(false)} />;
+  if (primeraVez) return <PrimeraVez emailInicial={email} onVolver={() => setPrimeraVez(false)} />;
 
   return (
     <Marco>
@@ -102,9 +104,95 @@ function FormularioEntrada() {
           </button>
         </div>
       </Tarjeta>
+      <Tarjeta className="mt-4 p-5 sm:p-6 text-center">
+        <p className="font-semibold text-lg">¿Es tu primera vez?</p>
+        <p className="text-ink-muted text-[15px] mt-1 mb-4">Si ya te han dado de alta en recepción, crea aquí tu contraseña.</p>
+        <Boton tamano="lg" ancho variante="suave" onClick={() => setPrimeraVez(true)}>
+          <UserPlus className="h-5 w-5" /> Crear mi contraseña
+        </Boton>
+      </Tarjeta>
       <p className="text-center text-sm text-ink-muted mt-6 flex items-center justify-center gap-1.5">
-        <Lock className="h-4 w-4" /> Si aún no tienes cuenta, pídela en recepción.
+        <Lock className="h-4 w-4" /> Acceso privado para clientes y personal del centro.
       </p>
+    </Marco>
+  );
+}
+
+/** Primera vez: crear la contraseña con el email que se dio en recepción. */
+function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver: () => void }) {
+  const crear = useStore((s) => s.crearCuentaEmail);
+  const [email, setEmail] = useState(emailInicial);
+  const [p1, setP1] = useState('');
+  const [p2, setP2] = useState('');
+  const [ver, setVer] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pendiente, setPendiente] = useState(false);
+
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return setError('Escribe el email que diste en recepción.');
+    if (p1.length < 6) return setError('La contraseña debe tener al menos 6 caracteres.');
+    if (p1 !== p2) return setError('Las dos contraseñas no coinciden.');
+    setEnviando(true);
+    setError(null);
+    const r = await crear(email, p1);
+    setEnviando(false);
+    if (!r.ok) return setError(r.error);
+    if (r.pendienteConfirmar) setPendiente(true);
+  };
+
+  if (pendiente) {
+    return (
+      <Marco subtitulo="Un último paso">
+        <Tarjeta className="p-6 text-center space-y-4">
+          <Mail className="h-12 w-12 mx-auto text-brand-600" />
+          <p className="text-lg font-semibold">Revisa tu correo</p>
+          <p className="text-ink-muted">Hemos enviado un enlace a <strong className="text-ink">{email}</strong> para confirmar tu cuenta. Ábrelo y después entra con tu contraseña.</p>
+          <Boton tamano="lg" ancho variante="secundario" onClick={onVolver}>Volver</Boton>
+        </Tarjeta>
+      </Marco>
+    );
+  }
+
+  return (
+    <Marco subtitulo="Crea tu contraseña">
+      <Tarjeta className="p-5 sm:p-6">
+        <p className="text-ink-muted text-[15px] mb-4">Usa el <strong className="text-ink">mismo email</strong> que diste en recepción: así reconocemos tu ficha automáticamente.</p>
+        <form onSubmit={enviar} className="space-y-4" noValidate>
+          <Entrada
+            etiqueta="Email" type="email" inputMode="email" autoComplete="username" autoFocus placeholder="tu@correo.com"
+            value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} className="text-lg h-14"
+          />
+          <label className="block">
+            <span className="block mb-1.5 text-[15px] font-semibold text-ink">Contraseña nueva</span>
+            <span className="relative block">
+              <input
+                type={ver ? 'text' : 'password'} autoComplete="new-password" placeholder="Al menos 6"
+                value={p1} onChange={(e) => { setP1(e.target.value); setError(null); }}
+                className="w-full h-14 rounded-2xl border border-ink/10 bg-white pl-4 pr-24 text-lg text-ink placeholder:text-ink-muted focus:border-brand-400 focus:ring-4 focus:ring-brand-100 outline-none"
+              />
+              <button
+                type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-xl text-sm font-semibold text-brand-700 hover:bg-brand-50 flex items-center gap-1 tap"
+              >
+                {ver ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {ver ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </span>
+          </label>
+          <Entrada
+            etiqueta="Repite la contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" placeholder="Otra vez"
+            value={p2} onChange={(e) => { setP2(e.target.value); setError(null); }} className="text-lg h-14"
+          />
+          {error && <p role="alert" className="rounded-2xl bg-rose/10 text-rose px-4 py-3 text-[15px] font-medium">{error}</p>}
+          <Boton type="submit" tamano="lg" ancho cargando={enviando}>Crear contraseña y entrar <ChevronRight className="h-5 w-5" /></Boton>
+        </form>
+        <div className="text-center mt-4">
+          <button type="button" onClick={onVolver} className="text-ink-soft font-semibold text-[15px] underline-offset-4 hover:underline tap py-2 px-3">
+            Volver
+          </button>
+        </div>
+      </Tarjeta>
     </Marco>
   );
 }
@@ -207,7 +295,7 @@ function SinAlta({ email }: { email: string }) {
       <Tarjeta className="p-6 text-center space-y-4">
         <UserX className="h-12 w-12 mx-auto text-cocoa" />
         <p className="text-lg font-semibold">Tu usuario aún no está dado de alta en el centro</p>
-        <p className="text-ink-muted">Has entrado como <strong className="text-ink">{email}</strong>, pero todavía no está vinculado a ninguna ficha. Díselo en recepción y lo activamos en un momento.</p>
+        <p className="text-ink-muted">Has entrado como <strong className="text-ink">{email}</strong>, pero ese email no coincide con ninguna ficha del centro. Díselo en recepción: solo tienen que anotar este mismo email en tu ficha y volver a entrar.</p>
         <Boton tamano="lg" ancho variante="secundario" cargando={saliendo} onClick={async () => { setSaliendo(true); await cerrar(); setSaliendo(false); }}>
           <LogOut className="h-5 w-5" /> Salir
         </Boton>
