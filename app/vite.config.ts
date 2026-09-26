@@ -4,8 +4,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 
 // La app se publica bajo /app/ dentro de la web de la clínica (GitHub Pages).
+// En GitHub Pages sin dominio propio la ruta es /<nombre-del-repo>/app/ (lo fija el workflow con VITE_BASE).
+const base = process.env.VITE_BASE ?? '/app/';
+
 export default defineConfig({
-  base: '/app/',
+  base,
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   plugins: [
     react(),
@@ -17,8 +20,8 @@ export default defineConfig({
         short_name: 'Pilates NP',
         description: 'Reservas y gestión del centro de Pilates de Clínica Nuevo Palmar',
         lang: 'es',
-        start_url: '/app/',
-        scope: '/app/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         background_color: '#F5F5F0',
         theme_color: '#548C2F',
@@ -29,7 +32,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: '/app/index.html',
+        navigateFallback: `${base}index.html`,
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
       },
     }),
