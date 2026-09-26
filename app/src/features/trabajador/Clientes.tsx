@@ -7,7 +7,7 @@ import { nombreCompleto } from '@/data/selectores';
 import { Boton, Chip, Entrada, Interruptor, Tarjeta, Vacio, toast } from '@/ui';
 import { useTrabajador } from './useTrabajador';
 import { buscarClientes, resumenCliente } from './consultas';
-import { Avatar, CampoBusqueda, Encabezado, Segmentado } from './comunes';
+import { AvatarCliente, CampoBusqueda, Encabezado, Segmentado } from './comunes';
 
 export function Clientes() {
   const { db, puede, limitado } = useTrabajador();
@@ -38,7 +38,7 @@ export function Clientes() {
               return (
                 <li key={c.id}>
                   <Link to={`/clientes/${c.id}`} className="flex items-center gap-3 p-3 sm:px-4 hover:bg-sand tap">
-                    <Avatar nombre={c.nombre} apellidos={c.apellidos} />
+                    <AvatarCliente cliente={c} />
                     <span className="flex-1 min-w-0">
                       <span className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold truncate">{nombreCompleto(c)}</span>
@@ -106,7 +106,7 @@ export function NuevoCliente() {
   const { ejecutar } = useTrabajador();
   const navigate = useNavigate();
   const guardar = async (d: DatosCliente) => {
-    const r = await ejecutar('guardarCliente', { cliente: { ...d, clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null }, userId: null } });
+    const r = await ejecutar('guardarCliente', { cliente: { ...d, clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null }, userId: null, fotoUrl: null } });
     if (r.ok) { toast.ok('Cliente creado.'); navigate(`/clientes/${r.valor.id}`, { replace: true }); } else toast.error(r.error);
   };
   return (

@@ -118,6 +118,12 @@ export interface Cliente {
   userId: Id | null;
   altaEl: ISODate;
   bajaEl: ISODate | null;
+  /**
+   * Foto del cliente (para identificarle en clase). null = sin foto (se muestran las iniciales).
+   * En demo es una data URL; en Supabase es la ruta del objeto en el bucket privado
+   * `fotos-clientes` (`<clienteId>/avatar.jpg?v=<marca>`), que la app convierte en URL firmada.
+   */
+  fotoUrl: string | null;
 }
 
 export type Modalidad = 'FIJO' | 'LIBRE';

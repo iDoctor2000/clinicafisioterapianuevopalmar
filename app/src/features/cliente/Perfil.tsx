@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { BadgeCheck, BellRing, Download, LogOut, MoreVertical, Share, ShieldCheck, Smartphone } from 'lucide-react';
+import { BadgeCheck, BellRing, Camera, Download, LogOut, MoreVertical, Share, ShieldCheck, Smartphone } from 'lucide-react';
 import { useModo, useStore } from '@/data/store';
 import { nombreCompleto } from '@/data/selectores';
 import { borrarSuscripcionPush, guardarSuscripcionPush, invocarEnvioPush } from '@/data/supabase/push';
@@ -9,6 +9,8 @@ import { Boton, Chip, Entrada, Hoja, Interruptor, Tarjeta, toast } from '@/ui';
 import { useCliente } from './useCliente';
 import { actividadIncluida, cap, horarioFijoDe, periodoTexto, textoFranja } from './consultas';
 import { Encabezado, PuntoActividad, Seccion } from './comun';
+import { AvatarCliente } from '@/features/comun/AvatarCliente';
+import { SelectorFoto } from '@/features/comun/SelectorFoto';
 
 type EventoInstalacion = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 
@@ -38,7 +40,7 @@ export function Perfil() {
   const [suscrito, setSuscrito] = useState<boolean | null>(null);
   const [ocupadoPush, setOcupadoPush] = useState(false);
   const [form, setForm] = useState({ telefono: cliente.telefono, email: cliente.email, direccion: cliente.direccion });
-  const [hoja, setHoja] = useState<'INSTALAR' | 'SALIR' | null>(null);
+  const [hoja, setHoja] = useState<'INSTALAR' | 'SALIR' | 'FOTO' | null>(null);
   const cambiado = form.telefono !== cliente.telefono || form.email !== cliente.email || form.direccion !== cliente.direccion;
   const franjas = horarioFijoDe(db, contrato);
 
@@ -154,7 +156,12 @@ export function Perfil() {
 
   return (
     <div>
-      <Encabezado titulo="Perfil" subtitulo={nombreCompleto(cliente)} />
+      <Encabezado titulo="Perfil" subtitulo={nombreCompleto(cliente)}>
+        <button type="button" onClick={() => setHoja('FOTO')} aria-label={cliente.fotoUrl ? 'Cambiar mi foto' : 'Poner mi foto'} className="relative shrink-0 rounded-full tap mb-1">
+          <AvatarCliente cliente={cliente} tamano="lg" />
+          <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-white text-brand-700 shadow-card ring-1 ring-ink/10 flex items-center justify-center"><Camera className="h-4 w-4" /></span>
+        </button>
+      </Encabezado>
 
       <Seccion titulo="Mis datos">
         <Tarjeta className="p-5 space-y-4">
@@ -166,6 +173,7 @@ export function Perfil() {
           <Entrada etiqueta="Correo electrónico" type="email" inputMode="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Entrada etiqueta="Dirección" autoComplete="street-address" value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} />
           <Boton ancho disabled={!cambiado} onClick={guardar}>Guardar cambios</Boton>
+          <Boton ancho variante="suave" onClick={() => setHoja('FOTO')}><Camera className="h-5 w-5" /> {cliente.fotoUrl ? 'Cambiar mi foto' : 'Poner mi foto'}</Boton>
           <p className="text-sm text-ink-muted">Para cambiar tu nombre o DNI, avísanos en recepción.</p>
         </Tarjeta>
       </Seccion>
@@ -281,6 +289,8 @@ export function Perfil() {
         </div>
         <Boton ancho tamano="lg" className="mt-5" onClick={() => setHoja(null)}>Entendido</Boton>
       </Hoja>
+
+      <SelectorFoto abierta={hoja === 'FOTO'} onCerrar={() => setHoja(null)} cliente={cliente} propio />
 
       <Hoja abierta={hoja === 'SALIR'} onCerrar={() => setHoja(null)} titulo="Cerrar sesión">
         <p className="text-ink-soft">Tendrás que volver a identificarte para entrar. ¿Quieres cerrar la sesión?</p>

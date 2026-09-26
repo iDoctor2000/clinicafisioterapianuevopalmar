@@ -10,8 +10,8 @@ import type {
 } from '@/domain/types';
 import { tienePermiso } from '@/domain/types';
 import {
-  MENSAJE_AVISO_LIMITADO, MENSAJE_CLASE_AJENA, MENSAJE_CLASE_EXTRA_LIMITADA, MENSAJE_HORARIO_LIMITADO, MENSAJE_SOLO_ADMIN_EQUIPO,
-  limitadoASusClases, puedeGestionarClase,
+  MENSAJE_AVISO_LIMITADO, MENSAJE_CLASE_AJENA, MENSAJE_CLASE_EXTRA_LIMITADA, MENSAJE_CLIENTE_AJENO, MENSAJE_HORARIO_LIMITADO, MENSAJE_SOLO_ADMIN_EQUIPO,
+  esAlumnoMio, limitadoASusClases, puedeGestionarClase,
 } from '@/domain/ambito';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import {
@@ -425,6 +425,29 @@ export function actualizarPreferenciasCliente(ctx: Ctx, args: { notificacionesPu
   if (sesion.tipo !== 'CLIENTE') return fallo('Solo para clientes.');
   const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === sesion.clienteId ? { ...c, ...limpiar(args) } : c)) };
   return ok(auditar(nuevo, sesion, ahora, 'EDITAR_PERFIL', 'cliente', sesion.clienteId, Object.keys(limpiar(args)).join(',')), undefined);
+}
+
+/**
+ * Pone o quita la foto de un cliente. Un cliente solo la suya; un trabajador con
+ * CLIENTES_EDITAR (y, con ámbito SUS_CLASES, solo de sus alumnos). `fotoUrl` null = quitar.
+ */
+export function actualizarFotoCliente(ctx: Ctx, args: { clienteId?: Id; fotoUrl: string | null }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  let clienteId: Id;
+  if (sesion.tipo === 'CLIENTE') {
+    if (args.clienteId && args.clienteId !== sesion.clienteId) return fallo('Solo puedes cambiar tu propia foto.');
+    clienteId = sesion.clienteId;
+  } else {
+    const e = exigir(sesion, 'CLIENTES_EDITAR');
+    if (e) return fallo(e);
+    if (!args.clienteId) return fallo('Falta el cliente.');
+    clienteId = args.clienteId;
+    if (limitadoASusClases(db, sesion) && !esAlumnoMio(db, sesion, clienteId)) return fallo(MENSAJE_CLIENTE_AJENO);
+  }
+  if (!db.clientes.some((c) => c.id === clienteId)) return fallo('Cliente no encontrado.');
+  const fotoUrl = args.fotoUrl && args.fotoUrl.trim() ? args.fotoUrl : null;
+  const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === clienteId ? { ...c, fotoUrl } : c)) };
+  return ok(auditar(nuevo, sesion, ahora, fotoUrl ? 'FOTO_CLIENTE' : 'QUITAR_FOTO_CLIENTE', 'cliente', clienteId, nombreCliente(db, clienteId)), undefined);
 }
 
 function limpiar<T extends object>(o: T): Partial<T> {

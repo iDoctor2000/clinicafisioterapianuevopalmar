@@ -111,7 +111,7 @@ describe('clientes', () => {
     expect(c).toEqual<Cliente>({
       id: U1, nombre: 'María', apellidos: 'García', dni: '1A', direccion: 'C/ Sol', email: 'm@x.com', telefono: '600',
       clinica: { lesiones: 'Rodilla', patologias: '', observaciones: 'Ok', actualizadaEl: '2026-02-01T10:00:00.000Z' },
-      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null,
+      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null, fotoUrl: null,
     });
     const { user_id: _u, ...sinUser } = fila;
     expect(deCliente(c)).toEqual(sinUser);
@@ -119,6 +119,13 @@ describe('clientes', () => {
   });
   it('sin fila clínica (RLS): campos vacíos y actualizadaEl null', () => {
     expect(aCliente(fila, undefined).clinica).toEqual({ lesiones: '', patologias: '', observaciones: '', actualizadaEl: null });
+  });
+  it('foto_url (0006): se lee tal cual (ruta + ?v=) y no se escribe desde deCliente (la gestiona actualizarFotoCliente)', () => {
+    const ruta = `${U1}/avatar.jpg?v=1727000000000`;
+    expect(aCliente({ ...fila, foto_url: ruta }, undefined).fotoUrl).toBe(ruta);
+    expect(aCliente({ ...fila, foto_url: null }, undefined).fotoUrl).toBeNull();
+    expect(aCliente(fila, undefined).fotoUrl).toBeNull(); // columna ausente (antes de 0006)
+    expect(deCliente(aCliente({ ...fila, foto_url: ruta }, undefined))).not.toHaveProperty('foto_url');
   });
 });
 

@@ -229,11 +229,42 @@ supabase functions deploy enviar-push
 4. Desde el personal, publica un aviso: la app llama a la función en segundo plano. Los fallos se ven
    en Supabase → Edge Functions → `enviar-push` → Logs.
 
-## 9. Pruebas locales (opcional, para desarrolladores)
+## 9. Fotos de clientes
+
+La app permite que cada cliente ponga su foto (Perfil → toca el avatar → "Hacer una foto" o
+"Elegir de la galería") y que el personal con `CLIENTES_EDITAR` la ponga o cambie desde la ficha del
+cliente. La foto sirve para identificar a los alumnos al pasar asistencia en el detalle de la clase.
+La imagen se recorta a cuadrado y se reduce a 256×256 JPEG **en el móvil** antes de subirla
+(unos 10-30 KB), así que el espacio de Storage que consume es mínimo.
+
+Qué hace `migrations/0006_fotos.sql`:
+
+- Añade la columna `clientes.foto_url` (ruta del objeto + `?v=<marca>`; `NULL` = sin foto).
+- Actualiza el trigger de autoedición para que un cliente pueda cambiar su `foto_url` (y solo la suya).
+- Crea el bucket **privado** `fotos-clientes` (límite **500 KB** por archivo; solo `image/jpeg`,
+  `image/png`, `image/webp`) y sus políticas sobre `storage.objects`: cada cliente accede solo a su
+  carpeta `<cliente_id>/avatar.jpg`; el personal lee con `CLIENTES_VER` y escribe con
+  `CLIENTES_EDITAR`, y con ámbito «Solo sus clases» únicamente las fotos de sus alumnos.
+
+Aplicación: pega `migrations/0006_fotos.sql` en **SQL Editor → Run** (o `supabase db push`), igual
+que el resto. Se puede ejecutar varias veces. En un PostgreSQL local sin el schema `storage`
+(pruebas) la parte del bucket se omite con un aviso y el resto se aplica.
+
+Comprobar: en **Storage** debe aparecer el bucket `fotos-clientes` marcado como *Private*; en
+**Storage → Policies** las tres políticas `fotos_cliente_propio`, `fotos_personal_ver` y
+`fotos_personal_editar`. Al subir una foto desde la app aparece el objeto `<id del cliente>/avatar.jpg`.
+Como el bucket es privado, la app pide URLs firmadas (válidas 1 hora) y las guarda en memoria;
+al cambiar o quitar la foto se sustituye o borra el objeto. Si la app muestra «El almacén de fotos
+no está configurado en el servidor», falta ejecutar esta migración.
+
+Protección de datos: la foto solo la ve el personal del centro (y el propio cliente), nunca otros
+clientes; el cliente puede quitarla cuando quiera desde su perfil.
+
+## 10. Pruebas locales (opcional, para desarrolladores)
 
 `tests/prueba_local.sh` crea una base `pilates_test` en un PostgreSQL 16 local, simula el schema
 `auth` de Supabase, aplica migraciones y seed y ejecuta `tests/pruebas.sql` (reglas de reserva,
-cupos, aforo, cancelaciones, recuperaciones, bono, cancelación por el centro y RLS por rol).
+cupos, aforo, cancelaciones, recuperaciones, bono, cancelación por el centro, RLS por rol y foto del cliente).
 
 ```bash
 bash supabase/tests/prueba_local.sh

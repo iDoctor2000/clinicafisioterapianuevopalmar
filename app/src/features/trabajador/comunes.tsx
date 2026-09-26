@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Cliente, EstadoReserva, OrigenReserva, Asistencia } from '@/domain/types';
 import { Boton, Chip, Hoja, type Tono } from '@/ui';
+import { AvatarCliente } from '@/features/comun/AvatarCliente';
 import { cn } from '@/lib/cn';
 import { nombreCompleto } from '@/data/selectores';
 
@@ -90,15 +91,9 @@ export function PuntoColor({ color, className }: { color: string; className?: st
 // Avatares y personas
 // ---------------------------------------------------------------------------
 
-export function Avatar({ nombre, apellidos, color, tamano = 'md' }: { nombre: string; apellidos?: string; color?: string; tamano?: 'sm' | 'md' | 'lg' }) {
-  const ini = `${nombre[0] ?? ''}${apellidos?.[0] ?? ''}`.toUpperCase();
-  const t = { sm: 'h-9 w-9 text-sm', md: 'h-11 w-11 text-base', lg: 'h-16 w-16 text-2xl' }[tamano];
-  return (
-    <span className={cn('rounded-full font-bold flex items-center justify-center shrink-0', t, !color && 'bg-brand-100 text-brand-800')} style={color ? { backgroundColor: `${color}22`, color } : undefined}>
-      {ini}
-    </span>
-  );
-}
+/** El avatar (foto o iniciales) vive en `@/ui/Avatar`; `AvatarCliente` resuelve la foto del cliente según el modo. */
+export { Avatar } from '@/ui/Avatar';
+export { AvatarCliente } from '@/features/comun/AvatarCliente';
 
 // ---------------------------------------------------------------------------
 // Pestañas y segmentados
@@ -217,7 +212,7 @@ export function BuscadorClientes({ clientes, onElegir, placeholder = 'Buscar por
         {lista.map((c) => (
           <li key={c.id}>
             <button type="button" onClick={() => onElegir(c)} className="w-full flex items-center gap-3 p-3 hover:bg-sand tap text-left">
-              <Avatar nombre={c.nombre} apellidos={c.apellidos} tamano="sm" />
+              <AvatarCliente cliente={c} tamano="sm" />
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold truncate">{nombreCompleto(c)}</span>
                 <span className="block text-sm text-ink-muted truncate">{[c.telefono, c.dni].filter(Boolean).join(' · ')}</span>

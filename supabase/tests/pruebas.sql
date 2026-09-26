@@ -591,4 +591,55 @@ select pruebas.espera_error('select public.mantenimiento_diario()', '%permission
 commit;
 
 \echo
+\echo '== 19. Foto del cliente (0006): cada cliente solo la suya; el personal con CLIENTES_EDITAR dentro de su ámbito'
+do $$ begin
+  assert exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clientes' and column_name = 'foto_url'), 'existe clientes.foto_url';
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('a');
+update public.clientes set foto_url = pruebas.id('cliente_a') || '/avatar.jpg?v=1' where id = pruebas.id('cliente_a');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_a')) like '%/avatar.jpg?v=1', 'el cliente pone su propia foto'; end $$;
+select pruebas.espera_sin_efecto(format('update public.clientes set foto_url = %L where id = %L', 'hack/avatar.jpg', pruebas.id('cliente_b')));  -- fila ajena: RLS la oculta
+update public.clientes set foto_url = null where id = pruebas.id('cliente_a');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_a')) is null, 'y la quita'; end $$;
+-- Cambiar la foto no le permite tocar nada más.
+select pruebas.espera_error(format('update public.clientes set foto_url = %L, dni = %L where id = %L', 'x/avatar.jpg', '99999999Z', pruebas.id('cliente_a')), 'Solo puedes modificar tus datos de contacto%');
+commit;
+select pruebas.sistema();
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_b')) is null, 'la foto de B sigue intacta'; end $$;
+-- Recepción (CLIENTES_EDITAR, ámbito CENTRO) pone y quita la foto de cualquier cliente.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+update public.clientes set foto_url = pruebas.id('cliente_b') || '/avatar.jpg?v=2' where id = pruebas.id('cliente_b');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_b')) like '%?v=2', 'recepción pone la foto a un cliente'; end $$;
+commit;
+-- Ana (SUS_CLASES): sin CLIENTES_EDITAR no puede; con él, solo a sus alumnos (D lo es desde la sección 16; E, recién creada sin reservas, no).
+select pruebas.sistema();
+select pruebas.guardar('cliente_e', 'e0000000-0000-4000-8000-00000000000e');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values (pruebas.id('cliente_e'), 'Elena', 'Sinclase', '55555555E', 'elena@test.local', '600 000 005');
+update public.trabajadores set ambito = 'SUS_CLASES' where id = pruebas.id('tra_ana');
+begin;
+set local role authenticated;
+select pruebas.como('ana');
+select pruebas.espera_sin_efecto(format('update public.clientes set foto_url = %L where id = %L', 'x/avatar.jpg', pruebas.id('cliente_d')));  -- sin CLIENTES_EDITAR
+commit;
+select pruebas.sistema();
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_ana'), 'CLIENTES_EDITAR');
+begin;
+set local role authenticated;
+select pruebas.como('ana');
+select pruebas.espera_sin_efecto(format('update public.clientes set foto_url = %L where id = %L', 'x/avatar.jpg', pruebas.id('cliente_e')));  -- E no es alumna suya
+update public.clientes set foto_url = pruebas.id('cliente_d') || '/avatar.jpg?v=3' where id = pruebas.id('cliente_d');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_d')) like '%?v=3', 'con CLIENTES_EDITAR pone la foto a su alumna'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select foto_url from public.clientes where id = pruebas.id('cliente_e')) is null, 'la foto de E (no alumna) no la ha tocado Ana';
+  assert (select foto_url from public.clientes where id = pruebas.id('cliente_b')) like '%?v=2', 'la de B (puesta por recepción) sigue igual';
+  raise notice 'OK foto del cliente';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'
