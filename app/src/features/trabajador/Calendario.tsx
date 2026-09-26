@@ -10,7 +10,7 @@ import { clasesPorDiaDeSemana, clasesSueltasDe, monitores } from './consultas';
 import { BarraOcupacion, Encabezado, PuntoColor, Segmentado, may } from './comunes';
 
 export function Calendario() {
-  const { db, puede } = useTrabajador();
+  const { db, puede, limitado } = useTrabajador();
   const hoy = hoyISO();
   const [fecha, setFecha] = useState(hoy);
   const [vista, setVista] = useState<'DIA' | 'SEMANA'>('DIA');
@@ -23,11 +23,11 @@ export function Calendario() {
     <div>
       <Encabezado
         titulo="Calendario"
-        subtitulo={may(mesLargo(fecha))}
+        subtitulo={<span>{may(mesLargo(fecha))}{limitado && <> · <span className="text-cocoa font-semibold">Solo tus clases</span></>}</span>}
         acciones={
           <>
             <Segmentado className="hidden md:inline-flex" tamano="sm" valor={vista} onCambio={setVista} opciones={[{ valor: 'DIA', texto: 'Día' }, { valor: 'SEMANA', texto: 'Semana' }]} />
-            {puede('CLASES_CREAR_CANCELAR') && (
+            {puede('CLASES_CREAR_CANCELAR') && !limitado && (
               <Boton tamano="sm" onClick={() => setNueva(true)}><CalendarPlus className="h-5 w-5" /> Nueva clase extraordinaria</Boton>
             )}
           </>
@@ -43,7 +43,7 @@ export function Calendario() {
             <DoorClosed className="h-5 w-5 shrink-0" /> <span>Día de cierre: <strong className="text-ink">{cierre.motivo}</strong>. No hay clases.</span>
           </div>
         )}
-        {dia.clases.length === 0 && !cierre && <Vacio icono={Moon} titulo="Sin clases este día" texto="No hay clases programadas ni extraordinarias." />}
+        {dia.clases.length === 0 && !cierre && <Vacio icono={Moon} titulo={limitado ? 'No tienes clases este día' : 'Sin clases este día'} texto={limitado ? 'Solo se muestran las clases que impartes.' : 'No hay clases programadas ni extraordinarias.'} />}
         <div className="grid gap-3 md:grid-cols-2">
           {dia.clases.map((v) => <TarjetaClase key={v.clase.id} vista={v} />)}
         </div>

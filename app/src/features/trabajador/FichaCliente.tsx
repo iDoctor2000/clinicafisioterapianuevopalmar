@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, ClipboardList, FileText, HeartPulse, Mail, Phone, RefreshCcw, Stethoscope, Tag } from 'lucide-react';
+import { AlertTriangle, ClipboardList, FileText, HeartPulse, Lock, Mail, Phone, RefreshCcw, Stethoscope, Tag } from 'lucide-react';
+import { MENSAJE_CLIENTE_AJENO } from '@/domain/ambito';
 import type { Categoria, Cliente } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import { hoyISO, sumarDias } from '@/domain/fechas';
@@ -16,9 +17,10 @@ type Pestana = 'DATOS' | 'CLINICA' | 'TARIFA' | 'RESERVAS' | 'RECUPERACIONES';
 
 export function FichaCliente() {
   const { id } = useParams();
-  const { db, puede } = useTrabajador();
+  const { db, dbCompleta, puede } = useTrabajador();
   const cliente = db.clientes.find((c) => c.id === id);
   const [pestana, setPestana] = useState<Pestana>('DATOS');
+  if (!cliente && dbCompleta.clientes.some((c) => c.id === id)) return <Vacio icono={Lock} titulo={MENSAJE_CLIENTE_AJENO} texto="Tu ámbito es «Solo sus clases»: solo puedes consultar a los clientes con reserva en alguna de tus clases." accion={<Link to="/clientes"><Boton variante="secundario">Volver a mis alumnos</Boton></Link>} />;
   if (!cliente) return <Vacio icono={AlertTriangle} titulo="Cliente no encontrado" accion={<Link to="/clientes"><Boton variante="secundario">Volver a clientes</Boton></Link>} />;
   const hoy = hoyISO();
   const r = resumenCliente(db, cliente, hoy);

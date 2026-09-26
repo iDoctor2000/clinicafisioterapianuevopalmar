@@ -40,6 +40,8 @@ jobs:
           # Si están vacías, la app se publica en modo demo (datos de ejemplo, sin contraseña).
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          # Clave pública VAPID para las notificaciones push (variable de repositorio VAPID_PUBLIC_KEY).
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
         run: npm run build
       - name: Montar el sitio (web + app)
         run: |

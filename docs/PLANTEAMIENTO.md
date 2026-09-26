@@ -50,7 +50,7 @@ La asistencia (asiste / no asiste) es **independiente** del derecho a recuperar:
 
 **Equipo (móvil y ordenador):** Calendario (todas las clases, alumnos, plazas, asistencia, cancelar clase, clase extraordinaria, añadir CS) · Clientes (ficha con datos, información clínica restringida, contratación, reservas, recuperaciones) · Horarios · Avisos · Tarifas y actividades · Estadísticas · Equipo y permisos · Ajustes (antelación, cierres, registro de cambios).
 
-Los **12 permisos** del documento de requisitos están implementados; el administrador los asigna a cada trabajador. Todo cambio manual queda en un **registro de auditoría** (quién, cuándo, qué).
+Los **12 permisos** del documento de requisitos están implementados; el administrador los asigna a cada trabajador. Además, cada trabajador tiene un **ámbito**: «Todo el centro» o «Solo sus clases» (solo ve y gestiona las clases que imparte y a sus alumnos; el horario es de solo lectura y los avisos solo a sus clases). La gestión del equipo (fichas, permisos y ámbito) es exclusiva del administrador. Todo cambio manual queda en un **registro de auditoría** (quién, cuándo, qué).
 
 ## 5. Fases
 

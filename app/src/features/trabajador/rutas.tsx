@@ -33,7 +33,7 @@ export const rutasTrabajador = (
     <Route path="avisos" element={<Requiere permiso="AVISOS_ENVIAR"><Avisos /></Requiere>} />
     <Route path="tarifas" element={<Requiere permiso="TARIFAS_GESTIONAR"><Tarifas /></Requiere>} />
     <Route path="estadisticas" element={<Requiere permiso="ESTADISTICAS_VER"><Estadisticas /></Requiere>} />
-    <Route path="equipo" element={<Requiere permiso="TRABAJADORES_GESTIONAR"><Equipo /></Requiere>} />
+    <Route path="equipo" element={<Requiere admin><Equipo /></Requiere>} />
     <Route path="ajustes" element={<Requiere admin><Ajustes /></Requiere>} />
     <Route path="mas" element={<Mas />} />
   </>

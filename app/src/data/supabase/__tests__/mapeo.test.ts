@@ -82,10 +82,10 @@ describe('actividades y tarifas', () => {
 });
 
 describe('trabajadores', () => {
-  const fila: FilaTrabajador = { id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', es_monitor: true, color: '#fff', activo: true, user_id: AUTH };
+  const fila: FilaTrabajador = { id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', ambito: 'SUS_CLASES', es_monitor: true, color: '#fff', activo: true, user_id: AUTH };
   it('ida y vuelta con permisos (sin user_id al escribir)', () => {
     const t = aTrabajador(fila, [{ trabajador_id: U1, permiso: 'CLIENTES_VER' }, { trabajador_id: U2, permiso: 'AVISOS_ENVIAR' }, { trabajador_id: U1, permiso: 'ASISTENCIA_REGISTRAR' }]);
-    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], esMonitor: true, color: '#fff', activo: true, userId: AUTH });
+    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#fff', activo: true, userId: AUTH });
     const { trabajador, permisos } = deTrabajador(t);
     const { user_id: _u, ...sinUser } = fila;
     expect(trabajador).toEqual(sinUser);
@@ -93,7 +93,13 @@ describe('trabajadores', () => {
   });
   it('vista monitores (lo que ve un cliente)', () => {
     const t = aTrabajadorDesdeMonitor({ id: U1, nombre: 'Ana', apellidos: 'M', color: '#fff', es_monitor: true, activo: true });
-    expect(t).toMatchObject({ email: '', telefono: '', rol: 'MONITOR', permisos: [], userId: null, esMonitor: true });
+    expect(t).toMatchObject({ email: '', telefono: '', rol: 'MONITOR', permisos: [], userId: null, esMonitor: true, ambito: 'CENTRO' });
+  });
+  it('sin columna ambito (antes de 0005) se asume CENTRO; un ADMIN siempre es CENTRO', () => {
+    const { ambito: _a, ...sinAmbito } = fila;
+    expect(aTrabajador(sinAmbito, []).ambito).toBe('CENTRO');
+    expect(aTrabajador({ ...fila, rol: 'ADMIN' }, []).ambito).toBe('CENTRO');
+    expect(deTrabajador({ ...aTrabajador(fila, []), rol: 'ADMIN' }).trabajador.ambito).toBe('CENTRO');
   });
 });
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Plus, ShieldCheck } from 'lucide-react';
-import type { Permiso, RolTrabajador, Trabajador } from '@/domain/types';
-import { PERMISOS, PERMISO_LABEL } from '@/domain/types';
+import { Building2, GraduationCap, Plus, ShieldCheck } from 'lucide-react';
+import type { Ambito, Permiso, RolTrabajador, Trabajador } from '@/domain/types';
+import { AMBITO_DESCRIPCION, AMBITO_LABEL, PERMISOS, PERMISO_LABEL } from '@/domain/types';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
@@ -14,7 +14,7 @@ export function Equipo() {
   const [edicion, setEdicion] = useState<Trabajador | 'NUEVO' | null>(null);
   return (
     <div>
-      <Encabezado titulo="Equipo" subtitulo="Trabajadores del centro y sus permisos." acciones={<Boton tamano="sm" onClick={() => setEdicion('NUEVO')}><Plus className="h-5 w-5" /> Nuevo trabajador</Boton>} />
+      <Encabezado titulo="Equipo" subtitulo="Trabajadores del centro, sus permisos y su ámbito. Solo el administrador gestiona esta sección." acciones={<Boton tamano="sm" onClick={() => setEdicion('NUEVO')}><Plus className="h-5 w-5" /> Nuevo trabajador</Boton>} />
       <Tarjeta>
         <ul className="divide-y divide-ink/5">
           {db.trabajadores.map((t) => (
@@ -42,20 +42,54 @@ function ChipsTrabajador({ t }: { t: Trabajador }) {
     <>
       <Chip tono={t.rol === 'ADMIN' ? 'cocoa' : 'gris'}>{ROL_TEXTO[t.rol]}</Chip>
       {t.esMonitor && t.rol !== 'MONITOR' && <Chip tono="verde">Imparte clases</Chip>}
+      {t.rol !== 'ADMIN' && t.ambito === 'SUS_CLASES' && <Chip tono="ambar"><GraduationCap className="h-3.5 w-3.5" /> Solo sus clases</Chip>}
       <Chip tono="azul"><ShieldCheck className="h-3.5 w-3.5" /> {t.rol === 'ADMIN' ? 'todos' : t.permisos.length} permisos</Chip>
     </>
   );
 }
 
+const AMBITOS: { valor: Ambito; icono: typeof Building2 }[] = [
+  { valor: 'CENTRO', icono: Building2 },
+  { valor: 'SUS_CLASES', icono: GraduationCap },
+];
+
+/** Radio grande "Ámbito": sobre qué clases actúan los permisos del trabajador. */
+function SelectorAmbito({ valor, onCambio, esAdmin }: { valor: Ambito; onCambio: (a: Ambito) => void; esAdmin: boolean }) {
+  return (
+    <div>
+      <span className="block text-[15px] font-semibold mb-0.5">Ámbito</span>
+      <p className="text-sm text-ink-muted mb-2">Sobre qué clases y alumnos actúan sus permisos.</p>
+      <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Ámbito">
+        {AMBITOS.map((a) => {
+          const activo = valor === a.valor;
+          return (
+            <button
+              key={a.valor} type="button" role="radio" aria-checked={activo} disabled={esAdmin} onClick={() => onCambio(a.valor)}
+              className={cn('text-left rounded-2xl border p-4 flex gap-3 tap', activo ? 'border-brand-400 bg-brand-50' : 'border-ink/10 bg-white hover:border-brand-300', esAdmin && 'opacity-60 cursor-not-allowed')}
+            >
+              <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', activo ? 'bg-brand-500 text-white' : 'bg-sand text-ink-soft')}><a.icono className="h-5 w-5" /></span>
+              <span className="min-w-0">
+                <span className="block font-semibold">{AMBITO_LABEL[a.valor]}</span>
+                <span className="block text-sm text-ink-muted">{AMBITO_DESCRIPCION[a.valor]}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {esAdmin && <p className="text-xs text-ink-muted mt-1.5">El administrador siempre tiene ámbito «Todo el centro».</p>}
+    </div>
+  );
+}
+
 function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | null; onCerrar: () => void }) {
   const { ejecutar, sesion } = useTrabajador();
-  const [f, setF] = useState<Omit<Trabajador, 'id'>>(trabajador ?? { nombre: '', apellidos: '', email: '', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_VER', 'RESERVAS_GESTIONAR', 'ASISTENCIA_REGISTRAR'], esMonitor: false, color: COLORES[1], activo: true, userId: null });
+  const [f, setF] = useState<Omit<Trabajador, 'id'>>(trabajador ?? { nombre: '', apellidos: '', email: '', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_VER', 'RESERVAS_GESTIONAR', 'ASISTENCIA_REGISTRAR'], ambito: 'CENTRO', esMonitor: false, color: COLORES[1], activo: true, userId: null });
   const esYo = trabajador?.id === sesion.trabajadorId;
   const alternar = (p: Permiso) => setF({ ...f, permisos: f.permisos.includes(p) ? f.permisos.filter((x) => x !== p) : [...f.permisos, p] });
   const guardar = async () => {
     if (!f.nombre.trim() || !f.email.trim()) return toast.error('Nombre y correo son obligatorios.');
     if (esYo && f.rol !== 'ADMIN' && trabajador?.rol === 'ADMIN') return toast.error('No puedes quitarte a ti mismo el rol de administrador.');
-    const r = await ejecutar('guardarTrabajador', { trabajador: { ...f, id: trabajador?.id, nombre: f.nombre.trim(), apellidos: f.apellidos.trim(), email: f.email.trim() } });
+    const r = await ejecutar('guardarTrabajador', { trabajador: { ...f, id: trabajador?.id, nombre: f.nombre.trim(), apellidos: f.apellidos.trim(), email: f.email.trim(), ambito: f.rol === 'ADMIN' ? 'CENTRO' : f.ambito } });
     if (r.ok) { toast.ok('Trabajador guardado.'); onCerrar(); } else toast.error(r.error);
   };
   return (
@@ -78,6 +112,7 @@ function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | nul
           <Interruptor activo={f.esMonitor} onCambio={(v) => setF({ ...f, esMonitor: v })} etiqueta="Imparte clases" descripcion="Aparece como monitor/a en horarios y clases." />
           <Interruptor activo={f.activo} onCambio={(v) => setF({ ...f, activo: v })} etiqueta="Activo" descripcion="Un trabajador inactivo no puede acceder." />
         </div>
+        <SelectorAmbito valor={f.rol === 'ADMIN' ? 'CENTRO' : f.ambito} onCambio={(a) => setF({ ...f, ambito: a })} esAdmin={f.rol === 'ADMIN'} />
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[15px] font-semibold">Permisos</span>

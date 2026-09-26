@@ -38,9 +38,9 @@ export function crearSeed(ahora: Date = new Date()): Db {
 
   const TODOS = ['CLIENTES_EDITAR', 'CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'HORARIOS_GESTIONAR', 'CLASES_CREAR_CANCELAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'TARIFAS_GESTIONAR', 'ESTADISTICAS_VER', 'TRABAJADORES_GESTIONAR', 'ASISTENCIA_REGISTRAR'] as const;
   const trabajadores: Trabajador[] = [
-    { id: 'tra-jose', nombre: 'José Diego', apellidos: 'Frutos', email: 'josediego@fisioterapianuevopalmar.com', telefono: '968 885 931', rol: 'ADMIN', permisos: [...TODOS], esMonitor: true, color: '#548C2F', activo: true, userId: 'usr-jose' },
-    { id: 'tra-ana', nombre: 'Ana', apellidos: 'Martínez', email: 'ana@fisioterapianuevopalmar.com', telefono: '', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ASISTENCIA_REGISTRAR'], esMonitor: true, color: '#3B82C4', activo: true, userId: 'usr-ana' },
-    { id: 'tra-laura', nombre: 'Laura', apellidos: 'Pérez', email: 'recepcion@fisioterapianuevopalmar.com', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_EDITAR', 'CLIENTES_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ESTADISTICAS_VER'], esMonitor: false, color: '#C9713F', activo: true, userId: 'usr-laura' },
+    { id: 'tra-jose', nombre: 'José Diego', apellidos: 'Frutos', email: 'josediego@fisioterapianuevopalmar.com', telefono: '968 885 931', rol: 'ADMIN', permisos: [...TODOS], ambito: 'CENTRO', esMonitor: true, color: '#548C2F', activo: true, userId: 'usr-jose' },
+    { id: 'tra-ana', nombre: 'Ana', apellidos: 'Martínez', email: 'ana@fisioterapianuevopalmar.com', telefono: '', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#3B82C4', activo: true, userId: 'usr-ana' },
+    { id: 'tra-laura', nombre: 'Laura', apellidos: 'Pérez', email: 'recepcion@fisioterapianuevopalmar.com', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_EDITAR', 'CLIENTES_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ESTADISTICAS_VER'], ambito: 'CENTRO', esMonitor: false, color: '#C9713F', activo: true, userId: 'usr-laura' },
   ];
 
   const P = (id: string, actividadId: string, diaSemana: 1 | 2 | 3 | 4 | 5 | 6 | 7, horaInicio: string, monitorId: string, plazas: number): PlantillaClase => ({

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Ban, Bell, Check, Clock, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { AlertTriangle, Ban, Bell, Check, Clock, Lock, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { MENSAJE_CLASE_AJENA } from '@/domain/ambito';
 import type { Cliente, Reserva } from '@/domain/types';
 import { fechaLarga, horaFin, hoyISO, esPasada, fechaCorta } from '@/domain/fechas';
 import { nombreCompleto, vistaClase } from '@/data/selectores';
@@ -13,13 +14,15 @@ import { Avatar, BarraOcupacion, BuscadorClientes, ChipEstadoReserva, ChipOrigen
 
 export function DetalleClase() {
   const { id } = useParams();
-  const { db, puede, ejecutar } = useTrabajador();
+  const { db, dbCompleta, puede, ejecutar, gestionaClase } = useTrabajador();
   const navigate = useNavigate();
   const clase = db.clases.find((c) => c.id === id);
+  const claseAjena = !clase ? dbCompleta.clases.find((c) => c.id === id) : undefined;
   const [anadir, setAnadir] = useState(false);
   const [cancelar, setCancelar] = useState(false);
   const [quitar, setQuitar] = useState<Reserva | null>(null);
 
+  if (claseAjena && !gestionaClase(claseAjena)) return <Vacio icono={Lock} titulo={MENSAJE_CLASE_AJENA} texto="Tu ámbito es «Solo sus clases»: únicamente puedes ver y gestionar las clases que impartes." accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
   if (!clase) return <Vacio icono={AlertTriangle} titulo="Clase no encontrada" accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
   const vista = vistaClase(db, clase);
   const { actividad, monitor, ocupadas } = vista;

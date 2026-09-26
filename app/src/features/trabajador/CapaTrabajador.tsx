@@ -1,10 +1,10 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { BarChart3, Bell, CalendarDays, ClipboardList, LogOut, Settings, Tags, Users, UserCog, type LucideIcon } from 'lucide-react';
 import { useStore } from '@/data/store';
-import { tienePermiso, type Permiso } from '@/domain/types';
+import { tienePermiso, type Permiso, type Sesion } from '@/domain/types';
 import { cn } from '@/lib/cn';
 
-interface Item { to: string; etiqueta: string; icono: LucideIcon; permiso: Permiso | null; principal?: boolean }
+interface Item { to: string; etiqueta: string; icono: LucideIcon; permiso: Permiso | null; principal?: boolean; /** Solo para el rol ADMIN (equipo y ajustes). */ soloAdmin?: boolean }
 
 const items: Item[] = [
   { to: '/', etiqueta: 'Calendario', icono: CalendarDays, permiso: null, principal: true },
@@ -13,16 +13,22 @@ const items: Item[] = [
   { to: '/avisos', etiqueta: 'Avisos', icono: Bell, permiso: 'AVISOS_ENVIAR', principal: true },
   { to: '/tarifas', etiqueta: 'Tarifas', icono: Tags, permiso: 'TARIFAS_GESTIONAR' },
   { to: '/estadisticas', etiqueta: 'Estadísticas', icono: BarChart3, permiso: 'ESTADISTICAS_VER' },
-  { to: '/equipo', etiqueta: 'Equipo', icono: UserCog, permiso: 'TRABAJADORES_GESTIONAR' },
-  { to: '/ajustes', etiqueta: 'Ajustes', icono: Settings, permiso: 'TRABAJADORES_GESTIONAR' },
+  { to: '/equipo', etiqueta: 'Equipo', icono: UserCog, permiso: null, soloAdmin: true },
+  { to: '/ajustes', etiqueta: 'Ajustes', icono: Settings, permiso: null, soloAdmin: true },
 ];
+
+/** Un item es visible si el trabajador tiene su permiso y, si es solo para ADMIN, tiene ese rol. */
+export function itemVisible(item: Item, sesion: Sesion | null): boolean {
+  if (item.soloAdmin && !(sesion?.tipo === 'TRABAJADOR' && sesion.rol === 'ADMIN')) return false;
+  return !item.permiso || tienePermiso(sesion, item.permiso);
+}
 
 /** Estructura de la zona trabajador: menú lateral en escritorio, barra inferior + "Más" en móvil. */
 export function CapaTrabajador() {
   const sesion = useStore((s) => s.sesion);
   const cerrar = useStore((s) => s.cerrarSesion);
   const loc = useLocation();
-  const visibles = items.filter((i) => !i.permiso || tienePermiso(sesion, i.permiso));
+  const visibles = items.filter((i) => itemVisible(i, sesion));
   const enMovil = visibles.filter((i) => i.principal).slice(0, 4);
 
   return (

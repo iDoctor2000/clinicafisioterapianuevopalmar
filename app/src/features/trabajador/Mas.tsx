@@ -1,17 +1,17 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight, LogOut, RotateCcw } from 'lucide-react';
 import { useStore } from '@/data/store';
-import { tienePermiso } from '@/domain/types';
 import { Boton, Tarjeta } from '@/ui';
-import { itemsTrabajador } from './CapaTrabajador';
+import { itemVisible, itemsTrabajador } from './CapaTrabajador';
 import { useTrabajador } from './useTrabajador';
 import { Avatar, Encabezado, ROL_TEXTO } from './comunes';
+import { AMBITO_LABEL } from '@/domain/types';
 
 export function Mas() {
-  const { sesion, trabajador } = useTrabajador();
+  const { sesion, trabajador, ambito } = useTrabajador();
   const cerrar = useStore((s) => s.cerrarSesion);
   const reiniciar = useStore((s) => s.reiniciarDemo);
-  const secciones = itemsTrabajador.filter((i) => !i.principal && (!i.permiso || tienePermiso(sesion, i.permiso)) && (i.to !== '/ajustes' || sesion.rol === 'ADMIN'));
+  const secciones = itemsTrabajador.filter((i) => !i.principal && itemVisible(i, sesion));
   return (
     <div className="max-w-lg">
       <Encabezado titulo="Más" />
@@ -20,7 +20,7 @@ export function Mas() {
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-lg">{trabajador ? `${trabajador.nombre} ${trabajador.apellidos}` : sesion.nombre}</div>
           <div className="text-sm text-ink-muted">{ROL_TEXTO[sesion.rol]}{trabajador?.email && ` · ${trabajador.email}`}</div>
-          <div className="text-xs text-ink-muted mt-0.5">{sesion.rol === 'ADMIN' ? 'Todos los permisos' : `${sesion.permisos.length} permisos`}</div>
+          <div className="text-xs text-ink-muted mt-0.5">{sesion.rol === 'ADMIN' ? 'Todos los permisos' : `${sesion.permisos.length} permisos`} · Ámbito: {AMBITO_LABEL[ambito].toLowerCase()}</div>
         </div>
       </Tarjeta>
       {secciones.length > 0 && (

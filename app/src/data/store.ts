@@ -11,6 +11,7 @@ import { cargarDb } from './supabase/cargar';
 import { ejecutarRemoto } from './supabase/comandos';
 import * as auth from './supabase/auth';
 import { activarTiempoReal } from './supabase/tiempoReal';
+import { invocarEnvioPush } from './supabase/push';
 
 export type Modo = 'DEMO' | 'SUPABASE';
 
@@ -70,6 +71,30 @@ function sesionDeUsuario(db: Db, userId: string): Sesion | null {
 
 let detenerTiempoReal: (() => void) | null = null;
 let detenerAuth: (() => void) | null = null;
+
+/** Envía las notificaciones push de un aviso sin bloquear al usuario (la Edge Function `enviar-push`). */
+function enviarPushDeAviso(avisoId: string): void {
+  invocarEnvioPush({ avisoId })
+    .then((r) => { if (r.fallidas > 0 || r.borradas > 0) console.warn('[push] Aviso enviado con incidencias:', r); })
+    .catch((e) => console.warn('[push] No se han podido enviar las notificaciones del aviso:', e instanceof Error ? e.message : e));
+}
+
+/**
+ * Solo SUPABASE: acciones que se disparan después de que un comando haya tenido éxito
+ * (con la instantánea ya recargada). No bloquean ni afectan al resultado del comando.
+ */
+const despuesDe: { [K in NombreComando]?: (args: ArgsComando<K>, valor: ValorComando<K>, db: Db) => void } = {
+  publicarAviso: (_args, aviso) => enviarPushDeAviso(aviso.id),
+  cancelarClase: (args, valor, db) => {
+    if (!args.avisar || valor.afectados === 0) return;
+    // La RPC crea el aviso de cancelación: es el más reciente dirigido a esa clase.
+    const aviso = db.avisos
+      .filter((a) => a.destino.tipo === 'CLASE' && a.destino.claseId === args.claseId)
+      .sort((a, b) => b.publicadoEl.localeCompare(a.publicadoEl))[0];
+    if (aviso) enviarPushDeAviso(aviso.id);
+    else console.warn('[push] No se ha encontrado el aviso de la clase cancelada; no se envían notificaciones.');
+  },
+};
 
 const crearEstado: StateCreator<Estado> = (set, get) => {
   /** SUPABASE: carga la instantánea y resuelve la sesión del usuario autenticado. */
@@ -211,7 +236,13 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
         await get().recargar();
         const fresco = get().db;
         set({ ultimoError: null });
-        return { ok: true, db: fresco, valor: rr.valor(fresco) };
+        const valor = rr.valor(fresco);
+        try {
+          (despuesDe[nombre] as ((a: unknown, v: unknown, db: Db) => void) | undefined)?.(args, valor, fresco);
+        } catch (e) {
+          console.warn(`[push] Error tras el comando ${nombre}:`, e);
+        }
+        return { ok: true, db: fresco, valor };
       }
 
       const fn = comandos[nombre] as (ctx: Ctx, a: unknown) => Resultado<unknown>;

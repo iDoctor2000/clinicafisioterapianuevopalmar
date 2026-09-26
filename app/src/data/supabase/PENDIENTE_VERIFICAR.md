@@ -75,3 +75,31 @@ y con tests de mapeo. Antes de darlo por bueno hay que comprobar, con un proyect
 - [ ] Service worker (PWA): tras cambiar de modo, el SW antiguo puede servir el build anterior hasta
       la siguiente actualización (`registerType: 'autoUpdate'`).
 - [ ] CORS/URL del proyecto correctos en GitHub Pages (`https://<usuario>.github.io/<repo>/app/`).
+
+## Push (`lib/push.ts`, `supabase/push.ts`, `sw.ts`, Edge Function `enviar-push`)
+- [ ] Desplegar `supabase/functions/enviar-push` y definir los secrets `VAPID_PUBLIC_KEY`,
+      `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (ver `supabase/README.md` § 8). La variable de GitHub
+      `VAPID_PUBLIC_KEY` debe ser la misma clave pública que el secret.
+- [ ] Import de `npm:web-push@3` en Deno (Edge Runtime): `deno check` local pasa, pero comprobar
+      que `webpush.sendNotification` funciona en el Edge Runtime de Supabase (usa `https`/`crypto`
+      de Node vía `node:`). Si fallara, alternativa: `jsr:@negrel/webpush` (nativo Deno).
+- [ ] Upsert en `suscripciones_push` con `onConflict: 'endpoint'` por el cliente (RLS `push_propias`)
+      y borrado por endpoint al desactivar. Comprobar que `user_agent` (≤500 chars) no molesta.
+- [ ] `supabase.functions.invoke('enviar-push')` envía el `Authorization: Bearer <jwt>` del usuario y
+      la función lo acepta con "Verify JWT" activado. Los errores 4xx llegan con `error.context`
+      (Response) y `invocarEnvioPush` extrae el `{ error }` JSON para el toast.
+- [ ] Permisos en la función: trabajador con `AVISOS_ENVIAR` o `CLASES_CREAR_CANCELAR`
+      (`trabajadores` + embebido `trabajador_permisos(permiso)`), ADMIN siempre; un cliente
+      recibe 403 con `{ avisoId }` y 200 con `{ prueba: true }`.
+- [ ] Tras `cancelarClase` con `avisar = true`, el store busca el aviso más reciente con
+      `destino.tipo = 'CLASE'` y `claseId` en la instantánea recargada: verificar que la recarga
+      ya incluye el aviso creado por la RPC (mismo request) y que llega el push a los afectados.
+- [ ] Suscripciones caducadas: el servicio push devuelve 404/410 y la función las borra
+      (`borradas` > 0). El botón de prueba avisa al cliente para volver a activar.
+- [ ] SW `injectManifest`: `dist/sw.js` con manifest inyectado (verificado en preview: registrado,
+      `index.html` precacheado, navegación offline). Comprobar en GitHub Pages con `VITE_BASE`
+      `/<repo>/app/` que `import.meta.env.BASE_URL` del SW coincide con el scope.
+- [ ] `notificationclick`: `WindowClient.navigate()` a `#/avisos` en Android/Chrome; en iOS
+      (Safari 16.4+, app instalada) al menos enfoca/abre la app. Icono `icons/icon-192.png` visible.
+- [ ] Mensajes de la UI: navegador sin soporte, permiso denegado (instrucciones para reactivarlo),
+      iPhone sin instalar (abre la hoja "Instalar la app").

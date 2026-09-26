@@ -1,7 +1,9 @@
-import { useState, type ReactNode } from 'react';
-import { BadgeCheck, Download, LogOut, MoreVertical, Share, ShieldCheck, Smartphone } from 'lucide-react';
-import { useStore } from '@/data/store';
+import { useEffect, useState, type ReactNode } from 'react';
+import { BadgeCheck, BellRing, Download, LogOut, MoreVertical, Share, ShieldCheck, Smartphone } from 'lucide-react';
+import { useModo, useStore } from '@/data/store';
 import { nombreCompleto } from '@/data/selectores';
+import { borrarSuscripcionPush, guardarSuscripcionPush, invocarEnvioPush } from '@/data/supabase/push';
+import { cancelarSuscripcion, clavePublicaVapid, estadoPermiso, iosSinInstalar, soportaPush, suscribir, suscripcionActual } from '@/lib/push';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Tarjeta, toast } from '@/ui';
 import { useCliente } from './useCliente';
@@ -31,6 +33,10 @@ export function Perfil() {
   const { db, cliente, contrato, tarifa } = useCliente();
   const ejecutar = useStore((s) => s.ejecutar);
   const cerrarSesion = useStore((s) => s.cerrarSesion);
+  const modo = useModo();
+  /** Solo SUPABASE: este navegador tiene una suscripción push activa (null = aún no comprobado). */
+  const [suscrito, setSuscrito] = useState<boolean | null>(null);
+  const [ocupadoPush, setOcupadoPush] = useState(false);
   const [form, setForm] = useState({ telefono: cliente.telefono, email: cliente.email, direccion: cliente.direccion });
   const [hoja, setHoja] = useState<'INSTALAR' | 'SALIR' | null>(null);
   const cambiado = form.telefono !== cliente.telefono || form.email !== cliente.email || form.direccion !== cliente.direccion;
@@ -42,23 +48,95 @@ export function Perfil() {
     else toast.error(r.error);
   };
 
-  const cambiarPush = async (activar: boolean) => {
+  useEffect(() => {
+    if (modo !== 'SUPABASE') return;
+    let vivo = true;
+    void suscripcionActual().then((s) => { if (vivo) setSuscrito(s !== null); });
+    return () => { vivo = false; };
+  }, [modo]);
+
+  const guardarPreferenciaPush = async (activar: boolean) => {
+    const r = await ejecutar('actualizarPreferenciasCliente', { notificacionesPush: activar });
+    if (!r.ok) toast.error(r.error);
+    return r.ok;
+  };
+
+  /** DEMO: no hay servidor que envíe nada; solo pedimos permiso y guardamos la preferencia. */
+  const cambiarPushDemo = async (activar: boolean) => {
     if (activar && typeof Notification !== 'undefined') {
       try {
         const permiso = await Notification.requestPermission();
         if (permiso === 'granted') toast.ok('Recibirás los avisos del centro en este móvil.');
-        else if (permiso === 'denied') toast.error('El navegador tiene bloqueados los avisos. Puedes permitirlos en los ajustes del móvil.');
+        else if (permiso === 'denied') toast.error(MENSAJE_PERMISO_DENEGADO);
         else toast.info('No has dado permiso para los avisos. Puedes activarlos más tarde.');
       } catch {
-        toast.info('Este navegador no permite avisos en el móvil.');
+        toast.info(MENSAJE_SIN_SOPORTE);
       }
     } else if (activar) {
-      toast.info('Este navegador no permite avisos en el móvil.');
+      toast.info(MENSAJE_SIN_SOPORTE);
     } else {
       toast.ok('Ya no recibirás avisos en el móvil.');
     }
-    const r = await ejecutar('actualizarPreferenciasCliente', { notificacionesPush: activar });
-    if (!r.ok) toast.error(r.error);
+    await guardarPreferenciaPush(activar);
+  };
+
+  /** SUPABASE: suscripción Web Push real guardada en `suscripciones_push`. */
+  const cambiarPushReal = async (activar: boolean) => {
+    if (!activar) {
+      setOcupadoPush(true);
+      try {
+        const endpoint = await cancelarSuscripcion().catch(() => null);
+        if (endpoint) await borrarSuscripcionPush(endpoint);
+        setSuscrito(false);
+        if (await guardarPreferenciaPush(false)) toast.ok('Ya no recibirás avisos en el móvil.');
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'No se ha podido desactivar.');
+      } finally {
+        setOcupadoPush(false);
+      }
+      return;
+    }
+    if (iosSinInstalar()) {
+      toast.info('En iPhone y iPad, primero instala la app en la pantalla de inicio.');
+      setHoja('INSTALAR');
+      return;
+    }
+    if (!soportaPush()) { toast.error(MENSAJE_SIN_SOPORTE); return; }
+    if (estadoPermiso() === 'denied') { toast.error(MENSAJE_PERMISO_DENEGADO); return; }
+    if (!clavePublicaVapid()) { toast.error('Las notificaciones aún no están configuradas. Avísanos en recepción.'); return; }
+    setOcupadoPush(true);
+    try {
+      const s = await suscribir(clavePublicaVapid());
+      await guardarSuscripcionPush(cliente.id, s);
+      setSuscrito(true);
+      if (await guardarPreferenciaPush(true)) toast.ok('Recibirás los avisos del centro en este móvil.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'PERMISO_DENEGADO') toast.error(MENSAJE_PERMISO_DENEGADO);
+      else if (msg === 'PERMISO_NO_CONCEDIDO') toast.info('No has dado permiso para los avisos. Puedes activarlos más tarde.');
+      else toast.error(msg || 'No se han podido activar las notificaciones en este móvil.');
+    } finally {
+      setOcupadoPush(false);
+    }
+  };
+
+  const cambiarPush = (activar: boolean) => {
+    if (ocupadoPush) return;
+    return modo === 'SUPABASE' ? cambiarPushReal(activar) : cambiarPushDemo(activar);
+  };
+
+  const enviarPrueba = async () => {
+    setOcupadoPush(true);
+    try {
+      const r = await invocarEnvioPush({ prueba: true });
+      if (r.enviadas > 0) toast.ok('Notificación de prueba enviada. Debería llegar en unos segundos.');
+      else if (r.borradas > 0) { setSuscrito(false); toast.error('La suscripción de este móvil ya no es válida. Desactiva y vuelve a activar las notificaciones.'); }
+      else toast.info('No hay ningún móvil suscrito para recibir la prueba.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se ha podido enviar la prueba.');
+    } finally {
+      setOcupadoPush(false);
+    }
   };
 
   const instalar = async () => {
@@ -95,6 +173,7 @@ export function Perfil() {
       <Seccion titulo="Avisos en el móvil">
         <Tarjeta className="px-5 py-1">
           <Interruptor activo={cliente.notificacionesPush} onCambio={cambiarPush} etiqueta="Recibir notificaciones en el móvil" descripcion="Te avisaremos si se cancela una clase o hay novedades." />
+          {modo === 'SUPABASE' && <EstadoPush activo={cliente.notificacionesPush} suscrito={suscrito} ocupado={ocupadoPush} onPrueba={enviarPrueba} />}
         </Tarjeta>
       </Seccion>
 
@@ -212,6 +291,31 @@ export function Perfil() {
       </Hoja>
     </div>
   );
+}
+
+const MENSAJE_SIN_SOPORTE = 'Este navegador no permite notificaciones. Prueba con Chrome (Android) o instala la app en la pantalla de inicio (iPhone).';
+const MENSAJE_PERMISO_DENEGADO =
+  'El navegador tiene bloqueadas las notificaciones de esta app. Para permitirlas: toca el candado o el menú del navegador → Permisos (o Ajustes del sitio) → Notificaciones → Permitir, y vuelve a activar el interruptor.';
+
+/** Estado de la suscripción de este navegador y botón de prueba (solo con suscripción activa). */
+function EstadoPush({ activo, suscrito, ocupado, onPrueba }: { activo: boolean; suscrito: boolean | null; ocupado: boolean; onPrueba: () => void }) {
+  if (!activo) {
+    if (iosSinInstalar()) return <Nota>En iPhone y iPad, las notificaciones solo funcionan con la app instalada en la pantalla de inicio (Compartir → Añadir a pantalla de inicio).</Nota>;
+    if (!soportaPush()) return <Nota>{MENSAJE_SIN_SOPORTE}</Nota>;
+    if (estadoPermiso() === 'denied') return <Nota>{MENSAJE_PERMISO_DENEGADO}</Nota>;
+    return null;
+  }
+  if (suscrito === false) return <Nota>Este móvil no está suscrito: desactiva y vuelve a activar el interruptor para recibir avisos aquí.</Nota>;
+  if (!suscrito) return null;
+  return (
+    <div className="pb-4 pt-1">
+      <Boton variante="suave" ancho cargando={ocupado} onClick={onPrueba}><BellRing className="h-5 w-5" /> Enviar notificación de prueba</Boton>
+    </div>
+  );
+}
+
+function Nota({ children }: { children: ReactNode }) {
+  return <p className="text-sm text-ink-muted pb-3 leading-relaxed">{children}</p>;
 }
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {

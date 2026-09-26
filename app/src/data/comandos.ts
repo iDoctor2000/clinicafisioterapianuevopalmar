@@ -9,6 +9,10 @@ import type {
   PlantillaClase, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
 } from '@/domain/types';
 import { tienePermiso } from '@/domain/types';
+import {
+  MENSAJE_AVISO_LIMITADO, MENSAJE_CLASE_AJENA, MENSAJE_CLASE_EXTRA_LIMITADA, MENSAJE_HORARIO_LIMITADO, MENSAJE_SOLO_ADMIN_EQUIPO,
+  limitadoASusClases, puedeGestionarClase,
+} from '@/domain/ambito';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import {
   caducidadRecuperacion, categoriasPermitidasRecuperacion, clasificarCancelacion, evaluarReserva, generarClases,
@@ -36,6 +40,12 @@ function auditar(db: Db, sesion: Sesion, ahora: Date, accion: string, entidad: s
 
 function exigir(sesion: Sesion, permiso: Permiso): string | null {
   return tienePermiso(sesion, permiso) ? null : `No tienes permiso para: ${permiso}`;
+}
+
+/** Ámbito: un trabajador con SUS_CLASES solo actúa sobre las clases que imparte. */
+function exigirClaseMia(db: Db, sesion: Sesion, clase: Clase): string | null {
+  if (sesion.tipo !== 'TRABAJADOR') return null;
+  return puedeGestionarClase(db, sesion, clase) ? null : MENSAJE_CLASE_AJENA;
 }
 
 function contratoActivo(db: Db, clienteId: Id, fecha: ISODate): Contrato | null {
@@ -71,6 +81,10 @@ export function reservar(ctx: Ctx, args: { claseId: Id; clienteId?: Id }): Resul
   }
   const clase = db.clases.find((c) => c.id === args.claseId);
   if (!clase) return fallo('La clase no existe.');
+  if (sesion.tipo === 'TRABAJADOR') {
+    const e = exigirClaseMia(db, sesion, clase);
+    if (e) return fallo(e);
+  }
   const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
   const contrato = contratoActivo(db, clienteId, clase.fecha);
   const tarifa = contrato ? db.tarifas.find((t) => t.id === contrato.tarifaId) ?? null : null;
@@ -113,6 +127,10 @@ export function cancelarReserva(ctx: Ctx, args: { reservaId: Id; forzarRecuperab
     if (e) return fallo(e);
   }
   const clase = db.clases.find((c) => c.id === reserva.claseId)!;
+  if (sesion.tipo === 'TRABAJADOR') {
+    const ea = exigirClaseMia(db, sesion, clase);
+    if (ea) return fallo(ea);
+  }
   const puede = puedeCancelarCliente(clase, reserva.estado, ahora);
   if (!puede.ok) return fallo(puede.motivo);
 
@@ -157,9 +175,11 @@ export function anadirAlumno(ctx: Ctx, args: { claseId: Id; clienteId: Id; modo:
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, args.modo === 'CLASE_SUELTA' ? 'CLASES_SUELTAS' : 'RESERVAS_GESTIONAR');
   if (e) return fallo(e);
-  if (args.modo === 'TARIFA') return reservar(ctx, { claseId: args.claseId, clienteId: args.clienteId });
   const clase = db.clases.find((c) => c.id === args.claseId);
   if (!clase) return fallo('La clase no existe.');
+  const ea = exigirClaseMia(db, sesion, clase);
+  if (ea) return fallo(ea);
+  if (args.modo === 'TARIFA') return reservar(ctx, { claseId: args.claseId, clienteId: args.clienteId });
   if (clase.estado === 'CANCELADA') return fallo('La clase está cancelada.');
   if (plazasLibres(clase, db.reservas) <= 0) return fallo('No quedan plazas libres.');
   if (db.reservas.some((r) => r.claseId === clase.id && r.clienteId === args.clienteId && r.estado === 'RESERVADA')) return fallo('El cliente ya tiene plaza en esta clase.');
@@ -184,6 +204,11 @@ export function registrarAsistencia(ctx: Ctx, args: { reservaId: Id; asistencia:
   if (e) return fallo(e);
   const reserva = db.reservas.find((r) => r.id === args.reservaId);
   if (!reserva) return fallo('La reserva no existe.');
+  const clase = db.clases.find((c) => c.id === reserva.claseId);
+  if (clase) {
+    const ea = exigirClaseMia(db, sesion, clase);
+    if (ea) return fallo(ea);
+  }
   const nuevo = { ...db, reservas: db.reservas.map((r) => (r.id === reserva.id ? { ...r, asistencia: args.asistencia } : r)) };
   return ok(auditar(nuevo, sesion, ahora, 'ASISTENCIA', 'reserva', reserva.id, `${nombreCliente(db, reserva.clienteId)}: ${args.asistencia}`), undefined);
 }
@@ -211,6 +236,8 @@ export function cancelarClase(ctx: Ctx, args: { claseId: Id; motivo: string; cla
   if (e) return fallo(e);
   const clase = db.clases.find((c) => c.id === args.claseId);
   if (!clase) return fallo('La clase no existe.');
+  const ea = exigirClaseMia(db, sesion, clase);
+  if (ea) return fallo(ea);
   if (clase.estado === 'CANCELADA') return fallo('La clase ya está cancelada.');
   const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
   const afectadas = db.reservas.filter((r) => r.claseId === clase.id && r.estado === 'RESERVADA');
@@ -262,6 +289,7 @@ export function crearClaseExtraordinaria(ctx: Ctx, args: { actividadId: Id; fech
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'CLASES_CREAR_CANCELAR');
   if (e) return fallo(e);
+  if (limitadoASusClases(db, sesion)) return fallo(MENSAJE_CLASE_EXTRA_LIMITADA);
   const clase: Clase = {
     id: nuevoId('cla'), plantillaId: null, actividadId: args.actividadId, fecha: args.fecha, horaInicio: args.horaInicio, duracionMin: args.duracionMin,
     monitorId: args.monitorId, plazas: args.plazas, estado: 'PROGRAMADA', extraordinaria: true, claseAlternativaId: null, motivoCancelacion: null, canceladaEl: null, canceladaPor: null,
@@ -273,6 +301,7 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'HORARIOS_GESTIONAR');
   if (e) return fallo(e);
+  if (limitadoASusClases(db, sesion)) return fallo(MENSAJE_HORARIO_LIMITADO);
   const p: PlantillaClase = { ...args.plantilla, id: args.plantilla.id ?? nuevoId('pl') };
   const existe = db.plantillas.some((x) => x.id === p.id);
   let nuevo: Db = { ...db, plantillas: existe ? db.plantillas.map((x) => (x.id === p.id ? p : x)) : [...db.plantillas, p] };
@@ -356,6 +385,14 @@ export function publicarAviso(ctx: Ctx, args: { titulo: string; cuerpo: string; 
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'AVISOS_ENVIAR');
   if (e) return fallo(e);
+  if (limitadoASusClases(db, sesion)) {
+    const destino = args.destino;
+    if (destino.tipo !== 'CLASE') return fallo(MENSAJE_AVISO_LIMITADO);
+    const clase = db.clases.find((c) => c.id === destino.claseId);
+    if (!clase) return fallo('La clase no existe.');
+    const ea = exigirClaseMia(db, sesion, clase);
+    if (ea) return fallo(ea);
+  }
   const destinatariosIds = resolverDestinatarios(db, args.destino);
   const aviso: Aviso = { id: nuevoId('avi'), ...args, destinatariosIds, publicadoEl: ahora.toISOString(), publicadoPor: sesion.userId };
   return ok(auditar({ ...db, avisos: [aviso, ...db.avisos] }, sesion, ahora, 'PUBLICAR_AVISO', 'aviso', aviso.id, `${aviso.titulo} → ${destinatariosIds.length} clientes`), aviso);
@@ -418,9 +455,10 @@ export function guardarActividad(ctx: Ctx, args: { actividad: Omit<Actividad, 'i
 
 export function guardarTrabajador(ctx: Ctx, args: { trabajador: Omit<Trabajador, 'id'> & { id?: Id } }): Resultado<Trabajador> {
   const { db, sesion, ahora } = ctx;
-  const e = exigir(sesion, 'TRABAJADORES_GESTIONAR');
-  if (e) return fallo(e);
+  // La gestión del equipo (fichas, permisos y ámbito) es exclusiva del rol ADMIN.
+  if (sesion.tipo !== 'TRABAJADOR' || sesion.rol !== 'ADMIN') return fallo(MENSAJE_SOLO_ADMIN_EQUIPO);
   const t: Trabajador = { ...args.trabajador, id: args.trabajador.id ?? nuevoId('tra') };
+  if (t.rol === 'ADMIN') t.ambito = 'CENTRO'; // un administrador siempre tiene ámbito CENTRO
   const existe = db.trabajadores.some((x) => x.id === t.id);
   let usuarios = db.usuarios;
   if (!t.userId) {

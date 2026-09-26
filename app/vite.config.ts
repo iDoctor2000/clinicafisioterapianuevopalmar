@@ -13,6 +13,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Service worker propio (src/sw.ts): precache + navegación offline + notificaciones push.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
@@ -31,8 +35,7 @@ export default defineConfig({
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        navigateFallback: `${base}index.html`,
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
       },
     }),
