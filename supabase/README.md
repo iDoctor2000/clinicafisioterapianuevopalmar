@@ -161,11 +161,110 @@ Desde la app se llaman con `supabase.rpc('reservar', { p_clase_id: ... })`. Si u
 impide, la llamada falla con un mensaje ya redactado para mostrarlo al usuario
 (por ejemplo, "Ya tienes las 2 clases de esta semana.").
 
-## 8. Pruebas locales (opcional, para desarrolladores)
+## 8. Notificaciones push (avisos en el móvil)
+
+La app avisa en el móvil (Web Push) cuando el centro **publica un aviso** o **cancela una clase**.
+El cliente lo activa en **Perfil → "Recibir notificaciones en el móvil"**; en iPhone/iPad solo
+funciona con la app instalada en la pantalla de inicio (Compartir → Añadir a pantalla de inicio).
+
+Piezas:
+
+- `suscripciones_push` (tabla): la suscripción de cada móvil del cliente (la gestiona la propia app).
+- `supabase/functions/enviar-push/` (Edge Function, Deno + `web-push`): la llama la app tras
+  `publicar_aviso` / `cancelar_clase` con `{ avisoId }` y envía a los destinatarios del aviso con
+  `notificaciones_push = true`. Con `{ prueba: true }` envía una prueba solo a quien la pide.
+  Comprueba con el JWT del usuario que quien envía un aviso es un trabajador con `AVISOS_ENVIAR` o
+  `CLASES_CREAR_CANCELAR` (el ADMIN siempre) y borra las suscripciones caducadas (404/410).
+
+### 8.1 Generar las claves VAPID (una sola vez)
+
+En cualquier ordenador con Node:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Imprime una **clave pública** y una **clave privada**. La pública puede ir en la app; la privada
+**solo** en Supabase (nunca en el repositorio ni en la app).
+
+### 8.2 Dónde poner cada clave
+
+| Clave | Dónde | Nombre |
+|---|---|---|
+| Pública | GitHub → Settings → Secrets and variables → Actions → **Variables** → New repository variable | `VAPID_PUBLIC_KEY` |
+| Pública | Supabase → Edge Functions → **Secrets** | `VAPID_PUBLIC_KEY` |
+| Privada | Supabase → Edge Functions → **Secrets** | `VAPID_PRIVATE_KEY` |
+| Contacto | Supabase → Edge Functions → **Secrets** | `VAPID_SUBJECT` = `mailto:correo@delcentro.es` |
+
+El workflow de GitHub Pages pasa la variable a la app como `VITE_VAPID_PUBLIC_KEY` (para
+desarrollo local, ponla en `app/.env.local`). `SUPABASE_URL`, `SUPABASE_ANON_KEY` y
+`SUPABASE_SERVICE_ROLE_KEY` las inyecta Supabase en la función automáticamente.
+
+### 8.3 Desplegar la función `enviar-push`
+
+**Opción A · Desde el panel de Supabase** (sin instalar nada):
+
+1. Edge Functions → **Deploy a new function** → "Via Editor".
+2. Nombre: `enviar-push`. Pega el contenido de `supabase/functions/enviar-push/index.ts`.
+3. Si el editor lo permite, añade también `deno.json` con el mismo contenido que el del repositorio
+   (si no, cambia los dos `import` del principio por `npm:@supabase/supabase-js@2` y `npm:web-push@3`).
+4. Deja activada la opción **"Verify JWT"** (la función exige la sesión del usuario).
+5. Deploy. Después añade los Secrets del punto 8.2 (Edge Functions → Secrets).
+
+**Opción B · Con la Supabase CLI**:
+
+```bash
+supabase login
+supabase link --project-ref <ref-del-proyecto>
+supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:correo@delcentro.es
+supabase functions deploy enviar-push
+```
+
+### 8.4 Probar
+
+1. Publica la app con `VAPID_PUBLIC_KEY` ya definida en GitHub (el workflow vuelve a compilarla).
+2. Entra como cliente en el móvil (en iPhone, con la app instalada), activa
+   **Perfil → Recibir notificaciones en el móvil** y acepta el permiso.
+3. Pulsa **"Enviar notificación de prueba"**: debe llegar en unos segundos.
+4. Desde el personal, publica un aviso: la app llama a la función en segundo plano. Los fallos se ven
+   en Supabase → Edge Functions → `enviar-push` → Logs.
+
+## 9. Fotos de clientes
+
+La app permite que cada cliente ponga su foto (Perfil → toca el avatar → "Hacer una foto" o
+"Elegir de la galería") y que el personal con `CLIENTES_EDITAR` la ponga o cambie desde la ficha del
+cliente. La foto sirve para identificar a los alumnos al pasar asistencia en el detalle de la clase.
+La imagen se recorta a cuadrado y se reduce a 256×256 JPEG **en el móvil** antes de subirla
+(unos 10-30 KB), así que el espacio de Storage que consume es mínimo.
+
+Qué hace `migrations/0006_fotos.sql`:
+
+- Añade la columna `clientes.foto_url` (ruta del objeto + `?v=<marca>`; `NULL` = sin foto).
+- Actualiza el trigger de autoedición para que un cliente pueda cambiar su `foto_url` (y solo la suya).
+- Crea el bucket **privado** `fotos-clientes` (límite **500 KB** por archivo; solo `image/jpeg`,
+  `image/png`, `image/webp`) y sus políticas sobre `storage.objects`: cada cliente accede solo a su
+  carpeta `<cliente_id>/avatar.jpg`; el personal lee con `CLIENTES_VER` y escribe con
+  `CLIENTES_EDITAR`, y con ámbito «Solo sus clases» únicamente las fotos de sus alumnos.
+
+Aplicación: pega `migrations/0006_fotos.sql` en **SQL Editor → Run** (o `supabase db push`), igual
+que el resto. Se puede ejecutar varias veces. En un PostgreSQL local sin el schema `storage`
+(pruebas) la parte del bucket se omite con un aviso y el resto se aplica.
+
+Comprobar: en **Storage** debe aparecer el bucket `fotos-clientes` marcado como *Private*; en
+**Storage → Policies** las tres políticas `fotos_cliente_propio`, `fotos_personal_ver` y
+`fotos_personal_editar`. Al subir una foto desde la app aparece el objeto `<id del cliente>/avatar.jpg`.
+Como el bucket es privado, la app pide URLs firmadas (válidas 1 hora) y las guarda en memoria;
+al cambiar o quitar la foto se sustituye o borra el objeto. Si la app muestra «El almacén de fotos
+no está configurado en el servidor», falta ejecutar esta migración.
+
+Protección de datos: la foto solo la ve el personal del centro (y el propio cliente), nunca otros
+clientes; el cliente puede quitarla cuando quiera desde su perfil.
+
+## 10. Pruebas locales (opcional, para desarrolladores)
 
 `tests/prueba_local.sh` crea una base `pilates_test` en un PostgreSQL 16 local, simula el schema
 `auth` de Supabase, aplica migraciones y seed y ejecuta `tests/pruebas.sql` (reglas de reserva,
-cupos, aforo, cancelaciones, recuperaciones, bono, cancelación por el centro y RLS por rol).
+cupos, aforo, cancelaciones, recuperaciones, bono, cancelación por el centro, RLS por rol y foto del cliente).
 
 ```bash
 bash supabase/tests/prueba_local.sh

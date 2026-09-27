@@ -20,14 +20,16 @@ const TIPOS: { valor: Tipo; texto: string }[] = [
 ];
 
 export function Avisos() {
-  const { db, ejecutar } = useTrabajador();
+  const { db, ejecutar, limitado } = useTrabajador();
   const [params, setParams] = useSearchParams();
+  // Con ámbito SUS_CLASES solo se puede escribir a los alumnos de una clase propia.
+  const tipos = limitado ? TIPOS.filter((t) => t.valor === 'CLASE') : TIPOS;
   const claseParam = params.get('clase');
   const hoy = hoyISO();
   const proximas = clasesProximas(db, hoy, 21);
   const claseInicial = claseParam && db.clases.some((c) => c.id === claseParam) ? claseParam : proximas[0]?.clase.id ?? '';
 
-  const [tipo, setTipo] = useState<Tipo>(claseParam ? 'CLASE' : 'TODOS');
+  const [tipo, setTipo] = useState<Tipo>(claseParam || limitado ? 'CLASE' : 'TODOS');
   const [claseId, setClaseId] = useState(claseInicial);
   const [actividadId, setActividadId] = useState(db.actividades[0]?.id ?? '');
   const [clienteIds, setClienteIds] = useState<string[]>([]);
@@ -51,7 +53,7 @@ export function Avisos() {
 
   return (
     <div>
-      <Encabezado titulo="Avisos" subtitulo="Comunicaciones a los clientes: aparecen en su app y como notificación." />
+      <Encabezado titulo="Avisos" subtitulo={limitado ? 'Avisos a los alumnos de tus clases: aparecen en su app y como notificación.' : 'Comunicaciones a los clientes: aparecen en su app y como notificación.'} />
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <Tarjeta className="p-4 sm:p-6 space-y-4">
           <h2 className="text-lg font-sans font-semibold flex items-center gap-2"><Megaphone className="h-5 w-5 text-brand-600" /> Nuevo aviso</h2>
@@ -60,7 +62,7 @@ export function Avisos() {
           <div>
             <span className="block text-[15px] font-semibold mb-1.5">Destinatarios</span>
             <div className="grid grid-cols-2 gap-2">
-              {TIPOS.map((t) => <button key={t.valor} type="button" aria-pressed={tipo === t.valor} onClick={() => setTipo(t.valor)} className={cn('h-12 rounded-2xl border font-semibold text-sm tap px-2', tipo === t.valor ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink/10 hover:border-brand-300')}>{t.texto}</button>)}
+              {tipos.map((t) => <button key={t.valor} type="button" aria-pressed={tipo === t.valor} onClick={() => setTipo(t.valor)} className={cn('h-12 rounded-2xl border font-semibold text-sm tap px-2', tipo === t.valor ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink/10 hover:border-brand-300')}>{t.texto}</button>)}
             </div>
           </div>
           {tipo === 'CLASE' && (
@@ -93,7 +95,7 @@ export function Avisos() {
 
         <div>
           <h2 className="text-lg font-sans font-semibold mb-2">Historial</h2>
-          {db.avisos.length === 0 ? <Vacio icono={Bell} titulo="Sin avisos" texto="Aquí aparecerán los avisos publicados." /> : (
+          {db.avisos.length === 0 ? <Vacio icono={Bell} titulo="Sin avisos" texto={limitado ? 'Aquí aparecerán los avisos que publiques o los dirigidos a tus clases.' : 'Aquí aparecerán los avisos publicados.'} /> : (
             <ul className="space-y-2">
               {db.avisos.map((a) => (
                 <li key={a.id}>

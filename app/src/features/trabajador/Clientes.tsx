@@ -7,10 +7,10 @@ import { nombreCompleto } from '@/data/selectores';
 import { Boton, Chip, Entrada, Interruptor, Tarjeta, Vacio, toast } from '@/ui';
 import { useTrabajador } from './useTrabajador';
 import { buscarClientes, resumenCliente } from './consultas';
-import { Avatar, CampoBusqueda, Encabezado, Segmentado } from './comunes';
+import { AvatarCliente, CampoBusqueda, Encabezado, Segmentado } from './comunes';
 
 export function Clientes() {
-  const { db, puede } = useTrabajador();
+  const { db, puede, limitado } = useTrabajador();
   const navigate = useNavigate();
   const [texto, setTexto] = useState('');
   const [filtro, setFiltro] = useState<'ACTIVOS' | 'TODOS'>('ACTIVOS');
@@ -20,16 +20,16 @@ export function Clientes() {
   return (
     <div>
       <Encabezado
-        titulo="Clientes"
-        subtitulo={`${db.clientes.filter((c) => c.activo).length} activos · ${db.clientes.length} en total`}
-        acciones={puede('CLIENTES_EDITAR') && <Boton tamano="sm" onClick={() => navigate('/clientes/nuevo')}><UserPlus className="h-5 w-5" /> Nuevo cliente</Boton>}
+        titulo={limitado ? 'Mis alumnos' : 'Clientes'}
+        subtitulo={`${db.clientes.filter((c) => c.activo).length} activos · ${db.clientes.length} en total${limitado ? ' · solo alumnos de tus clases' : ''}`}
+        acciones={puede('CLIENTES_EDITAR') && !limitado && <Boton tamano="sm" onClick={() => navigate('/clientes/nuevo')}><UserPlus className="h-5 w-5" /> Nuevo cliente</Boton>}
       />
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <CampoBusqueda valor={texto} onCambio={setTexto} placeholder="Buscar por nombre, apellidos, DNI o teléfono" className="flex-1" />
         <Segmentado valor={filtro} onCambio={setFiltro} opciones={[{ valor: 'ACTIVOS', texto: 'Activos' }, { valor: 'TODOS', texto: 'Todos' }]} />
       </div>
       {lista.length === 0 ? (
-        <Vacio icono={Users} titulo="Sin resultados" texto={texto ? 'Prueba con otro nombre, DNI o teléfono.' : 'Todavía no hay clientes.'} />
+        <Vacio icono={Users} titulo="Sin resultados" texto={texto ? 'Prueba con otro nombre, DNI o teléfono.' : limitado ? 'Aquí aparecerán los clientes con reserva en alguna de tus clases.' : 'Todavía no hay clientes.'} />
       ) : (
         <Tarjeta>
           <ul className="divide-y divide-ink/5">
@@ -38,7 +38,7 @@ export function Clientes() {
               return (
                 <li key={c.id}>
                   <Link to={`/clientes/${c.id}`} className="flex items-center gap-3 p-3 sm:px-4 hover:bg-sand tap">
-                    <Avatar nombre={c.nombre} apellidos={c.apellidos} />
+                    <AvatarCliente cliente={c} />
                     <span className="flex-1 min-w-0">
                       <span className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold truncate">{nombreCompleto(c)}</span>
@@ -106,7 +106,7 @@ export function NuevoCliente() {
   const { ejecutar } = useTrabajador();
   const navigate = useNavigate();
   const guardar = async (d: DatosCliente) => {
-    const r = await ejecutar('guardarCliente', { cliente: { ...d, clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null }, userId: null } });
+    const r = await ejecutar('guardarCliente', { cliente: { ...d, clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null }, userId: null, fotoUrl: null } });
     if (r.ok) { toast.ok('Cliente creado.'); navigate(`/clientes/${r.valor.id}`, { replace: true }); } else toast.error(r.error);
   };
   return (

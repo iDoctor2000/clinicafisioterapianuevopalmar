@@ -125,7 +125,7 @@ export async function usuarioActual(): Promise<UsuarioAuth | null> {
  */
 export function sesionDesdeUsuario(usuario: UsuarioAuth, db: Db): Sesion | null {
   const t = db.trabajadores.find((x) => x.userId === usuario.id);
-  if (t) return { tipo: 'TRABAJADOR', userId: usuario.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol };
+  if (t) return { tipo: 'TRABAJADOR', userId: usuario.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, ambito: t.rol === 'ADMIN' ? 'CENTRO' : t.ambito };
   const c = db.clientes.find((x) => x.userId === usuario.id);
   if (c) return { tipo: 'CLIENTE', userId: usuario.id, clienteId: c.id, nombre: c.nombre };
   return null;

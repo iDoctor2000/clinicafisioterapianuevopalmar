@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Ban, Bell, Check, Clock, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { AlertTriangle, Ban, Bell, Check, Clock, Lock, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { MENSAJE_CLASE_AJENA } from '@/domain/ambito';
 import type { Cliente, Reserva } from '@/domain/types';
 import { fechaLarga, horaFin, hoyISO, esPasada, fechaCorta } from '@/domain/fechas';
 import { nombreCompleto, vistaClase } from '@/data/selectores';
@@ -9,17 +10,19 @@ import { toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { alternativasPara, clasesSueltasDe, resumenCliente } from './consultas';
-import { Avatar, BarraOcupacion, BuscadorClientes, ChipEstadoReserva, ChipOrigen, Confirmacion, Encabezado, Plegable, PuntoColor, may } from './comunes';
+import { AvatarCliente, BarraOcupacion, BuscadorClientes, ChipEstadoReserva, ChipOrigen, Confirmacion, Encabezado, Plegable, PuntoColor, may } from './comunes';
 
 export function DetalleClase() {
   const { id } = useParams();
-  const { db, puede, ejecutar } = useTrabajador();
+  const { db, dbCompleta, puede, ejecutar, gestionaClase } = useTrabajador();
   const navigate = useNavigate();
   const clase = db.clases.find((c) => c.id === id);
+  const claseAjena = !clase ? dbCompleta.clases.find((c) => c.id === id) : undefined;
   const [anadir, setAnadir] = useState(false);
   const [cancelar, setCancelar] = useState(false);
   const [quitar, setQuitar] = useState<Reserva | null>(null);
 
+  if (claseAjena && !gestionaClase(claseAjena)) return <Vacio icono={Lock} titulo={MENSAJE_CLASE_AJENA} texto="Tu ámbito es «Solo sus clases»: únicamente puedes ver y gestionar las clases que impartes." accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
   if (!clase) return <Vacio icono={AlertTriangle} titulo="Clase no encontrada" accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
   const vista = vistaClase(db, clase);
   const { actividad, monitor, ocupadas } = vista;
@@ -91,7 +94,7 @@ export function DetalleClase() {
                 return (
                   <li key={r.id} className="p-3 sm:px-4">
                     <div className="flex items-center gap-3">
-                      <Avatar nombre={c?.nombre ?? '?'} apellidos={c?.apellidos} tamano="sm" />
+                      <AvatarCliente cliente={c} tamano="md" />
                       <div className="flex-1 min-w-0">
                         <Link to={`/clientes/${r.clienteId}`} className="font-semibold hover:underline block truncate">{nombreCompleto(c)}</Link>
                         <div className="flex gap-1.5 flex-wrap mt-0.5"><ChipOrigen origen={r.origen} />{!c?.activo && <Chip tono="rojo">Baja</Chip>}</div>
@@ -101,7 +104,7 @@ export function DetalleClase() {
                       )}
                     </div>
                     {puedeAsistencia && (
-                      <div className="mt-2 grid grid-cols-2 gap-2 sm:ml-12">
+                      <div className="mt-2 grid grid-cols-2 gap-2 sm:ml-14">
                         <BotonAsistencia activo={r.asistencia === 'ASISTE'} tono="verde" onClick={() => marcar(r, 'ASISTE')}><Check className="h-5 w-5" /> Asiste</BotonAsistencia>
                         <BotonAsistencia activo={r.asistencia === 'NO_ASISTE'} tono="rojo" onClick={() => marcar(r, 'NO_ASISTE')}><X className="h-5 w-5" /> No asiste</BotonAsistencia>
                       </div>
@@ -188,7 +191,7 @@ function HojaAnadirAlumno({ abierta, onCerrar, claseId, yaApuntados }: { abierta
       {cliente && resumen && (
         <div className="space-y-4">
           <div className="flex items-center gap-3 rounded-2xl bg-sand p-3">
-            <Avatar nombre={cliente.nombre} apellidos={cliente.apellidos} />
+            <AvatarCliente cliente={cliente} />
             <div className="flex-1 min-w-0">
               <div className="font-semibold">{nombreCompleto(cliente)}</div>
               <div className="text-sm text-ink-muted truncate">{resumen.tarifa ? `${resumen.tarifa.nombre} · ${resumen.contrato?.modalidad === 'FIJO' ? 'horario fijo' : 'turno libre'}` : 'Sin tarifa activa'}{resumen.recuperaciones > 0 && ` · ${resumen.recuperaciones} recup.`}</div>

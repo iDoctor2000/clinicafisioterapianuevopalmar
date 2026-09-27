@@ -1,3 +1,4 @@
+export * from './Avatar';
 export * from './Boton';
 export * from './Tarjeta';
 export { Etiqueta as Chip } from './Etiqueta';

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, ClipboardList, FileText, HeartPulse, Mail, Phone, RefreshCcw, Stethoscope, Tag } from 'lucide-react';
+import { AlertTriangle, Camera, ClipboardList, FileText, HeartPulse, Lock, Mail, Phone, RefreshCcw, Stethoscope, Tag } from 'lucide-react';
+import { MENSAJE_CLIENTE_AJENO } from '@/domain/ambito';
 import type { Categoria, Cliente } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import { hoyISO, sumarDias } from '@/domain/fechas';
@@ -8,7 +9,8 @@ import { nombreCompleto, recuperacionesDeCliente } from '@/data/selectores';
 import { AreaTexto, Boton, Chip, Entrada, Hoja, Tarjeta, Vacio, toast } from '@/ui';
 import { useTrabajador } from './useTrabajador';
 import { historialAsistencia, resumenCliente } from './consultas';
-import { Avatar, BloqueRestringido, Dato, Encabezado, Pestanas, fechaMedia, instanteCorto } from './comunes';
+import { AvatarCliente, BloqueRestringido, Dato, Encabezado, Pestanas, fechaMedia, instanteCorto } from './comunes';
+import { SelectorFoto } from '@/features/comun/SelectorFoto';
 import { FormularioCliente, type DatosCliente } from './Clientes';
 import { PestanaReservas, PestanaTarifa } from './FichaTarifaReservas';
 
@@ -16,9 +18,11 @@ type Pestana = 'DATOS' | 'CLINICA' | 'TARIFA' | 'RESERVAS' | 'RECUPERACIONES';
 
 export function FichaCliente() {
   const { id } = useParams();
-  const { db, puede } = useTrabajador();
+  const { db, dbCompleta, puede } = useTrabajador();
   const cliente = db.clientes.find((c) => c.id === id);
   const [pestana, setPestana] = useState<Pestana>('DATOS');
+  const [foto, setFoto] = useState(false);
+  if (!cliente && dbCompleta.clientes.some((c) => c.id === id)) return <Vacio icono={Lock} titulo={MENSAJE_CLIENTE_AJENO} texto="Tu ámbito es «Solo sus clases»: solo puedes consultar a los clientes con reserva en alguna de tus clases." accion={<Link to="/clientes"><Boton variante="secundario">Volver a mis alumnos</Boton></Link>} />;
   if (!cliente) return <Vacio icono={AlertTriangle} titulo="Cliente no encontrado" accion={<Link to="/clientes"><Boton variante="secundario">Volver a clientes</Boton></Link>} />;
   const hoy = hoyISO();
   const r = resumenCliente(db, cliente, hoy);
@@ -28,7 +32,7 @@ export function FichaCliente() {
     <div>
       <Encabezado atras="/clientes" titulo={nombreCompleto(cliente)}>
         <div className="flex items-start gap-4 mt-3">
-          <Avatar nombre={cliente.nombre} apellidos={cliente.apellidos} tamano="lg" />
+          <BotonAvatar cliente={cliente} editable={puede('CLIENTES_EDITAR')} onClick={() => setFoto(true)} />
           <div className="flex-1 min-w-0">
             <div className="flex gap-1.5 flex-wrap">
               {!cliente.activo && <Chip tono="rojo">Baja</Chip>}
@@ -60,13 +64,25 @@ export function FichaCliente() {
         ]}
       />
       <div className="pt-4">
-        {pestana === 'DATOS' && <PestanaDatos cliente={cliente} />}
+        {pestana === 'DATOS' && <PestanaDatos cliente={cliente} onFoto={() => setFoto(true)} />}
         {pestana === 'CLINICA' && (puede('CLINICA_VER') ? <PestanaClinica cliente={cliente} /> : <BloqueRestringido />)}
         {pestana === 'TARIFA' && <PestanaTarifa cliente={cliente} />}
         {pestana === 'RESERVAS' && <PestanaReservas cliente={cliente} />}
         {pestana === 'RECUPERACIONES' && <PestanaRecuperaciones cliente={cliente} />}
       </div>
+      {puede('CLIENTES_EDITAR') && <SelectorFoto abierta={foto} onCerrar={() => setFoto(false)} cliente={cliente} />}
     </div>
+  );
+}
+
+/** Avatar grande de la cabecera; con permiso de edición es un botón que abre el selector de foto. */
+function BotonAvatar({ cliente, editable, onClick }: { cliente: Cliente; editable: boolean; onClick: () => void }) {
+  if (!editable) return <AvatarCliente cliente={cliente} tamano="lg" />;
+  return (
+    <button type="button" onClick={onClick} aria-label={cliente.fotoUrl ? 'Cambiar foto del cliente' : 'Poner foto al cliente'} title={cliente.fotoUrl ? 'Cambiar foto' : 'Poner foto'} className="relative shrink-0 rounded-full tap">
+      <AvatarCliente cliente={cliente} tamano="lg" />
+      <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-white text-brand-700 shadow-card ring-1 ring-ink/10 flex items-center justify-center"><Camera className="h-4 w-4" /></span>
+    </button>
   );
 }
 
@@ -74,7 +90,7 @@ export function FichaCliente() {
 // Datos
 // ---------------------------------------------------------------------------
 
-function PestanaDatos({ cliente }: { cliente: Cliente }) {
+function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => void }) {
   const { puede, ejecutar } = useTrabajador();
   const [editando, setEditando] = useState(false);
   const guardar = async (d: DatosCliente) => {
@@ -101,8 +117,14 @@ function PestanaDatos({ cliente }: { cliente: Cliente }) {
         <Dato etiqueta="Fecha de baja">{cliente.bajaEl ? fechaMedia(cliente.bajaEl) : ''}</Dato>
         <Dato etiqueta="Notificaciones">{cliente.notificacionesPush ? 'Activadas' : 'Desactivadas'}</Dato>
         <Dato etiqueta="Estado">{cliente.activo ? 'Activo' : 'Baja'}</Dato>
+        <Dato etiqueta="Foto">{cliente.fotoUrl ? 'Con foto' : 'Sin foto (se muestran las iniciales)'}</Dato>
       </div>
-      {puede('CLIENTES_EDITAR') && <div className="mt-6 flex justify-end"><Boton variante="secundario" onClick={() => setEditando(true)}>Editar datos</Boton></div>}
+      {puede('CLIENTES_EDITAR') && (
+        <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+          <Boton variante="suave" onClick={onFoto}><Camera className="h-5 w-5" /> {cliente.fotoUrl ? 'Cambiar foto' : 'Poner foto'}</Boton>
+          <Boton variante="secundario" onClick={() => setEditando(true)}>Editar datos</Boton>
+        </div>
+      )}
     </Tarjeta>
   );
 }

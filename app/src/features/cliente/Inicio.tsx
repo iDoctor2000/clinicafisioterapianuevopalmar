@@ -9,6 +9,7 @@ import { useCliente } from './useCliente';
 import { cap, diaMes, diasHasta, fechaRelativa, horarioFijoDe, periodoTexto, proximaReserva, textoFranja } from './consultas';
 import { chipOrigen } from './estados';
 import { BarraProgreso, Encabezado, HojaCancelar, PuntoActividad } from './comun';
+import { AvatarCliente } from '@/features/comun/AvatarCliente';
 
 export function Inicio() {
   const { db, cliente, contrato, tarifa } = useCliente();
@@ -27,7 +28,9 @@ export function Inicio() {
 
   return (
     <div>
-      <Encabezado titulo={`Hola, ${cliente.nombre}`} subtitulo={cap(fechaLarga(hoy))} />
+      <Encabezado titulo={`Hola, ${cliente.nombre}`} subtitulo={cap(fechaLarga(hoy))}>
+        <Link to="/perfil" aria-label="Mi perfil" className="shrink-0 rounded-full tap mb-1"><AvatarCliente cliente={cliente} tamano="lg" /></Link>
+      </Encabezado>
 
       {ultimoAviso && (
         <Link to="/avisos" className="block mb-4">

@@ -451,7 +451,137 @@ update public.config_centro set dias_ventana_reserva = 14;
 commit;
 
 \echo
-\echo '== 16. Rol anon: sin acceso'
+\echo '== 16. Ámbito SUS_CLASES (0005): Ana (monitora) solo ve y gestiona sus clases y sus alumnos'
+select pruebas.sistema();
+select pruebas.guardar('u_ana', '10000000-0000-4000-8000-000000000002');
+select pruebas.guardar('cliente_d', 'e0000000-0000-4000-8000-00000000000d');
+insert into auth.users (id, email) values (pruebas.id('u_ana'), 'ana.monitora@test.local');
+update public.trabajadores set user_id = pruebas.id('u_ana'), ambito = 'SUS_CLASES' where id = pruebas.id('tra_ana');
+-- Para probar el ámbito también en cancelar_clase y horarios, le damos esos permisos (el ámbito debe seguir bloqueando).
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_ana'), 'CLASES_CREAR_CANCELAR'), (pruebas.id('tra_ana'), 'HORARIOS_GESTIONAR');
+-- Un ADMIN siempre queda en CENTRO (trigger).
+update public.trabajadores set ambito = 'SUS_CLASES' where id = pruebas.id('tra_admin');
+-- Cliente D: sin ninguna reserva (no es alumno de nadie).
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values (pruebas.id('cliente_d'), 'Diana', 'Nueva', '44444444D', 'diana@test.local', '600 000 004');
+insert into public.clientes_clinica (cliente_id, lesiones) values (pruebas.id('cliente_d'), 'Ninguna');
+-- Valores esperados, calculados sin RLS.
+select pruebas.guardar('n_res_ana', (select count(*)::text from public.reservas r join public.clases c on c.id = r.clase_id where c.monitor_id = pruebas.id('tra_ana')));
+select pruebas.guardar('n_alumnos_ana', (select count(distinct r.cliente_id)::text from public.reservas r join public.clases c on c.id = r.clase_id where c.monitor_id = pruebas.id('tra_ana')));
+select pruebas.guardar('n_avisos', (select count(*)::text from public.avisos));
+-- Reserva en una clase ajena (jue 18:00 es del administrador): la clase suelta de A del apartado 11.
+select pruebas.guardar('res_ajena', (select id::text from public.reservas where clase_id = pruebas.id('cl_jue_1800') and cliente_id = pruebas.id('cliente_a') and estado = 'RESERVADA'));
+do $$ begin
+  assert (select ambito from public.trabajadores where id = pruebas.id('tra_admin')) = 'CENTRO', 'un ADMIN siempre tiene ámbito CENTRO';
+  assert (select ambito from public.trabajadores where id = pruebas.id('tra_ana')) = 'SUS_CLASES', 'ámbito de Ana';
+  assert current_setting('pruebas.n_res_ana')::int > 0 and current_setting('pruebas.n_alumnos_ana')::int between 1 and 3, 'escenario con reservas en clases de Ana';
+  assert (select count(*) from public.clases where monitor_id <> pruebas.id('tra_ana') and estado = 'PROGRAMADA') > 0, 'hay clases ajenas';
+  assert current_setting('pruebas.n_avisos')::int >= 2, 'hay avisos previos (cancelación y general) que Ana no debe ver';
+end $$;
+
+begin;
+set local role authenticated;
+select pruebas.como('ana');
+do $$
+declare v_res int := current_setting('pruebas.n_res_ana')::int; v_alu int := current_setting('pruebas.n_alumnos_ana')::int;
+begin
+  assert public.auth_ambito() = 'SUS_CLASES', 'auth_ambito';
+  assert public.clase_es_mia(pruebas.id('cl_lun_0900')) and not public.clase_es_mia(pruebas.id('cl_jue_1800')), 'clase_es_mia';
+  -- Lectura
+  assert (select count(*) from public.reservas) = v_res, format('solo las reservas de sus clases: %s esperadas, %s vistas', v_res, (select count(*) from public.reservas));
+  assert not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id where c.monitor_id <> pruebas.id('tra_ana')), 'ninguna reserva de una clase ajena';
+  assert (select count(*) from public.clientes) = v_alu, format('solo sus alumnos: %s esperados, %s vistos', v_alu, (select count(*) from public.clientes));
+  assert not exists (select 1 from public.clientes where id = pruebas.id('cliente_d')), 'no ve a un cliente sin reservas con ella';
+  assert (select count(*) from public.clientes_clinica) = v_alu, 'información clínica (tiene CLINICA_VER) solo de sus alumnos';
+  assert not exists (select 1 from public.contratos k where not exists (select 1 from public.clientes c where c.id = k.cliente_id)), 'contratos solo de sus alumnos';
+  assert (select count(*) from public.clases) > v_res, 've el calendario completo (la app lo filtra por ámbito)';
+  assert (select count(*) from public.plantillas_clase) = 20, 've el horario completo (solo lectura)';
+  assert (select count(*) from public.trabajadores) = 3, 've a sus compañeros';
+  assert (select count(*) from public.trabajador_permisos) = 8, 'solo sus propios permisos';
+  assert (select count(*) from public.avisos) = 0, 'no ve avisos ajenos (ni el general ni el de una clase del admin)';
+  assert (select count(*) from public.aviso_destinatarios) = 0, 'ni sus destinatarios';
+end $$;
+-- RPC: asistencia, alumnos, reservas y cancelaciones solo en sus clases
+select pruebas.espera_error(format('select public.registrar_asistencia(%L, %L)', pruebas.id('res_ajena'), 'ASISTE'), 'Esta clase no es tuya.');
+select public.registrar_asistencia(pruebas.id('res_mie'), 'NO_ASISTE');
+select pruebas.espera_error(format('select public.anadir_alumno(%L, %L, %L)', pruebas.id('cl_jue_1800'), pruebas.id('cliente_d'), 'MANUAL'), 'Esta clase no es tuya.');
+select pruebas.espera_error(format('select public.anadir_alumno(%L, %L, %L)', pruebas.id('cl_jue_1800'), pruebas.id('cliente_d'), 'TARIFA'), 'Esta clase no es tuya.');
+select pruebas.espera_error(format('select public.reservar(%L, %L)', pruebas.id('cl_jue_1800'), pruebas.id('cliente_a')), 'Esta clase no es tuya.');
+select pruebas.espera_error(format('select public.cancelar_reserva(%L)', pruebas.id('res_ajena')), 'Esta clase no es tuya.');
+select pruebas.espera_error(format('select public.cancelar_clase(%L, %L)', pruebas.id('cl_jue_1800'), 'x'), 'Esta clase no es tuya.');
+select pruebas.espera_error(format('select public.publicar_aviso(%L, %L, %L)', 'Hola', 'x', 'TODOS'), 'Con tu ámbito solo puedes enviar avisos%');
+select pruebas.espera_error(format('select public.publicar_aviso(%L, %L, %L, %L)', 'Hola', 'x', 'ACTIVIDAD', pruebas.id('act_suelo')), 'Con tu ámbito solo puedes enviar avisos%');
+select pruebas.espera_error(format('select public.publicar_aviso(%L, %L, %L, %L)', 'Hola', 'x', 'CLASE', pruebas.id('cl_jue_1800')), 'Esta clase no es tuya.');
+-- En sus clases sí: añade a D (que pasa a ser alumna suya) y avisa a los de una clase suya
+select pruebas.guardar('res_d', (public.anadir_alumno(pruebas.id('cl_vie_0900'), pruebas.id('cliente_d'), 'MANUAL')->>'reserva_id'));
+select pruebas.guardar('aviso_ana', public.publicar_aviso('Traed esterilla', 'Para el viernes.', 'CLASE', pruebas.id('cl_vie_0900'))::text);
+do $$ begin
+  assert (select asistencia from public.reservas where id = pruebas.id('res_mie')) = 'NO_ASISTE', 'asistencia en clase propia';
+  assert exists (select 1 from public.clientes where id = pruebas.id('cliente_d')), 'D ya es alumna suya y la ve';
+  assert (select count(*) from public.clientes_clinica where cliente_id = pruebas.id('cliente_d')) = 1, 'y ve su información clínica';
+  assert (select count(*) from public.avisos) = 1 and (select id from public.avisos) = pruebas.id('aviso_ana'), 've su propio aviso';
+  assert exists (select 1 from public.aviso_destinatarios where aviso_id = pruebas.id('aviso_ana') and cliente_id = pruebas.id('cliente_d')), 'con sus destinatarios (D, recién apuntada)';
+end $$;
+select public.cancelar_reserva(pruebas.id('res_d'));
+-- Escritura directa: sin efecto o bloqueada fuera de su ámbito
+select pruebas.espera_sin_efecto(format('update public.reservas set asistencia = %L where id = %L', 'ASISTE', pruebas.id('res_ajena')));
+select pruebas.espera_error(format('insert into public.reservas (clase_id, cliente_id, origen) values (%L, %L, %L)', pruebas.id('cl_jue_1800'), pruebas.id('cliente_d'), 'MANUAL'), '%row-level security%');
+select pruebas.espera_sin_efecto(format('update public.plantillas_clase set plazas = 99 where id = %L', pruebas.id('pl_lun_0900')));  -- horario: solo lectura aunque tenga HORARIOS_GESTIONAR
+select pruebas.espera_error(format('insert into public.plantillas_clase (actividad_id, dia_semana, hora_inicio, monitor_id, plazas) values (%L, 1, %L, %L, 5)', pruebas.id('act_suelo'), '12:00', pruebas.id('tra_ana')), '%row-level security%');
+select pruebas.espera_error(format('insert into public.avisos (titulo, destino_tipo, publicado_por) values (%L, %L, %L)', 'Directo', 'TODOS', pruebas.id('u_ana')), '%row-level security%');
+select pruebas.espera_sin_efecto(format('update public.clientes set direccion = %L where id = %L', 'x', pruebas.id('cliente_b')));  -- B no es alumna suya
+select pruebas.espera_error(format('insert into public.trabajadores (nombre) values (%L)', 'Intruso'), '%row-level security%');
+select pruebas.espera_sin_efecto(format('update public.trabajadores set ambito = %L where id = %L', 'CENTRO', pruebas.id('tra_ana')));
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select ambito from public.trabajadores where id = pruebas.id('tra_ana')) = 'SUS_CLASES', 'Ana no ha podido cambiar su ámbito';
+  assert (select plazas from public.plantillas_clase where id = pruebas.id('pl_lun_0900')) = 10, 'horario intacto';
+  assert (select estado from public.reservas where id = pruebas.id('res_d')) = 'CANCELADA_RECUPERABLE', 'Ana canceló la reserva de D en su clase';
+  raise notice 'OK ámbito SUS_CLASES: % reservas y % alumnos visibles', current_setting('pruebas.n_res_ana'), current_setting('pruebas.n_alumnos_ana');
+end $$;
+
+\echo
+\echo '== 17. Gestión del equipo solo ADMIN: TRABAJADORES_GESTIONAR ya no basta'
+select pruebas.sistema();
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_recep'), 'TRABAJADORES_GESTIONAR');
+select pruebas.guardar('tra_maria', 'c0000000-0000-4000-8000-000000000009');
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+select pruebas.espera_error(format('insert into public.trabajadores (id, nombre, email) values (%L, %L, %L)', pruebas.id('tra_maria'), 'María', 'maria@test.local'), '%row-level security%');
+select pruebas.espera_sin_efecto(format('update public.trabajadores set ambito = %L where id = %L', 'CENTRO', pruebas.id('tra_ana')));
+select pruebas.espera_sin_efecto(format('delete from public.trabajadores where id = %L', pruebas.id('tra_ana')));
+select pruebas.espera_error(format('insert into public.trabajador_permisos (trabajador_id, permiso) values (%L, %L)', pruebas.id('tra_ana'), 'TARIFAS_GESTIONAR'), '%row-level security%');
+select pruebas.espera_sin_efecto(format('delete from public.trabajador_permisos where trabajador_id = %L', pruebas.id('tra_ana')));
+do $$ begin
+  assert (select count(*) from public.trabajador_permisos) = 7, 'con TRABAJADORES_GESTIONAR sigue viendo solo sus permisos';
+  assert (select count(*) from public.trabajadores) = 3, 'pero sí ve a sus compañeros';
+end $$;
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+insert into public.trabajadores (id, nombre, apellidos, email, rol, ambito, es_monitor) values (pruebas.id('tra_maria'), 'María', 'Yoga', 'maria@test.local', 'MONITOR', 'SUS_CLASES', true);
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_maria'), 'ASISTENCIA_REGISTRAR'), (pruebas.id('tra_maria'), 'CLIENTES_VER');
+update public.trabajadores set ambito = 'CENTRO' where id = pruebas.id('tra_ana');
+do $$ begin
+  assert (select ambito from public.trabajadores where id = pruebas.id('tra_maria')) = 'SUS_CLASES', 'el admin crea a María con ámbito SUS_CLASES';
+  assert (select count(*) from public.trabajador_permisos where trabajador_id = pruebas.id('tra_maria')) = 2, 'y sus permisos';
+  assert (select ambito from public.trabajadores where id = pruebas.id('tra_ana')) = 'CENTRO', 'el admin cambia el ámbito de Ana';
+  assert (select count(*) from public.trabajadores) = 4, 'ahora son 4';
+end $$;
+update public.trabajadores set rol = 'ADMIN', ambito = 'SUS_CLASES' where id = pruebas.id('tra_maria');
+do $$ begin assert (select ambito from public.trabajadores where id = pruebas.id('tra_maria')) = 'CENTRO', 'al pasar a ADMIN el ámbito se fuerza a CENTRO'; end $$;
+delete from public.trabajadores where id = pruebas.id('tra_maria');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select count(*) from public.trabajadores) = 3, 'María eliminada por el admin';
+  raise notice 'OK gestión del equipo exclusiva del ADMIN';
+end $$;
+
+\echo
+\echo '== 18. Rol anon: sin acceso'
 begin;
 set local role anon;
 select pruebas.espera_error('select count(*) from public.clientes', '%permission denied%');
@@ -459,6 +589,57 @@ select pruebas.espera_error('select count(*) from public.clases', '%permission d
 select pruebas.espera_error(format('select public.reservar(%L)', pruebas.id('cl_lun_1800')), '%permission denied%');
 select pruebas.espera_error('select public.mantenimiento_diario()', '%permission denied%');
 commit;
+
+\echo
+\echo '== 19. Foto del cliente (0006): cada cliente solo la suya; el personal con CLIENTES_EDITAR dentro de su ámbito'
+do $$ begin
+  assert exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clientes' and column_name = 'foto_url'), 'existe clientes.foto_url';
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('a');
+update public.clientes set foto_url = pruebas.id('cliente_a') || '/avatar.jpg?v=1' where id = pruebas.id('cliente_a');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_a')) like '%/avatar.jpg?v=1', 'el cliente pone su propia foto'; end $$;
+select pruebas.espera_sin_efecto(format('update public.clientes set foto_url = %L where id = %L', 'hack/avatar.jpg', pruebas.id('cliente_b')));  -- fila ajena: RLS la oculta
+update public.clientes set foto_url = null where id = pruebas.id('cliente_a');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_a')) is null, 'y la quita'; end $$;
+-- Cambiar la foto no le permite tocar nada más.
+select pruebas.espera_error(format('update public.clientes set foto_url = %L, dni = %L where id = %L', 'x/avatar.jpg', '99999999Z', pruebas.id('cliente_a')), 'Solo puedes modificar tus datos de contacto%');
+commit;
+select pruebas.sistema();
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_b')) is null, 'la foto de B sigue intacta'; end $$;
+-- Recepción (CLIENTES_EDITAR, ámbito CENTRO) pone y quita la foto de cualquier cliente.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+update public.clientes set foto_url = pruebas.id('cliente_b') || '/avatar.jpg?v=2' where id = pruebas.id('cliente_b');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_b')) like '%?v=2', 'recepción pone la foto a un cliente'; end $$;
+commit;
+-- Ana (SUS_CLASES): sin CLIENTES_EDITAR no puede; con él, solo a sus alumnos (D lo es desde la sección 16; E, recién creada sin reservas, no).
+select pruebas.sistema();
+select pruebas.guardar('cliente_e', 'e0000000-0000-4000-8000-00000000000e');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values (pruebas.id('cliente_e'), 'Elena', 'Sinclase', '55555555E', 'elena@test.local', '600 000 005');
+update public.trabajadores set ambito = 'SUS_CLASES' where id = pruebas.id('tra_ana');
+begin;
+set local role authenticated;
+select pruebas.como('ana');
+select pruebas.espera_sin_efecto(format('update public.clientes set foto_url = %L where id = %L', 'x/avatar.jpg', pruebas.id('cliente_d')));  -- sin CLIENTES_EDITAR
+commit;
+select pruebas.sistema();
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_ana'), 'CLIENTES_EDITAR');
+begin;
+set local role authenticated;
+select pruebas.como('ana');
+select pruebas.espera_sin_efecto(format('update public.clientes set foto_url = %L where id = %L', 'x/avatar.jpg', pruebas.id('cliente_e')));  -- E no es alumna suya
+update public.clientes set foto_url = pruebas.id('cliente_d') || '/avatar.jpg?v=3' where id = pruebas.id('cliente_d');
+do $$ begin assert (select foto_url from public.clientes where id = pruebas.id('cliente_d')) like '%?v=3', 'con CLIENTES_EDITAR pone la foto a su alumna'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select foto_url from public.clientes where id = pruebas.id('cliente_e')) is null, 'la foto de E (no alumna) no la ha tocado Ana';
+  assert (select foto_url from public.clientes where id = pruebas.id('cliente_b')) like '%?v=2', 'la de B (puesta por recepción) sigue igual';
+  raise notice 'OK foto del cliente';
+end $$;
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

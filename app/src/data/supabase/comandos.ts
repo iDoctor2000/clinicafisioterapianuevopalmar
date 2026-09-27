@@ -15,6 +15,7 @@ import { aISODate, sumarDias } from '@/domain/fechas';
 import type { Db } from '../db';
 import type { ArgsComando, NombreComando, ValorComando } from '../tiposComandos';
 import { mensajeError, servidor } from './cliente';
+import { borrarFoto } from './fotos';
 import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePlantilla, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
 
 export type ResultadoRemoto<T = unknown> = { ok: true; valor: (db: Db) => T } | { ok: false; error: string };
@@ -170,6 +171,20 @@ const impl: Impl = {
     if (args.email !== undefined) cambios.email = args.email;
     if (args.direccion !== undefined) cambios.direccion = args.direccion;
     if (Object.keys(cambios).length > 0) comprobar(await servidor().from('clientes').update(cambios).eq('id', sesion.clienteId));
+    return () => undefined;
+  },
+
+  /**
+   * La imagen ya está subida al bucket (features/comun/SelectorFoto.tsx → fotos.ts); aquí solo
+   * se anota la ruta en la ficha. RLS: el cliente su fila (trigger de autoedición permite foto_url),
+   * el personal con CLIENTES_EDITAR y dentro de su ámbito. Al quitar, se borra también el objeto.
+   */
+  async actualizarFotoCliente(args, sesion) {
+    const clienteId = sesion.tipo === 'CLIENTE' ? sesion.clienteId : args.clienteId;
+    if (!clienteId) throw new Error('Falta el cliente.');
+    const fotoUrl = args.fotoUrl && args.fotoUrl.trim() ? args.fotoUrl : null;
+    if (!fotoUrl) await borrarFoto(clienteId);
+    comprobar(await servidor().from('clientes').update({ foto_url: fotoUrl }).eq('id', clienteId));
     return () => undefined;
   },
 

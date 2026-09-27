@@ -11,17 +11,17 @@ import { Encabezado, PuntoColor, Segmentado } from './comunes';
 const DIAS: DiaSemana[] = [1, 2, 3, 4, 5, 6, 7];
 
 export function Horarios() {
-  const { db, puede } = useTrabajador();
+  const { db, puede, limitado } = useTrabajador();
   const [dia, setDia] = useState<DiaSemana>(1);
   const [edicion, setEdicion] = useState<PlantillaClase | 'NUEVA' | null>(null);
   const porDia = plantillasPorDia(db);
-  const puedeEditar = puede('HORARIOS_GESTIONAR');
+  const puedeEditar = puede('HORARIOS_GESTIONAR') && !limitado; // con ámbito SUS_CLASES el horario es de solo lectura
   const abrir = (p: PlantillaClase | 'NUEVA') => puedeEditar && setEdicion(p);
 
   return (
     <div>
       <Encabezado
-        titulo="Horarios" subtitulo={`${db.plantillas.filter((p) => p.activa).length} franjas activas a la semana`}
+        titulo="Horarios" subtitulo={`${db.plantillas.filter((p) => p.activa).length} franjas activas a la semana${limitado ? ' · solo tus franjas (solo lectura)' : ''}`}
         acciones={puedeEditar && <Boton tamano="sm" onClick={() => abrir('NUEVA')}><Plus className="h-5 w-5" /> Nueva franja</Boton>}
       />
       <div className="mb-4 flex items-start gap-2 rounded-2xl bg-brand-50 text-brand-800 px-4 py-3 text-sm"><Info className="h-5 w-5 shrink-0" /><span>Las clases de las próximas 10 semanas se generan automáticamente a partir de este horario. Los cambios afectan a las clases que aún no existen.</span></div>

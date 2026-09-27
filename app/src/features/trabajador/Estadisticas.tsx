@@ -9,7 +9,7 @@ import { asistenciasMensuales, calcularEstadisticas, rangoMes, type FranjaHorari
 import { Encabezado, PuntoColor, Segmentado } from './comunes';
 
 export function Estadisticas() {
-  const { db } = useTrabajador();
+  const { db, limitado } = useTrabajador();
   const ahora = useMemo(() => new Date(), []);
   const [rango, setRango] = useState(rangoMes(ahora));
   const [actividadId, setActividadId] = useState('');
@@ -28,7 +28,7 @@ export function Estadisticas() {
 
   return (
     <div>
-      <Encabezado titulo="Estadísticas" subtitulo="Ocupación, asistencia y actividad del centro." />
+      <Encabezado titulo="Estadísticas" subtitulo={limitado ? 'Ocupación y asistencia de tus clases y tus alumnos.' : 'Ocupación, asistencia y actividad del centro.'} />
       <Tarjeta className="p-4 mb-4">
         <div className="flex gap-2 flex-wrap mb-3">
           {atajos.map((a) => { const r = a.rango(); const activo = r.desde === rango.desde && r.hasta === rango.hasta; return <button key={a.texto} type="button" aria-pressed={activo} onClick={() => setRango(r)} className={cn('h-10 px-4 rounded-xl border font-semibold text-sm tap', activo ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink/10 hover:border-brand-300')}>{a.texto}</button>; })}
@@ -45,7 +45,7 @@ export function Estadisticas() {
       </Tarjeta>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi titulo="Clientes activos" valor={e.clientesActivos} nota={`+${e.altas} altas · −${e.bajas} bajas`} />
+        <Kpi titulo={limitado ? 'Alumnos activos' : 'Clientes activos'} valor={e.clientesActivos} nota={`+${e.altas} altas · −${e.bajas} bajas`} />
         <Kpi titulo="Clases impartidas" valor={e.clasesImpartidas} nota={e.clasesCanceladas ? `${e.clasesCanceladas} canceladas` : 'ninguna cancelada'} />
         <Kpi titulo="Ocupación media" valor={`${e.ocupacionMedia}%`} nota={`${e.plazasLibres} plazas libres`} tono={e.ocupacionMedia >= 75 ? 'verde' : e.ocupacionMedia >= 50 ? 'ambar' : 'rojo'} />
         <Kpi titulo="Asistencias" valor={e.asistencias} nota={`${e.faltas} faltas`} />

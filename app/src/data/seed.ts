@@ -8,6 +8,13 @@ import { DB_VERSION, type Db, type Usuario } from './db';
  * Datos de demostración. Las fechas son relativas a hoy para que la demo
  * siempre tenga clases pasadas y futuras.
  */
+/** Retrato esquemático (SVG) como data URL: fondo de color y silueta. Ligero y sin depender de ficheros. */
+function fotoDemo(fondo: string, piel: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${fondo}"/><circle cx="32" cy="25" r="11" fill="${piel}"/><path d="M12 60c2-14 10-20 20-20s18 6 20 20z" fill="${piel}"/></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+const FOTOS_DEMO: Record<string, string> = { maria: fotoDemo('#cfe3c2', '#8d6e63'), juan: fotoDemo('#c7d7ea', '#a1887f') };
+
 export function crearSeed(ahora: Date = new Date()): Db {
   let n = 0;
   const id = (p: string) => `${p}-${(++n).toString().padStart(3, '0')}`;
@@ -38,9 +45,9 @@ export function crearSeed(ahora: Date = new Date()): Db {
 
   const TODOS = ['CLIENTES_EDITAR', 'CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'HORARIOS_GESTIONAR', 'CLASES_CREAR_CANCELAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'TARIFAS_GESTIONAR', 'ESTADISTICAS_VER', 'TRABAJADORES_GESTIONAR', 'ASISTENCIA_REGISTRAR'] as const;
   const trabajadores: Trabajador[] = [
-    { id: 'tra-jose', nombre: 'José Diego', apellidos: 'Frutos', email: 'josediego@fisioterapianuevopalmar.com', telefono: '968 885 931', rol: 'ADMIN', permisos: [...TODOS], esMonitor: true, color: '#548C2F', activo: true, userId: 'usr-jose' },
-    { id: 'tra-ana', nombre: 'Ana', apellidos: 'Martínez', email: 'ana@fisioterapianuevopalmar.com', telefono: '', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ASISTENCIA_REGISTRAR'], esMonitor: true, color: '#3B82C4', activo: true, userId: 'usr-ana' },
-    { id: 'tra-laura', nombre: 'Laura', apellidos: 'Pérez', email: 'recepcion@fisioterapianuevopalmar.com', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_EDITAR', 'CLIENTES_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ESTADISTICAS_VER'], esMonitor: false, color: '#C9713F', activo: true, userId: 'usr-laura' },
+    { id: 'tra-jose', nombre: 'José Diego', apellidos: 'Frutos', email: 'josediego@fisioterapianuevopalmar.com', telefono: '968 885 931', rol: 'ADMIN', permisos: [...TODOS], ambito: 'CENTRO', esMonitor: true, color: '#548C2F', activo: true, userId: 'usr-jose' },
+    { id: 'tra-ana', nombre: 'Ana', apellidos: 'Martínez', email: 'ana@fisioterapianuevopalmar.com', telefono: '', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#3B82C4', activo: true, userId: 'usr-ana' },
+    { id: 'tra-laura', nombre: 'Laura', apellidos: 'Pérez', email: 'recepcion@fisioterapianuevopalmar.com', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_EDITAR', 'CLIENTES_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ESTADISTICAS_VER'], ambito: 'CENTRO', esMonitor: false, color: '#C9713F', activo: true, userId: 'usr-laura' },
   ];
 
   const P = (id: string, actividadId: string, diaSemana: 1 | 2 | 3 | 4 | 5 | 6 | 7, horaInicio: string, monitorId: string, plazas: number): PlantillaClase => ({
@@ -58,10 +65,12 @@ export function crearSeed(ahora: Date = new Date()): Db {
     P('pl-sab-1100', 'act-reformer', 6, '11:00', 'tra-jose', 4),
   ];
 
+  // Dos clientes de la demo con foto (SVG mínimo en data URL) para ver cómo queda; el resto con iniciales.
   const C = (id: string, nombre: string, apellidos: string, dni: string, telefono: string, email: string, clinica: Partial<Cliente['clinica']> = {}): Cliente => ({
     id, nombre, apellidos, dni, direccion: 'El Palmar, Murcia', email, telefono,
     clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null, ...clinica },
     notificacionesPush: true, activo: true, userId: `usr-${id}`, altaEl: inicioPeriodo, bajaEl: null,
+    fotoUrl: FOTOS_DEMO[id] ?? null,
   });
   const clientes: Cliente[] = [
     C('maria', 'María', 'García López', '23456789A', '600 111 222', 'maria@example.com', { lesiones: 'Esguince tobillo derecho (2024), recuperado.', patologias: 'Lumbalgia crónica leve.', observaciones: 'Evitar hiperextensión lumbar. Progresar despacio en flexiones.', actualizadaEl: ahoraISO }),

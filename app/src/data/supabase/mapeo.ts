@@ -8,7 +8,7 @@
 import type {
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, DiaSemana, EstadoClase,
   EstadoContrato, EstadoRecuperacion, EstadoReserva, Id, InformacionClinica, LecturaAviso, Modalidad, MotivoRecuperacion,
-  OrigenReserva, Permiso, PlantillaClase, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
+  Ambito, OrigenReserva, Permiso, PlantillaClase, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
 } from '@/domain/types';
 import type { Usuario } from '../db';
 
@@ -42,6 +42,8 @@ export interface FilaTarifaCupo { tarifa_id: string; categoria: Categoria; sesio
 
 export interface FilaTrabajador {
   id: string; nombre: string; apellidos: string; email: string; telefono: string; rol: RolTrabajador;
+  /** Columna añadida en 0005_ambito.sql (default CENTRO). */
+  ambito?: Ambito | null;
   es_monitor: boolean; color: string; activo: boolean; user_id: string | null;
 }
 export interface FilaTrabajadorPermiso { trabajador_id: string; permiso: Permiso }
@@ -51,6 +53,8 @@ export interface FilaMonitor { id: string; nombre: string; apellidos: string; co
 export interface FilaCliente {
   id: string; nombre: string; apellidos: string; dni: string; direccion: string; email: string; telefono: string;
   notificaciones_push: boolean; activo: boolean; user_id: string | null; alta_el: string; baja_el: string | null;
+  /** Ruta del objeto en el bucket `fotos-clientes` (+ `?v=` para invalidar caché); null = sin foto. Columna de 0006. */
+  foto_url?: string | null;
 }
 export interface FilaClienteClinica {
   cliente_id: string; lesiones: string; patologias: string; observaciones: string; actualizada_por: string | null; actualizado_el: string;
@@ -211,20 +215,24 @@ export function aTrabajador(f: FilaTrabajador, permisos: FilaTrabajadorPermiso[]
   return {
     id: f.id, nombre: f.nombre, apellidos: f.apellidos, email: f.email, telefono: f.telefono, rol: f.rol,
     permisos: permisos.filter((p) => p.trabajador_id === f.id).map((p) => p.permiso),
+    ambito: f.rol === 'ADMIN' ? 'CENTRO' : f.ambito ?? 'CENTRO',
     esMonitor: f.es_monitor, color: f.color, activo: f.activo, userId: f.user_id,
   };
 }
 /** Un cliente solo ve la vista `monitores`: sin contacto, rol MONITOR y sin permisos. */
 export function aTrabajadorDesdeMonitor(f: FilaMonitor): Trabajador {
   return {
-    id: f.id, nombre: f.nombre, apellidos: f.apellidos, email: '', telefono: '', rol: 'MONITOR', permisos: [],
+    id: f.id, nombre: f.nombre, apellidos: f.apellidos, email: '', telefono: '', rol: 'MONITOR', permisos: [], ambito: 'CENTRO',
     esMonitor: f.es_monitor, color: f.color, activo: f.activo, userId: null,
   };
 }
 /** No incluye user_id: la vinculación con la cuenta de acceso se hace desde Supabase, no desde la app. */
 export function deTrabajador(t: Trabajador): { trabajador: Omit<FilaTrabajador, 'user_id'>; permisos: FilaTrabajadorPermiso[] } {
   return {
-    trabajador: { id: t.id, nombre: t.nombre, apellidos: t.apellidos, email: t.email, telefono: t.telefono, rol: t.rol, es_monitor: t.esMonitor, color: t.color, activo: t.activo },
+    trabajador: {
+      id: t.id, nombre: t.nombre, apellidos: t.apellidos, email: t.email, telefono: t.telefono, rol: t.rol,
+      ambito: t.rol === 'ADMIN' ? 'CENTRO' : t.ambito, es_monitor: t.esMonitor, color: t.color, activo: t.activo,
+    },
     permisos: t.permisos.map((p) => ({ trabajador_id: t.id, permiso: p })),
   };
 }
@@ -242,10 +250,14 @@ export function aCliente(f: FilaCliente, clinica: FilaClienteClinica | null | un
       ? { lesiones: clinica.lesiones, patologias: clinica.patologias, observaciones: clinica.observaciones, actualizadaEl: aInstanteONull(clinica.actualizado_el) }
       : { ...CLINICA_VACIA },
     notificacionesPush: f.notificaciones_push, activo: f.activo, userId: f.user_id, altaEl: aFecha(f.alta_el), bajaEl: f.baja_el ? aFecha(f.baja_el) : null,
+    fotoUrl: f.foto_url ?? null,
   };
 }
-/** Sin user_id (se vincula desde Supabase) y sin la parte clínica (tabla aparte). */
-export function deCliente(c: Cliente): Omit<FilaCliente, 'user_id'> {
+/**
+ * Sin user_id (se vincula desde Supabase), sin la parte clínica (tabla aparte) y sin la foto
+ * (la gestiona `actualizarFotoCliente` junto con el bucket; así guardar la ficha nunca la pisa).
+ */
+export function deCliente(c: Cliente): Omit<FilaCliente, 'user_id' | 'foto_url'> {
   return {
     id: c.id, nombre: c.nombre, apellidos: c.apellidos, dni: c.dni, direccion: c.direccion, email: c.email, telefono: c.telefono,
     notificaciones_push: c.notificacionesPush, activo: c.activo, alta_el: c.altaEl, baja_el: c.bajaEl,

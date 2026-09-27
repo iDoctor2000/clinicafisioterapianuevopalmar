@@ -118,6 +118,12 @@ export interface Cliente {
   userId: Id | null;
   altaEl: ISODate;
   bajaEl: ISODate | null;
+  /**
+   * Foto del cliente (para identificarle en clase). null = sin foto (se muestran las iniciales).
+   * En demo es una data URL; en Supabase es la ruta del objeto en el bucket privado
+   * `fotos-clientes` (`<clienteId>/avatar.jpg?v=<marca>`), que la app convierte en URL firmada.
+   */
+  fotoUrl: string | null;
 }
 
 export type Modalidad = 'FIJO' | 'LIBRE';
@@ -305,6 +311,25 @@ export const PERMISO_LABEL: Record<Permiso, string> = {
 
 export type RolTrabajador = 'ADMIN' | 'MONITOR' | 'RECEPCION';
 
+/**
+ * Ámbito de un trabajador: sobre qué clases (y, por tanto, qué alumnos, avisos y
+ * estadísticas) actúan sus permisos.
+ *  - CENTRO: todo el centro.
+ *  - SUS_CLASES: solo las clases que imparte (clase.monitorId = trabajador).
+ * Un ADMIN siempre tiene ámbito CENTRO.
+ */
+export type Ambito = 'CENTRO' | 'SUS_CLASES';
+
+export const AMBITO_LABEL: Record<Ambito, string> = {
+  CENTRO: 'Todo el centro',
+  SUS_CLASES: 'Solo sus clases',
+};
+
+export const AMBITO_DESCRIPCION: Record<Ambito, string> = {
+  CENTRO: 'Ve y gestiona todas las clases y clientes del centro, según sus permisos.',
+  SUS_CLASES: 'Solo ve y gestiona las clases que imparte y a sus alumnos. No puede modificar horarios ni enviar avisos generales.',
+};
+
 export interface Trabajador {
   id: Id;
   nombre: string;
@@ -313,6 +338,8 @@ export interface Trabajador {
   telefono: string;
   rol: RolTrabajador;
   permisos: Permiso[];
+  /** Alcance de sus permisos: todo el centro o solo las clases que imparte. */
+  ambito: Ambito;
   /** Puede impartir clases (aparece como monitor en horarios). */
   esMonitor: boolean;
   color: string;
@@ -337,7 +364,11 @@ export interface RegistroAuditoria {
 
 export type Sesion =
   | { tipo: 'CLIENTE'; userId: Id; clienteId: Id; nombre: string }
-  | { tipo: 'TRABAJADOR'; userId: Id; trabajadorId: Id; nombre: string; permisos: Permiso[]; rol: RolTrabajador };
+  | {
+      tipo: 'TRABAJADOR'; userId: Id; trabajadorId: Id; nombre: string; permisos: Permiso[]; rol: RolTrabajador;
+      /** Ámbito del trabajador. Si falta, se resuelve desde su ficha (ver domain/ambito.ts). */
+      ambito?: Ambito;
+    };
 
 export function tienePermiso(sesion: Sesion | null, permiso: Permiso): boolean {
   if (!sesion || sesion.tipo !== 'TRABAJADOR') return false;
