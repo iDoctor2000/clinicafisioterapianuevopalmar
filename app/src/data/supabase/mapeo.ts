@@ -55,6 +55,9 @@ export interface FilaCliente {
   notificaciones_push: boolean; activo: boolean; user_id: string | null; alta_el: string; baja_el: string | null;
   /** Ruta del objeto en el bucket `fotos-clientes` (+ `?v=` para invalidar caché); null = sin foto. Columna de 0006. */
   foto_url?: string | null;
+  /** Consentimiento de privacidad (columnas de 0007): instante y versión de la política ('2026-09-27' o 'papel'). */
+  consentimiento_el?: string | null;
+  consentimiento_version?: string | null;
 }
 export interface FilaClienteClinica {
   cliente_id: string; lesiones: string; patologias: string; observaciones: string; actualizada_por: string | null; actualizado_el: string;
@@ -251,13 +254,15 @@ export function aCliente(f: FilaCliente, clinica: FilaClienteClinica | null | un
       : { ...CLINICA_VACIA },
     notificacionesPush: f.notificaciones_push, activo: f.activo, userId: f.user_id, altaEl: aFecha(f.alta_el), bajaEl: f.baja_el ? aFecha(f.baja_el) : null,
     fotoUrl: f.foto_url ?? null,
+    consentimientoEl: aInstanteONull(f.consentimiento_el), consentimientoVersion: f.consentimiento_version ?? null,
   };
 }
 /**
- * Sin user_id (se vincula desde Supabase), sin la parte clínica (tabla aparte) y sin la foto
- * (la gestiona `actualizarFotoCliente` junto con el bucket; así guardar la ficha nunca la pisa).
+ * Sin user_id (se vincula desde Supabase), sin la parte clínica (tabla aparte), sin la foto
+ * (la gestiona `actualizarFotoCliente` junto con el bucket) y sin el consentimiento (lo registran
+ * `registrarConsentimiento`/`registrarConsentimientoPapel`); así guardar la ficha nunca los pisa.
  */
-export function deCliente(c: Cliente): Omit<FilaCliente, 'user_id' | 'foto_url'> {
+export function deCliente(c: Cliente): Omit<FilaCliente, 'user_id' | 'foto_url' | 'consentimiento_el' | 'consentimiento_version'> {
   return {
     id: c.id, nombre: c.nombre, apellidos: c.apellidos, dni: c.dni, direccion: c.direccion, email: c.email, telefono: c.telefono,
     notificaciones_push: c.notificacionesPush, activo: c.activo, alta_el: c.altaEl, baja_el: c.bajaEl,

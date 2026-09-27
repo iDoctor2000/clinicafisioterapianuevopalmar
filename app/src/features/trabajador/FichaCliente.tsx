@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, Camera, ClipboardList, FileText, HeartPulse, Lock, Mail, Phone, RefreshCcw, Stethoscope, Tag } from 'lucide-react';
+import { AlertTriangle, Camera, ClipboardList, FileText, HeartPulse, Lock, Mail, PenLine, Phone, RefreshCcw, ShieldCheck, Stethoscope, Tag } from 'lucide-react';
 import { MENSAJE_CLIENTE_AJENO } from '@/domain/ambito';
 import type { Categoria, Cliente } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
@@ -93,6 +93,14 @@ function BotonAvatar({ cliente, editable, onClick }: { cliente: Cliente; editabl
 function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => void }) {
   const { puede, ejecutar } = useTrabajador();
   const [editando, setEditando] = useState(false);
+  const [papel, setPapel] = useState(false);
+  const [registrando, setRegistrando] = useState(false);
+  const registrarPapel = async () => {
+    setRegistrando(true);
+    const r = await ejecutar('registrarConsentimientoPapel', { clienteId: cliente.id });
+    setRegistrando(false);
+    if (r.ok) { toast.ok('Consentimiento registrado.'); setPapel(false); } else toast.error(r.error);
+  };
   const guardar = async (d: DatosCliente) => {
     const r = await ejecutar('guardarCliente', { cliente: { ...cliente, ...d } });
     if (r.ok) { toast.ok('Datos guardados.'); setEditando(false); } else toast.error(r.error);
@@ -118,7 +126,33 @@ function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => voi
         <Dato etiqueta="Notificaciones">{cliente.notificacionesPush ? 'Activadas' : 'Desactivadas'}</Dato>
         <Dato etiqueta="Estado">{cliente.activo ? 'Activo' : 'Baja'}</Dato>
         <Dato etiqueta="Foto">{cliente.fotoUrl ? 'Con foto' : 'Sin foto (se muestran las iniciales)'}</Dato>
+        <Dato etiqueta="Protección de datos" className="sm:col-span-2">
+          {cliente.consentimientoEl ? (
+            <span className="inline-flex items-center gap-2 flex-wrap">
+              <Chip tono="verde"><ShieldCheck className="h-3.5 w-3.5" /> Consentimiento aceptado el {instanteCorto(cliente.consentimientoEl)}</Chip>
+              <span className="text-sm text-ink-muted font-normal">{cliente.consentimientoVersion === 'papel' ? 'Firmado en papel en recepción.' : `Aceptado en la app (política del ${cliente.consentimientoVersion ?? '-'}).`}</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 flex-wrap">
+              <Chip tono="ambar"><AlertTriangle className="h-3.5 w-3.5" /> Consentimiento pendiente</Chip>
+              <span className="text-sm text-ink-muted font-normal">La app se lo pedirá al entrar; si lo firma en recepción, regístralo aquí.</span>
+            </span>
+          )}
+        </Dato>
       </div>
+      {!cliente.consentimientoEl && puede('CLIENTES_EDITAR') && (
+        <div className="mt-4">
+          <Boton variante="suave" onClick={() => setPapel(true)}><PenLine className="h-5 w-5" /> Registrar consentimiento firmado en papel</Boton>
+        </div>
+      )}
+      <Hoja abierta={papel} onCerrar={() => setPapel(false)} titulo="Consentimiento en papel">
+        <p className="text-ink-soft">Confirma que <strong className="text-ink">{nombreCompleto(cliente)}</strong> ha firmado en recepción la hoja de consentimiento de la política de privacidad (incluye los datos de salud y, en su caso, la imagen). Se guardará la fecha de hoy y quedará registrado quién lo anota.</p>
+        <p className="text-sm text-ink-muted mt-2">El texto para imprimir está al final de la <Link to="/privacidad" className="text-brand-700 font-semibold underline underline-offset-4">política de privacidad</Link>.</p>
+        <div className="mt-5 grid gap-2">
+          <Boton tamano="lg" ancho cargando={registrando} onClick={registrarPapel}><PenLine className="h-5 w-5" /> Sí, registrar el consentimiento</Boton>
+          <Boton tamano="lg" ancho variante="secundario" onClick={() => setPapel(false)}>Cancelar</Boton>
+        </div>
+      </Hoja>
       {puede('CLIENTES_EDITAR') && (
         <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
           <Boton variante="suave" onClick={onFoto}><Camera className="h-5 w-5" /> {cliente.fotoUrl ? 'Cambiar foto' : 'Poner foto'}</Boton>

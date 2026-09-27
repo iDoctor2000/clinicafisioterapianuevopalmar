@@ -1,6 +1,7 @@
 import { addMonths, startOfMonth, subMonths } from 'date-fns';
 import type { Actividad, Cliente, Contrato, PlantillaClase, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
+import { VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import { generarClases, generarReservasAutomaticas, clasificarCancelacion, caducidadRecuperacion, categoriasPermitidasRecuperacion } from '@/domain/rules';
 import { DB_VERSION, type Db, type Usuario } from './db';
 
@@ -71,6 +72,8 @@ export function crearSeed(ahora: Date = new Date()): Db {
     clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null, ...clinica },
     notificacionesPush: true, activo: true, userId: `usr-${id}`, altaEl: inicioPeriodo, bajaEl: null,
     fotoUrl: FOTOS_DEMO[id] ?? null,
+    // Todos han aceptado la política salvo Nuria (para ver el chip "Consentimiento pendiente" en su ficha).
+    consentimientoEl: id === 'nuria' ? null : ahoraISO, consentimientoVersion: id === 'nuria' ? null : VERSION_POLITICA_PRIVACIDAD,
   });
   const clientes: Cliente[] = [
     C('maria', 'María', 'García López', '23456789A', '600 111 222', 'maria@example.com', { lesiones: 'Esguince tobillo derecho (2024), recuperado.', patologias: 'Lumbalgia crónica leve.', observaciones: 'Evitar hiperextensión lumbar. Progresar despacio en flexiones.', actualizadaEl: ahoraISO }),

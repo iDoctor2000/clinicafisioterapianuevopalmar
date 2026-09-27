@@ -5,6 +5,8 @@ import { enviarRecuperacionContrasena, cambiarContrasena, entrarConGoogle } from
 import { Boton, Entrada, Tarjeta, toast } from '@/ui';
 import { nombreCompleto, tarifaDe, contratoActivoDe } from '@/data/selectores';
 import { cn } from '@/lib/cn';
+import { EnlacePrivacidad } from './Privacidad';
+import { CasillaConsentimiento } from './Consentimiento';
 
 /** Cabecera y pie comunes de las pantallas de acceso. */
 function Marco({ children, subtitulo = 'Reserva tus clases en dos toques.' }: { children: ReactNode; subtitulo?: string }) {
@@ -18,6 +20,7 @@ function Marco({ children, subtitulo = 'Reserva tus clases en dos toques.' }: { 
       <main className="flex-1 px-4 pb-10 max-w-lg w-full mx-auto">
         {children}
         <p className="text-center text-xs text-ink-muted mt-8 flex items-center justify-center gap-1"><Users className="h-3.5 w-3.5" /> Clínica de Fisioterapia Nuevo Palmar · El Palmar, Murcia</p>
+        <p className="text-center text-sm mt-2"><EnlacePrivacidad className="text-ink-muted font-medium">Política de privacidad</EnlacePrivacidad></p>
       </main>
     </div>
   );
@@ -85,7 +88,8 @@ function FormularioEntrada() {
         <Boton type="button" tamano="lg" ancho variante="secundario" cargando={conGoogle} onClick={google} className="mb-2">
           <LogoGoogle /> Entrar con Google
         </Boton>
-        <p className="text-center text-sm text-ink-muted mb-4">Usa el mismo correo de Google que diste en recepción.</p>
+        <p className="text-center text-sm text-ink-muted">Usa el mismo correo de Google que diste en recepción.</p>
+        <p className="text-center text-sm text-ink-muted mb-4">Al entrar aceptas la <EnlacePrivacidad>política de privacidad</EnlacePrivacidad>.</p>
         <div className="flex items-center gap-3 mb-4" aria-hidden="true">
           <span className="h-px flex-1 bg-ink/10" /><span className="text-sm text-ink-muted">o con tu contraseña</span><span className="h-px flex-1 bg-ink/10" />
         </div>
@@ -151,7 +155,9 @@ function LogoGoogle() {
 /** Primera vez: crear la contraseña con el email que se dio en recepción. */
 function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver: () => void }) {
   const crear = useStore((s) => s.crearCuentaEmail);
+  const ejecutar = useStore((s) => s.ejecutar);
   const [email, setEmail] = useState(emailInicial);
+  const [aceptado, setAceptado] = useState(false);
   const [p1, setP1] = useState('');
   const [p2, setP2] = useState('');
   const [ver, setVer] = useState(false);
@@ -164,12 +170,16 @@ function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver
     if (!email.trim()) return setError('Escribe el email que diste en recepción.');
     if (p1.length < 6) return setError('La contraseña debe tener al menos 6 caracteres.');
     if (p1 !== p2) return setError('Las dos contraseñas no coinciden.');
+    if (!aceptado) return setError('Para crear tu cuenta tienes que aceptar la política de privacidad.');
     setEnviando(true);
     setError(null);
     const r = await crear(email, p1);
+    if (!r.ok) { setEnviando(false); return setError(r.error); }
+    if (r.pendienteConfirmar) { setEnviando(false); return setPendiente(true); }
+    // Ya hay sesión de cliente: guardamos el consentimiento que acaba de marcar. Si la cuenta no está
+    // vinculada a una ficha (SinAlta) o hay que confirmar el correo, se le pedirá al entrar (pantalla Consentimiento).
+    if (useStore.getState().sesion?.tipo === 'CLIENTE') await ejecutar('registrarConsentimiento', {});
     setEnviando(false);
-    if (!r.ok) return setError(r.error);
-    if (r.pendienteConfirmar) setPendiente(true);
   };
 
   if (pendiente) {
@@ -214,8 +224,9 @@ function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver
             etiqueta="Repite la contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" placeholder="Otra vez"
             value={p2} onChange={(e) => { setP2(e.target.value); setError(null); }} className="text-lg h-14"
           />
+          <CasillaConsentimiento aceptado={aceptado} onCambio={(v) => { setAceptado(v); setError(null); }} />
           {error && <p role="alert" className="rounded-2xl bg-rose/10 text-rose px-4 py-3 text-[15px] font-medium">{error}</p>}
-          <Boton type="submit" tamano="lg" ancho cargando={enviando}>Crear contraseña y entrar <ChevronRight className="h-5 w-5" /></Boton>
+          <Boton type="submit" tamano="lg" ancho cargando={enviando} disabled={!aceptado}>Crear contraseña y entrar <ChevronRight className="h-5 w-5" /></Boton>
         </form>
         <div className="text-center mt-4">
           <button type="button" onClick={onVolver} className="text-ink-soft font-semibold text-[15px] underline-offset-4 hover:underline tap py-2 px-3">

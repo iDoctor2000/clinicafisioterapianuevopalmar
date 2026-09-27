@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, LogOut, RotateCcw } from 'lucide-react';
+import { ChevronRight, LogOut, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { Boton, Tarjeta } from '@/ui';
 import { itemVisible, itemsTrabajador } from './CapaTrabajador';
@@ -38,6 +38,16 @@ export function Mas() {
           </ul>
         </Tarjeta>
       )}
+      <Tarjeta className="mb-4">
+        <Link to="/privacidad" className="flex items-center gap-3 p-4 hover:bg-sand tap">
+          <span className="h-10 w-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center"><ShieldCheck className="h-5 w-5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block font-semibold">Política de privacidad</span>
+            <span className="block text-sm text-ink-muted">Qué datos tratamos y el texto de consentimiento (app y papel).</span>
+          </span>
+          <ChevronRight className="h-5 w-5 text-ink-muted" />
+        </Link>
+      </Tarjeta>
       <div className="space-y-2">
         <Boton ancho variante="secundario" onClick={cerrar}><LogOut className="h-5 w-5" /> Cerrar sesión</Boton>
         <Boton ancho variante="fantasma" tamano="sm" onClick={() => { if (confirm('¿Restaurar los datos de demostración? Se perderán los cambios.')) reiniciar(); }}><RotateCcw className="h-4 w-4" /> Restaurar datos de demo</Boton>
