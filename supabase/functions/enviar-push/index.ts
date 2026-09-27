@@ -50,6 +50,28 @@ function env(nombre: string): string {
   return v;
 }
 
+/**
+ * Clave de API del proyecto. Supabase ha marcado como obsoletas SUPABASE_ANON_KEY y
+ * SUPABASE_SERVICE_ROLE_KEY: si faltan, se leen las nuevas SUPABASE_PUBLISHABLE_KEYS /
+ * SUPABASE_SECRET_KEYS (diccionarios JSON) y se usa la primera clave disponible.
+ */
+function claveApi(tipo: 'publica' | 'secreta'): string {
+  const legado = Deno.env.get(tipo === 'publica' ? 'SUPABASE_ANON_KEY' : 'SUPABASE_SERVICE_ROLE_KEY')?.trim();
+  if (legado) return legado;
+  const crudo = Deno.env.get(tipo === 'publica' ? 'SUPABASE_PUBLISHABLE_KEYS' : 'SUPABASE_SECRET_KEYS')?.trim();
+  if (crudo) {
+    try {
+      const dic = JSON.parse(crudo) as unknown;
+      const valores = Array.isArray(dic) ? dic : typeof dic === 'object' && dic ? Object.values(dic) : [];
+      const primera = valores.map((v) => (typeof v === 'string' ? v : (v as { key?: string; api_key?: string })?.key ?? (v as { api_key?: string })?.api_key)).find((v) => typeof v === 'string' && v.length > 0);
+      if (primera) return primera as string;
+    } catch {
+      /* formato inesperado: se informa abajo */
+    }
+  }
+  throw new Error(`Falta la clave de API ${tipo === 'publica' ? 'pública' : 'secreta'} del proyecto (SUPABASE_${tipo === 'publica' ? 'ANON_KEY' : 'SERVICE_ROLE_KEY'})`);
+}
+
 /** Primeras ~150 letras del cuerpo del aviso, cortando por palabra. */
 function resumen(texto: string): string {
   const limpio = texto.replace(/\s+/g, ' ').trim();
@@ -129,8 +151,8 @@ Deno.serve(async (req) => {
     vapidPrivada = env('VAPID_PRIVATE_KEY');
     vapidSubject = env('VAPID_SUBJECT');
     supabaseUrl = env('SUPABASE_URL');
-    anonKey = env('SUPABASE_ANON_KEY');
-    serviceKey = env('SUPABASE_SERVICE_ROLE_KEY');
+    anonKey = claveApi('publica');
+    serviceKey = claveApi('secreta');
   } catch (e) {
     console.error('[enviar-push]', (e as Error).message);
     return json({ error: 'Las notificaciones push no están configuradas en el servidor.' }, 500);
