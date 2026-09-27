@@ -30,12 +30,16 @@ jobs:
       - name: Pruebas de reglas de negocio
         working-directory: app
         run: npm test
+      - name: Calcular la ruta pública de la app
+        id: base
+        run: |
+          # Con dominio propio (archivo CNAME) la web se sirve en la raíz: la app va en /app/.
+          # Sin él, GitHub Pages la sirve en /<nombre-del-repo>/, así que la app va en /<repo>/app/.
+          if [ -s CNAME ]; then echo "base=/app/" >> "$GITHUB_OUTPUT"; else echo "base=/${{ github.event.repository.name }}/app/" >> "$GITHUB_OUTPUT"; fi
       - name: Compilar la app
         working-directory: app
         env:
-          # Ruta pública de la app: subcarpeta /app/ dentro de la web de la clínica.
-          # Si se configura un dominio propio (CNAME), cambiar a "/app/".
-          VITE_BASE: /${{ github.event.repository.name }}/app/
+          VITE_BASE: ${{ steps.base.outputs.base }}
           # Conexión con Supabase (variables de repositorio: Settings → Secrets and variables → Actions → Variables).
           # Si están vacías, la app se publica en modo demo (datos de ejemplo, sin contraseña).
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
