@@ -14,6 +14,7 @@ import {
   esAlumnoMio, limitadoASusClases, puedeGestionarClase,
 } from '@/domain/ambito';
 import { aISODate, sumarDias } from '@/domain/fechas';
+import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import {
   caducidadRecuperacion, categoriasPermitidasRecuperacion, clasificarCancelacion, evaluarReserva, generarClases,
   generarReservasAutomaticas, plazasLibres, puedeCancelarCliente, puedeGenerarRecuperacion, caducarVencidas,
@@ -448,6 +449,34 @@ export function actualizarFotoCliente(ctx: Ctx, args: { clienteId?: Id; fotoUrl:
   const fotoUrl = args.fotoUrl && args.fotoUrl.trim() ? args.fotoUrl : null;
   const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === clienteId ? { ...c, fotoUrl } : c)) };
   return ok(auditar(nuevo, sesion, ahora, fotoUrl ? 'FOTO_CLIENTE' : 'QUITAR_FOTO_CLIENTE', 'cliente', clienteId, nombreCliente(db, clienteId)), undefined);
+}
+
+/**
+ * El cliente acepta la política de privacidad (docs/PRIVACIDAD.md) desde la app: se guarda el
+ * instante y la versión vigente. Solo el propio cliente; el personal usa registrarConsentimientoPapel.
+ */
+export function registrarConsentimiento(ctx: Ctx, _args: Record<string, never>): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'CLIENTE') return fallo('Solo el propio cliente puede aceptar la política de privacidad.');
+  const consentimientoEl = ahora.toISOString();
+  const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === sesion.clienteId ? { ...c, consentimientoEl, consentimientoVersion: VERSION_POLITICA_PRIVACIDAD } : c)) };
+  return ok(auditar(nuevo, sesion, ahora, 'CONSENTIMIENTO', 'cliente', sesion.clienteId, `${nombreCliente(db, sesion.clienteId)}: versión ${VERSION_POLITICA_PRIVACIDAD}`), undefined);
+}
+
+/**
+ * El personal (CLIENTES_EDITAR; con ámbito SUS_CLASES solo sus alumnos) registra que el cliente
+ * firmó el consentimiento en papel en recepción. Versión 'papel'.
+ */
+export function registrarConsentimientoPapel(ctx: Ctx, args: { clienteId: Id }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLIENTES_EDITAR');
+  if (e) return fallo(e);
+  if (!args.clienteId) return fallo('Falta el cliente.');
+  if (!db.clientes.some((c) => c.id === args.clienteId)) return fallo('Cliente no encontrado.');
+  if (limitadoASusClases(db, sesion) && !esAlumnoMio(db, sesion, args.clienteId)) return fallo(MENSAJE_CLIENTE_AJENO);
+  const consentimientoEl = ahora.toISOString();
+  const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === args.clienteId ? { ...c, consentimientoEl, consentimientoVersion: CONSENTIMIENTO_PAPEL } : c)) };
+  return ok(auditar(nuevo, sesion, ahora, 'CONSENTIMIENTO_PAPEL', 'cliente', args.clienteId, `${nombreCliente(db, args.clienteId)}: firmado en papel`), undefined);
 }
 
 function limpiar<T extends object>(o: T): Partial<T> {

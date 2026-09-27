@@ -642,4 +642,73 @@ do $$ begin
 end $$;
 
 \echo
+\echo '== 20. Consentimiento de privacidad (0007): el cliente registra el suyo; el personal lo lee y registra el de papel'
+do $$ begin
+  assert exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clientes' and column_name = 'consentimiento_el'), 'existe clientes.consentimiento_el';
+  assert exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clientes' and column_name = 'consentimiento_version'), 'existe clientes.consentimiento_version';
+  assert (select consentimiento_el from public.clientes where id = pruebas.id('cliente_a')) is null, 'A empieza sin consentimiento';
+end $$;
+select pruebas.guardar('n_aud', (select count(*) from public.auditoria)::text);
+begin;
+set local role authenticated;
+select pruebas.como('a');
+update public.clientes set consentimiento_el = now(), consentimiento_version = '2026-09-27' where id = pruebas.id('cliente_a');
+do $$ begin
+  assert (select consentimiento_el from public.clientes where id = pruebas.id('cliente_a')) is not null, 'el cliente registra su consentimiento';
+  assert (select consentimiento_version from public.clientes where id = pruebas.id('cliente_a')) = '2026-09-27', 'con la versión de la política';
+end $$;
+select pruebas.espera_sin_efecto(format('update public.clientes set consentimiento_el = now(), consentimiento_version = %L where id = %L', '2026-09-27', pruebas.id('cliente_b')));  -- fila ajena: RLS la oculta
+-- Registrar el consentimiento no le permite tocar nada más.
+select pruebas.espera_error(format('update public.clientes set consentimiento_el = now(), nombre = %L where id = %L', 'Hacker', pruebas.id('cliente_a')), 'Solo puedes modificar tus datos de contacto%');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select consentimiento_el from public.clientes where id = pruebas.id('cliente_b')) is null, 'el de B sigue pendiente';
+  assert exists (select 1 from public.auditoria where accion = 'CONSENTIMIENTO' and entidad = 'cliente' and entidad_id = pruebas.id('cliente_a')::text and actor_id = pruebas.id('u_a')), 'queda auditado con el cliente como actor';
+end $$;
+-- Recepción (CLIENTES_VER + CLIENTES_EDITAR): lee el consentimiento de A y registra el de B firmado en papel.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+do $$ begin
+  assert (select consentimiento_version from public.clientes where id = pruebas.id('cliente_a')) = '2026-09-27', 'el personal lee el consentimiento de A';
+  assert (select consentimiento_el from public.clientes where id = pruebas.id('cliente_b')) is null, 'y ve pendiente el de B';
+end $$;
+update public.clientes set consentimiento_el = now(), consentimiento_version = 'papel' where id = pruebas.id('cliente_b');
+do $$ begin assert (select consentimiento_version from public.clientes where id = pruebas.id('cliente_b')) = 'papel', 'recepción registra el consentimiento en papel'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert exists (select 1 from public.auditoria where accion = 'CONSENTIMIENTO_PAPEL' and entidad_id = pruebas.id('cliente_b')::text and actor_id = pruebas.id('u_recep')), 'el consentimiento en papel queda auditado con recepción como actor';
+  assert (select count(*) from public.auditoria) = current_setting('pruebas.n_aud')::int + 2, 'exactamente dos apuntes de auditoría nuevos';
+end $$;
+-- Ana (SUS_CLASES con CLIENTES_EDITAR, desde la sección 19): no puede registrar el de E (no es alumna suya).
+begin;
+set local role authenticated;
+select pruebas.como('ana');
+select pruebas.espera_sin_efecto(format('update public.clientes set consentimiento_el = now(), consentimiento_version = %L where id = %L', 'papel', pruebas.id('cliente_e')));
+commit;
+select pruebas.sistema();
+do $$ begin assert (select consentimiento_el from public.clientes where id = pruebas.id('cliente_e')) is null, 'el de E sigue pendiente'; end $$;
+
+\echo
+\echo '== 21. Registro de usuario (signUp): trg_vincular_usuario (0004) enlaza la ficha sin usuario autenticado (corrección de 0007)'
+-- Reproduce el fallo de producción: ficha creada en recepción (sin user_id) y después el usuario se registra en auth.users.
+-- El trigger de auth se ejecuta con auth.uid() NULL; antes de 0007, trg_clientes_autoedicion lo bloqueaba
+-- ("Solo puedes modificar tus datos de contacto...") y GoTrue devolvía "Database error saving new user".
+select pruebas.sistema();
+select pruebas.guardar('cliente_f', 'e0000000-0000-4000-8000-00000000000f');
+select pruebas.guardar('u_f', '20000000-0000-4000-8000-00000000000f');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values (pruebas.id('cliente_f'), 'Fran', 'Registro', '66666666F', 'Fran@Test.local', '600 000 006');
+do $$ begin
+  assert auth.uid() is null, 'la inserción en auth.users se hace sin jwt (como GoTrue)';
+  assert (select user_id from public.clientes where id = pruebas.id('cliente_f')) is null, 'F empieza sin user_id';
+end $$;
+insert into auth.users (id, email) values (pruebas.id('u_f'), 'fran@test.local');
+do $$ begin
+  assert (select user_id from public.clientes where id = pruebas.id('cliente_f')) = pruebas.id('u_f'), 'al registrarse, la ficha queda vinculada al usuario (email sin distinguir mayúsculas)';
+  raise notice 'OK consentimiento y vinculación de usuario';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

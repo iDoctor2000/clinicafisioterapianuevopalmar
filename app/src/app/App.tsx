@@ -4,6 +4,8 @@ import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { Boton, Tarjeta, Toasts } from '@/ui';
 import { PantallaAcceso } from './PantallaAcceso';
+import { Privacidad } from './Privacidad';
+import { Consentimiento } from './Consentimiento';
 import { CapaCliente } from '@/features/cliente/CapaCliente';
 import { CapaTrabajador } from '@/features/trabajador/CapaTrabajador';
 import { rutasCliente } from '@/features/cliente/rutas';
@@ -11,6 +13,8 @@ import { rutasTrabajador } from '@/features/trabajador/rutas';
 
 export function App() {
   const sesion = useStore((s) => s.sesion);
+  const modo = useStore((s) => s.modo);
+  const db = useStore((s) => s.db);
   const cargando = useStore((s) => s.cargando);
   const errorCarga = useStore((s) => s.errorCarga);
   const recuperandoContrasena = useStore((s) => s.recuperandoContrasena);
@@ -22,13 +26,20 @@ export function App() {
   if (cargando) return <PantallaCarga />;
   if (errorCarga) return <PantallaError mensaje={errorCarga} reintentar={() => void arrancar()} />;
   const mostrarAcceso = !sesion || recuperandoContrasena;
+  // En producción, un cliente que aún no ha aceptado la política de privacidad (por cualquier vía de
+  // acceso: contraseña, Google, sesión guardada) pasa antes por la pantalla de consentimiento.
+  const cliente = sesion?.tipo === 'CLIENTE' ? db.clientes.find((c) => c.id === sesion.clienteId) : undefined;
+  const pedirConsentimiento = !mostrarAcceso && modo === 'SUPABASE' && sesion?.tipo === 'CLIENTE' && !!cliente && cliente.consentimientoEl == null;
 
   return (
     <HashRouter>
       <Toasts />
       <Routes>
+        {/* Política de privacidad: legible sin sesión y con cualquier sesión. */}
+        <Route path="/privacidad" element={<Privacidad />} />
         {mostrarAcceso && <Route path="*" element={<PantallaAcceso />} />}
-        {!mostrarAcceso && sesion?.tipo === 'CLIENTE' && (
+        {pedirConsentimiento && <Route path="*" element={<Consentimiento />} />}
+        {!mostrarAcceso && !pedirConsentimiento && sesion?.tipo === 'CLIENTE' && (
           <Route element={<CapaCliente />}>
             {rutasCliente}
             <Route path="*" element={<Navigate to="/" replace />} />

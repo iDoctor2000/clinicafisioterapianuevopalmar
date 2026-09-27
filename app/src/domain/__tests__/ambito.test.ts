@@ -11,7 +11,7 @@ const trabajador = (over: Partial<Trabajador>): Trabajador => ({
 });
 const cliente = (id: string): Cliente => ({
   id, nombre: id, apellidos: '', dni: '', direccion: '', email: '', telefono: '', clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null },
-  notificacionesPush: true, activo: true, userId: null, altaEl: '2026-01-01', bajaEl: null, fotoUrl: null,
+  notificacionesPush: true, activo: true, userId: null, altaEl: '2026-01-01', bajaEl: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null,
 });
 const aviso = (id: string, over: Partial<Aviso>): Aviso => ({ id, titulo: id, cuerpo: '', destino: { tipo: 'TODOS' }, destinatariosIds: [], importante: false, publicadoEl: '2026-09-01T00:00:00.000Z', publicadoPor: 'u-admin', ...over });
 

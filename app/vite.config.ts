@@ -40,6 +40,9 @@ export default defineConfig({
       },
     }),
   ],
+  // docs/PRIVACIDAD.md (fuera de app/) se importa con `?raw` en src/app/Privacidad.tsx: el servidor de
+  // desarrollo debe poder servirlo. En el build se incrusta en el bundle.
+  server: { fs: { allow: ['..'] } },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -106,7 +106,7 @@ export function NuevoCliente() {
   const { ejecutar } = useTrabajador();
   const navigate = useNavigate();
   const guardar = async (d: DatosCliente) => {
-    const r = await ejecutar('guardarCliente', { cliente: { ...d, clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null }, userId: null, fotoUrl: null } });
+    const r = await ejecutar('guardarCliente', { cliente: { ...d, clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null }, userId: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null } });
     if (r.ok) { toast.ok('Cliente creado.'); navigate(`/clientes/${r.valor.id}`, { replace: true }); } else toast.error(r.error);
   };
   return (

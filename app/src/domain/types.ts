@@ -124,6 +124,13 @@ export interface Cliente {
    * `fotos-clientes` (`<clienteId>/avatar.jpg?v=<marca>`), que la app convierte en URL firmada.
    */
   fotoUrl: string | null;
+  /**
+   * Instante en que el cliente aceptó la política de privacidad (en la app o firmada en papel).
+   * null = consentimiento pendiente: en producción la app se lo pide antes de dejarle entrar.
+   */
+  consentimientoEl: ISOInstant | null;
+  /** Versión de la política aceptada ('2026-09-27') o 'papel' si lo registró el personal. */
+  consentimientoVersion: string | null;
 }
 
 export type Modalidad = 'FIJO' | 'LIBRE';

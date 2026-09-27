@@ -12,6 +12,7 @@
 import type { Clase, Cliente, Id, Recuperacion, Reserva, Sesion } from '@/domain/types';
 import { tienePermiso } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
+import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import type { Db } from '../db';
 import type { ArgsComando, NombreComando, ValorComando } from '../tiposComandos';
 import { mensajeError, servidor } from './cliente';
@@ -185,6 +186,27 @@ const impl: Impl = {
     const fotoUrl = args.fotoUrl && args.fotoUrl.trim() ? args.fotoUrl : null;
     if (!fotoUrl) await borrarFoto(clienteId);
     comprobar(await servidor().from('clientes').update({ foto_url: fotoUrl }).eq('id', clienteId));
+    return () => undefined;
+  },
+
+  /**
+   * Consentimiento de privacidad (0007). El cliente actualiza su propia fila (el trigger de
+   * autoedición permite consentimiento_el/consentimiento_version); el personal, con CLIENTES_EDITAR
+   * y dentro de su ámbito (RLS `clientes_editar`). Un trigger lo anota en `auditoria`.
+   */
+  async registrarConsentimiento(_args, sesion) {
+    if (sesion.tipo !== 'CLIENTE') throw new Error('Solo el propio cliente puede aceptar la política de privacidad.');
+    comprobar(await servidor().from('clientes').update({ consentimiento_el: new Date().toISOString(), consentimiento_version: VERSION_POLITICA_PRIVACIDAD }).eq('id', sesion.clienteId));
+    return () => undefined;
+  },
+
+  async registrarConsentimientoPapel(args) {
+    if (!args.clienteId) throw new Error('Falta el cliente.');
+    // RLS no lanza error si la fila queda fuera del permiso/ámbito: simplemente no actualiza nada.
+    const filas = comprobar(
+      await servidor().from('clientes').update({ consentimiento_el: new Date().toISOString(), consentimiento_version: CONSENTIMIENTO_PAPEL }).eq('id', args.clienteId).select('id'),
+    );
+    if (!filas || filas.length === 0) throw new Error('No se ha podido registrar el consentimiento: sin permiso sobre este cliente.');
     return () => undefined;
   },
 

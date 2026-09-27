@@ -11,6 +11,8 @@ import { actividadIncluida, cap, horarioFijoDe, periodoTexto, textoFranja } from
 import { Encabezado, PuntoActividad, Seccion } from './comun';
 import { AvatarCliente } from '@/features/comun/AvatarCliente';
 import { SelectorFoto } from '@/features/comun/SelectorFoto';
+import { EnlacePrivacidad } from '@/app/Privacidad';
+import { format } from 'date-fns';
 
 type EventoInstalacion = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 
@@ -263,8 +265,13 @@ export function Perfil() {
       </Seccion>
 
       <section className="mb-6 text-sm text-ink-muted leading-relaxed">
-        <p className="flex items-center gap-1.5 font-semibold text-ink-soft mb-1"><ShieldCheck className="h-4 w-4" /> Aviso legal y protección de datos</p>
-        <p>Tus datos los trata Clínica de Fisioterapia Nuevo Palmar (El Palmar, Murcia) únicamente para gestionar tus reservas, tu tarifa y los avisos del centro, conforme al Reglamento (UE) 2016/679 y la LOPDGDD. No se ceden a terceros. Puedes ejercer tus derechos de acceso, rectificación y supresión en recepción o escribiendo al centro.</p>
+        <p className="flex items-center gap-1.5 font-semibold text-ink-soft mb-1"><ShieldCheck className="h-4 w-4" /> Protección de datos</p>
+        <p>
+          Tus datos los trata Nuevo Palmar Pilates para gestionar tus clases y tu seguridad. Lee la <EnlacePrivacidad>política de privacidad</EnlacePrivacidad> para saber qué datos usamos, con qué fin y cómo ejercer tus derechos.
+        </p>
+        {cliente.consentimientoEl && (
+          <p className="mt-1">Aceptaste la política el {fechaConsentimiento(cliente.consentimientoEl)}{cliente.consentimientoVersion === 'papel' ? ' (firmada en recepción)' : ''}.</p>
+        )}
       </section>
 
       <Hoja abierta={hoja === 'INSTALAR'} onCerrar={() => setHoja(null)} titulo="Instalar la app">
@@ -301,6 +308,10 @@ export function Perfil() {
       </Hoja>
     </div>
   );
+}
+
+function fechaConsentimiento(iso: string): string {
+  try { return format(new Date(iso), 'dd/MM/yyyy'); } catch { return iso; }
 }
 
 const MENSAJE_SIN_SOPORTE = 'Este navegador no permite notificaciones. Prueba con Chrome (Android) o instala la app en la pantalla de inicio (iPhone).';
