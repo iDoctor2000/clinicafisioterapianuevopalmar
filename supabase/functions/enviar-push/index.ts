@@ -12,8 +12,8 @@
  * Secrets (Edge Functions → Secrets): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:…).
  * SUPABASE_URL, SUPABASE_ANON_KEY y SUPABASE_SERVICE_ROLE_KEY las inyecta Supabase automáticamente.
  */
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import webpush from 'web-push';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import webpush from 'npm:web-push@3';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
