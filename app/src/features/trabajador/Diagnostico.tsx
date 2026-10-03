@@ -53,7 +53,7 @@ export function Diagnostico() {
           fotosPortada: db.portada.length,
           versionDatos: db.version,
         },
-        'Equipo': db.trabajadores.map((t) => ({ nombre: `${t.nombre} ${t.apellidos}`, rol: t.rol, ambito: t.ambito, activo: t.activo, imparte: t.imparteClases, permisos: t.permisos.length, usuario: !!t.userId })),
+        'Equipo': db.trabajadores.map((t) => ({ nombre: `${t.nombre} ${t.apellidos}`, rol: t.rol, ambito: t.ambito, activo: t.activo, imparte: t.esMonitor, permisos: t.permisos.length, usuario: !!t.userId })),
         'Clases de hoy': db.clases.filter((c) => c.fecha === hoy).map((c) => ({ id: c.id, hora: c.horaInicio, actividad: db.actividades.find((a) => a.id === c.actividadId)?.nombre, estado: c.estado, plazas: c.plazas, reservas: db.reservas.filter((r) => r.claseId === c.id && r.estado === 'RESERVADA').length })),
         'Últimos 80 registros de cambios': db.auditoria.slice(-80).map((a) => `${a.instante} · ${a.actorNombre} · ${a.accion} · ${a.entidad} ${a.entidadId} · ${a.detalle}`).join('\n') || '(ninguno)',
       },
