@@ -17,7 +17,8 @@ const URL_AVISOS = `${BASE}#/avisos`;
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
-registerRoute(new NavigationRoute(createHandlerBoundToURL(`${BASE}index.html`)));
+// Los manuales en PDF (y cualquier archivo con extensión) se sirven tal cual, no con la app.
+registerRoute(new NavigationRoute(createHandlerBoundToURL(`${BASE}index.html`), { denylist: [/\/manuales\//, /\.(pdf|png|jpe?g|webp|txt|json|xml|csv)(\?.*)?$/i] }));
 
 // Activar la versión nueva del SW sin esperar a que se cierren todas las pestañas
 // (equivale a `registerType: 'autoUpdate'` con generateSW).

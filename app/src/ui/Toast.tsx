@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { registrar } from '@/lib/diagnostico';
 
 type Tipo = 'ok' | 'error' | 'info';
 interface T { id: number; tipo: Tipo; texto: string }
@@ -9,6 +10,7 @@ interface Estado { items: T[]; mostrar: (tipo: Tipo, texto: string) => void; qui
 export const useToast = create<Estado>((set) => ({
   items: [],
   mostrar: (tipo, texto) => {
+    if (tipo === 'error') registrar('aviso', `Mensaje de error en pantalla: ${texto}`);
     const id = Date.now() + Math.random();
     set((s) => ({ items: [...s.items, { id, tipo, texto }] }));
     setTimeout(() => set((s) => ({ items: s.items.filter((i) => i.id !== id) })), tipo === 'error' ? 5000 : 3200);

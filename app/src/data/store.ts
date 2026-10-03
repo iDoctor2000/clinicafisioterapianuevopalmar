@@ -10,6 +10,7 @@ import { hayServidor } from './supabase/cliente';
 import { cargarDb } from './supabase/cargar';
 import { ejecutarRemoto } from './supabase/comandos';
 import * as auth from './supabase/auth';
+import { registrar } from '@/lib/diagnostico';
 import { activarTiempoReal } from './supabase/tiempoReal';
 import { invocarEnvioPush } from './supabase/push';
 
@@ -103,8 +104,11 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
       set({ usuarioAuth: null, sesion: null, db: dbVacio() });
       return;
     }
+    const t0 = performance.now();
     const db = await cargarDb();
-    set({ db, usuarioAuth: usuario, sesion: auth.sesionDesdeUsuario(usuario, db), errorCarga: null });
+    const sesion = auth.sesionDesdeUsuario(usuario, db);
+    registrar('arranque', `Datos cargados del servidor (${Math.round(performance.now() - t0)} ms)`, { usuario: usuario.email, sesion: sesion ? { tipo: sesion.tipo, nombre: sesion.nombre } : 'sin ficha vinculada', clases: db.clases.length, reservas: db.reservas.length });
+    set({ db, usuarioAuth: usuario, sesion, errorCarga: null });
   };
 
   const activarEscucha = () => {
@@ -116,6 +120,41 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
   const detenerEscucha = () => {
     detenerTiempoReal?.();
     detenerTiempoReal = null;
+  };
+
+  /** Cuerpo real de `ejecutar` (sin el registro de diagnóstico). */
+  const ejecutarInterno = async (nombre: NombreComando, args: unknown): Promise<Resultado<unknown>> => {
+    const { db, sesion } = get();
+    if (!sesion) return { ok: false, error: 'Sesión no iniciada.' };
+
+    if (MODO === 'SUPABASE') {
+      const rr = await ejecutarRemoto(nombre, args as never, sesion);
+      if (!rr.ok) {
+        set({ ultimoError: rr.error });
+        return rr;
+      }
+      await get().recargar();
+      const fresco = get().db;
+      set({ ultimoError: null });
+      const valor = rr.valor(fresco);
+      try {
+        (despuesDe[nombre] as ((a: unknown, v: unknown, db: Db) => void) | undefined)?.(args, valor, fresco);
+      } catch (e) {
+        console.warn(`[push] Error tras el comando ${nombre}:`, e);
+      }
+      return { ok: true, db: fresco, valor };
+    }
+
+    const fn = comandos[nombre] as (ctx: Ctx, a: unknown) => Resultado<unknown>;
+    const r = fn({ db, sesion, ahora: new Date() }, args);
+    if (r.ok) {
+      set({ db: r.db, ultimoError: null });
+      // Si la sesión es de un trabajador y se editó a sí mismo, refrescar permisos.
+      if (sesion.tipo === 'TRABAJADOR') set({ sesion: sesionDeUsuario(r.db, sesion.userId) ?? sesion });
+    } else {
+      set({ ultimoError: r.error });
+    }
+    return r;
   };
 
   return {
@@ -137,6 +176,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
       try {
         if (!detenerAuth) {
           detenerAuth = auth.suscribirAuth((evento, usuario) => {
+            registrar('auth', `Evento de autenticación: ${evento}`, { usuario: usuario?.email });
             if (evento === 'RECUPERACION_CONTRASENA') set({ recuperandoContrasena: true });
             if (evento === 'SALIDA') {
               detenerEscucha();
@@ -157,6 +197,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
         if (usuario) activarEscucha();
         auth.limpiarUrlTrasAcceso();
       } catch (e) {
+        registrar('error', `Error en el arranque: ${e instanceof Error ? e.message : String(e)}`, e);
         set({ errorCarga: e instanceof Error ? e.message : String(e) });
       } finally {
         set({ cargando: false });
@@ -167,6 +208,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
 
     iniciarSesionEmail: async (email, password) => {
       const r = await auth.iniciarSesionEmail(email, password);
+      registrar('auth', r.ok ? 'Entrada con contraseña correcta' : `Entrada con contraseña fallida: ${r.error}`, { email });
       if (!r.ok) return r;
       set({ cargando: true, errorCarga: null });
       try {
@@ -184,6 +226,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
 
     crearCuentaEmail: async (email, password) => {
       const r = await auth.crearCuenta(email, password);
+      registrar('auth', r.ok ? `Cuenta creada (pendiente de confirmar: ${r.pendienteConfirmar ? 'sí' : 'no'})` : `Crear cuenta fallido: ${r.error}`, { email });
       if (!r.ok) return r;
       if (r.pendienteConfirmar || !r.usuario) return { ok: true, pendienteConfirmar: true };
       set({ cargando: true, errorCarga: null });
@@ -217,43 +260,18 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
       try {
         await cargarYResolver(usuario);
       } catch (e) {
-        console.warn('[supabase] No se han podido recargar los datos:', e);
+        console.warn('[supabase] No se han podido recargar los datos:', e instanceof Error ? e.message : String(e));
       }
     },
 
     terminarRecuperacionContrasena: () => set({ recuperandoContrasena: false }),
 
     ejecutar: (async (nombre: NombreComando, args: unknown) => {
-      const { db, sesion } = get();
-      if (!sesion) return { ok: false, error: 'Sesión no iniciada.' };
-
-      if (MODO === 'SUPABASE') {
-        const rr = await ejecutarRemoto(nombre, args as never, sesion);
-        if (!rr.ok) {
-          set({ ultimoError: rr.error });
-          return rr;
-        }
-        await get().recargar();
-        const fresco = get().db;
-        set({ ultimoError: null });
-        const valor = rr.valor(fresco);
-        try {
-          (despuesDe[nombre] as ((a: unknown, v: unknown, db: Db) => void) | undefined)?.(args, valor, fresco);
-        } catch (e) {
-          console.warn(`[push] Error tras el comando ${nombre}:`, e);
-        }
-        return { ok: true, db: fresco, valor };
-      }
-
-      const fn = comandos[nombre] as (ctx: Ctx, a: unknown) => Resultado<unknown>;
-      const r = fn({ db, sesion, ahora: new Date() }, args);
-      if (r.ok) {
-        set({ db: r.db, ultimoError: null });
-        // Si la sesión es de un trabajador y se editó a sí mismo, refrescar permisos.
-        if (sesion.tipo === 'TRABAJADOR') set({ sesion: sesionDeUsuario(r.db, sesion.userId) ?? sesion });
-      } else {
-        set({ ultimoError: r.error });
-      }
+      const t0 = performance.now();
+      const r = await ejecutarInterno(nombre, args);
+      const ms = Math.round(performance.now() - t0);
+      if (r.ok) registrar('comando', `${nombre} correcto (${ms} ms)`, { args });
+      else registrar('comando', `${nombre} FALLIDO (${ms} ms): ${r.error}`, { args });
       return r;
     }) as Estado['ejecutar'],
 

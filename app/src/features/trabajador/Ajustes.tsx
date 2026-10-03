@@ -10,6 +10,7 @@ import { ANCHO_PORTADA, blobADataUrl, ErrorImagen, reducirAncho } from '@/lib/im
 import { Boton, Chip, Entrada, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
+import { Diagnostico } from './Diagnostico';
 import { normalizar } from './consultas';
 import { CampoBusqueda, Confirmacion, Encabezado, Seccion, Segmentado, fechaMedia, instanteCorto } from './comunes';
 
@@ -24,6 +25,7 @@ export function Ajustes() {
         <Cierres />
         <div className="lg:col-span-2"><FotosPortada /></div>
         <div className="lg:col-span-2"><Auditoria /></div>
+        <div className="lg:col-span-2"><Diagnostico /></div>
       </div>
     </div>
   );

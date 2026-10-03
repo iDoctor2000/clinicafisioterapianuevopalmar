@@ -2,7 +2,10 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app/App';
+import { instalarDiagnostico } from './lib/diagnostico';
 import './index.css';
+
+instalarDiagnostico();
 
 registerSW({ immediate: true });
 
