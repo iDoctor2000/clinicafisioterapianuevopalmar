@@ -38,7 +38,7 @@ export function Encabezado({ titulo, subtitulo, atras, acciones, children }: { t
 // ---------------------------------------------------------------------------
 
 export const ESTADO_RESERVA: Record<EstadoReserva, { texto: string; tono: Tono }> = {
-  RESERVADA: { texto: 'Reservada', tono: 'verde' },
+  RESERVADA: { texto: 'Reservada', tono: 'beige' },
   CANCELADA_RECUPERABLE: { texto: 'Cancelada · recuperable', tono: 'ambar' },
   CANCELADA_NO_RECUPERABLE: { texto: 'Cancelada · no recuperable', tono: 'rojo' },
   CANCELADA_CENTRO: { texto: 'Cancelada por el centro', tono: 'azul' },
@@ -66,7 +66,7 @@ export const ASISTENCIA_TEXTO: Record<Asistencia, string> = { PENDIENTE: 'Pendie
 
 export function ChipAsistencia({ asistencia }: { asistencia: Asistencia }) {
   if (asistencia === 'PENDIENTE') return null;
-  return <Chip tono={asistencia === 'ASISTE' ? 'verde' : 'rojo'}>{ASISTENCIA_TEXTO[asistencia]}</Chip>;
+  return <Chip tono={asistencia === 'ASISTE' ? 'beige' : 'rojo'}>{ASISTENCIA_TEXTO[asistencia]}</Chip>;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ export function ChipAsistencia({ asistencia }: { asistencia: Asistencia }) {
 
 export function BarraOcupacion({ ocupadas, plazas, className }: { ocupadas: number; plazas: number; className?: string }) {
   const pct = plazas > 0 ? Math.min(100, Math.round((ocupadas / plazas) * 100)) : 0;
-  const color = pct >= 100 ? 'bg-rose' : pct >= 75 ? 'bg-clay' : 'bg-brand-500';
+  const color = pct >= 100 ? 'bg-rose' : pct >= 75 ? 'bg-beige-600' : 'bg-beige-400';
   return (
     <div className={cn('h-1.5 rounded-full bg-ink/10 overflow-hidden', className)} role="progressbar" aria-valuenow={ocupadas} aria-valuemax={plazas}>
       <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${pct}%` }} />
@@ -120,7 +120,7 @@ export function Pestanas<T extends string>({ items, activa, onCambio }: { items:
       {items.map((i) => (
         <button
           key={i.valor} type="button" role="tab" aria-selected={activa === i.valor} onClick={() => onCambio(i.valor)}
-          className={cn('h-12 px-3 md:px-4 font-semibold whitespace-nowrap border-b-2 -mb-px flex items-center gap-1.5 tap', activa === i.valor ? 'border-brand-500 text-brand-700' : 'border-transparent text-ink-soft hover:text-ink')}
+          className={cn('h-12 px-3 md:px-4 font-semibold whitespace-nowrap border-b-2 -mb-px flex items-center gap-1.5 tap', activa === i.valor ? 'border-brand-500 text-ink' : 'border-transparent text-ink-soft hover:text-ink')}
         >
           {i.icono}{i.texto}
         </button>
@@ -232,7 +232,7 @@ export function CampoBusqueda({ valor, onCambio, placeholder, autoFocus, classNa
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-muted pointer-events-none" />
       <input
         type="search" value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} autoFocus={autoFocus} aria-label={placeholder}
-        className="w-full h-12 rounded-2xl border border-ink/10 bg-white pl-12 pr-4 text-ink placeholder:text-ink-muted focus:border-brand-400 focus:ring-4 focus:ring-brand-100 outline-none"
+        className="w-full h-12 rounded-2xl border border-ink/10 bg-white pl-12 pr-4 text-ink placeholder:text-ink-muted focus:border-beige-500 focus:ring-4 focus:ring-beige-100 outline-none"
       />
     </label>
   );

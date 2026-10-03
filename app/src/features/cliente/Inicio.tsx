@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, CalendarDays, CalendarPlus, ChevronRight, Clock, RefreshCw, Sparkles, Ticket, User } from 'lucide-react';
 import type { ReservaVista } from '@/data/selectores';
-import { avisosDeCliente, recuperacionesDisponiblesDe } from '@/data/selectores';
+import { avisosDeCliente, portadaVisible, recuperacionesDisponiblesDe } from '@/data/selectores';
 import { fechaLarga, horaFin, hoyISO } from '@/domain/fechas';
-import { Boton, Chip, Tarjeta, Vacio } from '@/ui';
+import { Boton, Carrusel, Chip, Tarjeta, Vacio } from '@/ui';
 import { useCliente } from './useCliente';
 import { cap, diaMes, diasHasta, fechaRelativa, horarioFijoDe, periodoTexto, proximaReserva, textoFranja } from './consultas';
 import { chipOrigen } from './estados';
@@ -25,6 +25,7 @@ export function Inicio() {
   const puedeReservar = (tarifa && contrato && contrato.modalidad === 'LIBRE') || recuperaciones.length > 0;
   const franjas = horarioFijoDe(db, contrato);
   const esBono = tarifa?.tipo === 'BONO' && tarifa.bono && contrato;
+  const portada = portadaVisible(db);
 
   return (
     <div>
@@ -32,17 +33,19 @@ export function Inicio() {
         <Link to="/perfil" aria-label="Mi perfil" className="shrink-0 rounded-full tap mb-1"><AvatarCliente cliente={cliente} tamano="lg" /></Link>
       </Encabezado>
 
+      {portada.length > 0 && <Carrusel imagenes={portada} className="mb-5" />}
+
       {ultimoAviso && (
         <Link to="/avisos" className="block mb-4">
-          <Tarjeta className="p-4 border-brand-200 bg-brand-50 flex items-center gap-3 hover:border-brand-300 tap">
-            <span className="h-11 w-11 rounded-full bg-white text-brand-600 flex items-center justify-center shrink-0"><Bell className="h-6 w-6" /></span>
+          <Tarjeta className="p-4 border-beige-200 bg-beige-50 flex items-center gap-3 hover:border-beige-300 tap">
+            <span className="h-11 w-11 rounded-full bg-white text-beige-600 flex items-center justify-center shrink-0"><Bell className="h-6 w-6" /></span>
             <span className="flex-1 min-w-0">
-              <span className="block text-sm font-semibold text-brand-700">
+              <span className="block text-sm font-semibold text-beige-600">
                 {noLeidos.length === 1 ? 'Aviso nuevo' : `${noLeidos.length} avisos nuevos`} · {fechaRelativa(ultimoAviso.aviso.publicadoEl, ahora)}
               </span>
               <span className="block font-semibold truncate">{ultimoAviso.aviso.titulo}</span>
             </span>
-            <ChevronRight className="h-5 w-5 text-brand-600 shrink-0" />
+            <ChevronRight className="h-5 w-5 text-beige-600 shrink-0" />
           </Tarjeta>
         </Link>
       )}
@@ -54,16 +57,16 @@ export function Inicio() {
             <div className="h-2" style={{ backgroundColor: proxima.actividad.color }} />
             <div className="p-5">
               <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                <Chip tono="verde">Reservada</Chip>
+                <Chip tono="beige">Reservada</Chip>
                 {chipOrigen(proxima.reserva) && <Chip tono={chipOrigen(proxima.reserva)!.tono}>{chipOrigen(proxima.reserva)!.texto}</Chip>}
                 {diasHasta(proxima.clase.fecha, ahora) === 0 && <Chip tono="ambar">Hoy</Chip>}
                 {diasHasta(proxima.clase.fecha, ahora) === 1 && <Chip tono="ambar">Mañana</Chip>}
               </div>
               <p className="text-2xl font-semibold flex items-center gap-2"><PuntoActividad color={proxima.actividad.color} />{proxima.actividad.nombre}</p>
               <ul className="mt-3 space-y-1.5 text-[17px]">
-                <li className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-brand-600 shrink-0" /> {cap(fechaLarga(proxima.clase.fecha))}</li>
-                <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-brand-600 shrink-0" /> De {proxima.clase.horaInicio} a {horaFin(proxima.clase.horaInicio, proxima.clase.duracionMin)}</li>
-                {proxima.monitor && <li className="flex items-center gap-2"><User className="h-5 w-5 text-brand-600 shrink-0" /> Con {proxima.monitor.nombre} {proxima.monitor.apellidos}</li>}
+                <li className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-beige-600 shrink-0" /> {cap(fechaLarga(proxima.clase.fecha))}</li>
+                <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-beige-600 shrink-0" /> De {proxima.clase.horaInicio} a {horaFin(proxima.clase.horaInicio, proxima.clase.duracionMin)}</li>
+                {proxima.monitor && <li className="flex items-center gap-2"><User className="h-5 w-5 text-beige-600 shrink-0" /> Con {proxima.monitor.nombre} {proxima.monitor.apellidos}</li>}
               </ul>
               <Boton variante="secundario" ancho className="mt-4" onClick={() => setCancelando(proxima)}>Cancelar mi plaza</Boton>
             </div>
@@ -106,11 +109,11 @@ export function Inicio() {
                 {franjas.map((f) => <li key={f.plantilla.id} className="flex items-center gap-2"><PuntoActividad color={f.actividad.color} />{textoFranja(f)}</li>)}
               </ul>
             )}
-            <Link to="/perfil" className="mt-3 inline-flex items-center gap-1 text-brand-700 font-semibold">Ver detalles <ChevronRight className="h-4 w-4" /></Link>
+            <Link to="/perfil" className="mt-3 inline-flex items-center gap-1 text-beige-600 font-semibold">Ver detalles <ChevronRight className="h-4 w-4" /></Link>
           </Tarjeta>
         ) : (
           <Tarjeta className="p-5 flex items-start gap-3">
-            <Sparkles className="h-6 w-6 text-brand-500 shrink-0 mt-0.5" />
+            <Sparkles className="h-6 w-6 text-beige-600 shrink-0 mt-0.5" />
             <p>No tienes una tarifa activa. Pregunta en recepción y te ayudaremos a elegir la que mejor te venga.</p>
           </Tarjeta>
         )}

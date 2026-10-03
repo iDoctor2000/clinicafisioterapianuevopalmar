@@ -60,7 +60,7 @@ function PantallaCarga() {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center px-6 text-center" aria-busy="true">
       <img src={`${import.meta.env.BASE_URL}icons/mark.png`} alt="" className="h-20 w-20 mb-4" />
-      <h1 className="text-2xl leading-tight">Nuevo Palmar <span className="text-brand-600">Pilates</span></h1>
+      <h1 className="text-2xl leading-tight">Nuevo Palmar <span className="text-beige-600">Pilates</span></h1>
       <p className="text-ink-muted mt-4 flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> Cargando…</p>
     </div>
   );

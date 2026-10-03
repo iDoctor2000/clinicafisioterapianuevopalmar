@@ -7,3 +7,5 @@ export * from './Hoja';
 export * from './Toast';
 export { Entrada, Seleccion, AreaTexto, Interruptor, Etiqueta as EtiquetaCampo } from './Campo';
 export * from './Vacio';
+export * from './Carrusel';
+export * from './MenuLateral';

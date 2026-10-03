@@ -105,7 +105,7 @@ export function DetalleClase() {
                     </div>
                     {puedeAsistencia && (
                       <div className="mt-2 grid grid-cols-2 gap-2 sm:ml-14">
-                        <BotonAsistencia activo={r.asistencia === 'ASISTE'} tono="verde" onClick={() => marcar(r, 'ASISTE')}><Check className="h-5 w-5" /> Asiste</BotonAsistencia>
+                        <BotonAsistencia activo={r.asistencia === 'ASISTE'} tono="beige" onClick={() => marcar(r, 'ASISTE')}><Check className="h-5 w-5" /> Asiste</BotonAsistencia>
                         <BotonAsistencia activo={r.asistencia === 'NO_ASISTE'} tono="rojo" onClick={() => marcar(r, 'NO_ASISTE')}><X className="h-5 w-5" /> No asiste</BotonAsistencia>
                       </div>
                     )}
@@ -154,12 +154,12 @@ export function DetalleClase() {
   );
 }
 
-function BotonAsistencia({ activo, tono, onClick, children }: { activo: boolean; tono: 'verde' | 'rojo'; onClick: () => void; children: React.ReactNode }) {
+function BotonAsistencia({ activo, tono, onClick, children }: { activo: boolean; tono: 'beige' | 'rojo'; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button" onClick={onClick} aria-pressed={activo}
       className={cn('h-11 rounded-xl font-semibold flex items-center justify-center gap-1.5 border tap',
-        activo && tono === 'verde' && 'bg-brand-500 text-white border-brand-500',
+        activo && tono === 'beige' && 'bg-brand-500 text-sand border-brand-500',
         activo && tono === 'rojo' && 'bg-rose text-white border-rose',
         !activo && 'bg-white border-ink/10 text-ink-soft hover:bg-sand')}
     >
@@ -227,7 +227,7 @@ function HojaAnadirAlumno({ abierta, onCerrar, claseId, yaApuntados }: { abierta
 
 function OpcionModo({ titulo, texto, onClick, destacada }: { titulo: string; texto: string; onClick: () => void; destacada?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={cn('w-full text-left rounded-2xl border p-4 tap', destacada ? 'border-brand-400 bg-brand-50 hover:bg-brand-100' : 'border-ink/10 bg-white hover:border-brand-300')}>
+    <button type="button" onClick={onClick} className={cn('w-full text-left rounded-2xl border p-4 tap', destacada ? 'border-beige-500 bg-beige-50 hover:bg-beige-100' : 'border-ink/10 bg-white hover:border-beige-300')}>
       <span className="block font-semibold">{titulo}</span>
       <span className="block text-sm text-ink-muted">{texto}</span>
     </button>

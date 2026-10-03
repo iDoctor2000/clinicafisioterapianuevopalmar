@@ -74,9 +74,9 @@ export function Horario() {
     const pasada = v.clase.fecha === hoy && v.clase.horaInicio < format(ahora, 'HH:mm');
     const atenuada = (cancelada || !incluida || pasada) && !mia;
     return (
-      <Tarjeta className={cn(atenuada && 'bg-white/60', mia && 'border-brand-300')}>
+      <Tarjeta className={cn(atenuada && 'bg-white/60', mia && 'border-beige-300')}>
         <button type="button" data-clase={v.clase.id} onClick={() => setDetalleId(v.clase.id)} className={cn('w-full text-left flex items-center gap-3 tap rounded-2xl hover:bg-sand/60', compacta ? 'px-3 py-2.5 min-h-[64px]' : 'p-4')}>
-          <div className={cn('w-[4.25rem] shrink-0 text-center rounded-xl py-2', atenuada ? 'bg-sand-deep text-ink-muted' : mia ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-800')}>
+          <div className={cn('w-[4.25rem] shrink-0 text-center rounded-xl py-2', atenuada ? 'bg-sand-deep text-ink-muted' : mia ? 'bg-brand-500 text-sand' : 'bg-beige-100 text-ink')}>
             <div className="text-xl font-bold leading-none">{v.clase.horaInicio}</div>
             {!compacta && <div className={cn('text-xs mt-1', mia && !atenuada ? 'text-white/85' : '')}>{v.clase.duracionMin} min</div>}
           </div>
@@ -88,7 +88,7 @@ export function Horario() {
             {!compacta && v.monitor && <div className="text-sm text-ink-muted">Con {v.monitor.nombre}</div>}
             <div className={cn('flex flex-wrap gap-1.5', compacta ? 'mt-1' : 'mt-1.5')}>
               {cancelada ? <Chip tono="rojo">Cancelada</Chip>
-                : mia ? <Chip tono="verde">Tienes plaza</Chip>
+                : mia ? <Chip tono="beige">Tienes plaza</Chip>
                 : pasada ? <Chip tono="gris">Ya ha empezado</Chip>
                 : v.libres > 0 ? <Chip tono={v.libres <= 2 ? 'ambar' : 'gris'}>{v.libres === 1 ? '1 plaza libre' : `${v.libres} plazas libres`}</Chip>
                 : <Chip tono="rojo">Completa</Chip>}
@@ -152,7 +152,7 @@ export function Horario() {
             <button
               key={d} ref={(el) => { refs.current[d] = el; }} type="button" role="tab" aria-selected={activo} onClick={() => setFecha(d)}
               className={cn('snap-center shrink-0 w-[4.25rem] h-[4.75rem] rounded-2xl flex flex-col items-center justify-center gap-0.5 tap border',
-                activo ? 'bg-brand-500 text-white border-brand-500 shadow-lift' : 'bg-white text-ink border-ink/5 shadow-card',
+                activo ? 'bg-brand-500 text-sand border-brand-500 shadow-lift' : 'bg-white text-ink border-ink/5 shadow-card',
                 !activo && cerrado && 'text-ink-muted bg-sand-deep', !activo && (dow === 7) && 'text-ink-muted')}
             >
               <span className={cn('text-xs font-semibold uppercase', activo ? 'text-white/90' : 'text-ink-muted')}>{esHoy ? 'Hoy' : DIAS_SEMANA_CORTO[dow]}</span>
@@ -223,10 +223,10 @@ function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { 
     <Hoja abierta onCerrar={onCerrar} titulo={actividad.nombre}>
       <div className="flex items-center gap-2 text-ink-soft"><PuntoActividad color={actividad.color} />{CATEGORIA_LABEL[actividad.categoria] === actividad.nombre ? 'Clase en máquina' : CATEGORIA_LABEL[actividad.categoria]}</div>
       <ul className="mt-3 space-y-2 text-[17px]">
-        <li className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-brand-600 shrink-0" /> {cap(fechaLarga(clase.fecha))}</li>
-        <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-brand-600 shrink-0" /> De {clase.horaInicio} a {horaFin(clase.horaInicio, clase.duracionMin)} ({clase.duracionMin} min)</li>
-        {monitor && <li className="flex items-center gap-2"><User className="h-5 w-5 text-brand-600 shrink-0" /> Con {monitor.nombre} {monitor.apellidos}</li>}
-        <li className="flex items-center gap-2"><Users className="h-5 w-5 text-brand-600 shrink-0" /> {clase.estado === 'CANCELADA' ? 'Clase cancelada' : libres > 0 ? `Plazas libres: ${libres} de ${clase.plazas}` : `Completa (${clase.plazas} plazas)`}</li>
+        <li className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-beige-600 shrink-0" /> {cap(fechaLarga(clase.fecha))}</li>
+        <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-beige-600 shrink-0" /> De {clase.horaInicio} a {horaFin(clase.horaInicio, clase.duracionMin)} ({clase.duracionMin} min)</li>
+        {monitor && <li className="flex items-center gap-2"><User className="h-5 w-5 text-beige-600 shrink-0" /> Con {monitor.nombre} {monitor.apellidos}</li>}
+        <li className="flex items-center gap-2"><Users className="h-5 w-5 text-beige-600 shrink-0" /> {clase.estado === 'CANCELADA' ? 'Clase cancelada' : libres > 0 ? `Plazas libres: ${libres} de ${clase.plazas}` : `Completa (${clase.plazas} plazas)`}</li>
       </ul>
       {actividad.descripcion && <p className="text-ink-soft mt-3 leading-snug">{actividad.descripcion}</p>}
 

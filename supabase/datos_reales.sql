@@ -60,10 +60,10 @@ begin
 
   insert into public.actividades (nombre, categoria, descripcion, color, orden) values
     ('Reformer + Hipopresivos', 'REFORMER', 'Sesión de Reformer combinada con técnicas hipopresivas.', '#5B9BD5', 11),
-    ('Funcional', 'DIRIGIDA', 'Entrenamiento funcional dirigido: fuerza, movilidad y coordinación.', '#7FB356', 2),
+    ('Funcional', 'DIRIGIDA', 'Entrenamiento funcional dirigido: fuerza, movilidad y coordinación.', '#B9A795', 2),
     ('Barré', 'DIRIGIDA', 'Trabajo de barra inspirado en la danza: tono, postura y equilibrio.', '#C9713F', 3),
-    ('Hatha Yoga', 'DIRIGIDA', 'Yoga suave centrado en posturas, respiración y relajación.', '#A3CB80', 4),
-    ('Yoga Flow', 'DIRIGIDA', 'Yoga dinámico encadenando posturas con la respiración.', '#8FBF6A', 5),
+    ('Hatha Yoga', 'DIRIGIDA', 'Yoga suave centrado en posturas, respiración y relajación.', '#A08D79', 4),
+    ('Yoga Flow', 'DIRIGIDA', 'Yoga dinámico encadenando posturas con la respiración.', '#CFC0B0', 5),
     ('Core & Stretch', 'DIRIGIDA', 'Fortalecimiento del centro y estiramientos guiados.', '#D95A6A', 6),
     ('Gerontopilates', 'DIRIGIDA', 'Pilates adaptado a personas mayores: movilidad, equilibrio y fuerza segura.', '#8C4A3A', 7)
   on conflict do nothing;

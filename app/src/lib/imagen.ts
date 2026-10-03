@@ -97,3 +97,42 @@ export function blobADataUrl(blob: Blob): Promise<string> {
     fr.readAsDataURL(blob);
   });
 }
+
+/** Ancho máximo y calidad de las fotos de la portada (carrusel). */
+export const ANCHO_PORTADA = 1600;
+export const CALIDAD_PORTADA = 0.82;
+
+/**
+ * Reduce una imagen para la portada: como mucho `maxAncho` píxeles de ancho (proporción
+ * intacta; no se amplía si es más pequeña), en JPEG con fondo blanco.
+ */
+export async function reducirAncho(file: File | Blob, maxAncho = ANCHO_PORTADA, calidad = CALIDAD_PORTADA): Promise<Blob> {
+  if (file instanceof File && !esImagen(file)) throw new ErrorImagen('El archivo elegido no es una imagen.');
+  if (file.size > MAX_ORIGINAL_BYTES) throw new ErrorImagen('La imagen es demasiado grande. Elige otra o hazla con menos resolución.');
+  if (file.size === 0) throw new ErrorImagen('El archivo está vacío.');
+  const fuente = await decodificar(file);
+  try {
+    if (fuente.ancho < 32 || fuente.alto < 32) throw new ErrorImagen('La imagen es demasiado pequeña.');
+    const { ancho, alto } = tamanoReducido(fuente.ancho, fuente.alto, maxAncho);
+    const canvas = document.createElement('canvas');
+    canvas.width = ancho;
+    canvas.height = alto;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new ErrorImagen('Este navegador no permite tratar imágenes.');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, ancho, alto);
+    ctx.drawImage(fuente.img, 0, 0, fuente.ancho, fuente.alto, 0, 0, ancho, alto);
+    return await aBlob(canvas, 'image/jpeg', calidad);
+  } finally {
+    fuente.liberar();
+  }
+}
+
+/** Tamaño resultante al limitar el ancho (nunca amplía). */
+export function tamanoReducido(ancho: number, alto: number, maxAncho: number): { ancho: number; alto: number } {
+  if (ancho <= maxAncho) return { ancho, alto };
+  const factor = maxAncho / ancho;
+  return { ancho: maxAncho, alto: Math.max(1, Math.round(alto * factor)) };
+}

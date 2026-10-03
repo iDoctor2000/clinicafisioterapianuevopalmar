@@ -31,7 +31,7 @@ export function Estadisticas() {
       <Encabezado titulo="Estadísticas" subtitulo={limitado ? 'Ocupación y asistencia de tus clases y tus alumnos.' : 'Ocupación, asistencia y actividad del centro.'} />
       <Tarjeta className="p-4 mb-4">
         <div className="flex gap-2 flex-wrap mb-3">
-          {atajos.map((a) => { const r = a.rango(); const activo = r.desde === rango.desde && r.hasta === rango.hasta; return <button key={a.texto} type="button" aria-pressed={activo} onClick={() => setRango(r)} className={cn('h-10 px-4 rounded-xl border font-semibold text-sm tap', activo ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink/10 hover:border-brand-300')}>{a.texto}</button>; })}
+          {atajos.map((a) => { const r = a.rango(); const activo = r.desde === rango.desde && r.hasta === rango.hasta; return <button key={a.texto} type="button" aria-pressed={activo} onClick={() => setRango(r)} className={cn('h-10 px-4 rounded-xl border font-semibold text-sm tap', activo ? 'bg-brand-500 text-sand border-brand-500' : 'bg-white border-ink/10 hover:border-beige-300')}>{a.texto}</button>; })}
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Entrada etiqueta="Desde" type="date" value={rango.desde} onChange={(ev) => setRango({ ...rango, desde: ev.target.value })} />
@@ -47,7 +47,7 @@ export function Estadisticas() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi titulo={limitado ? 'Alumnos activos' : 'Clientes activos'} valor={e.clientesActivos} nota={`+${e.altas} altas · −${e.bajas} bajas`} />
         <Kpi titulo="Clases impartidas" valor={e.clasesImpartidas} nota={e.clasesCanceladas ? `${e.clasesCanceladas} canceladas` : 'ninguna cancelada'} />
-        <Kpi titulo="Ocupación media" valor={`${e.ocupacionMedia}%`} nota={`${e.plazasLibres} plazas libres`} tono={e.ocupacionMedia >= 75 ? 'verde' : e.ocupacionMedia >= 50 ? 'ambar' : 'rojo'} />
+        <Kpi titulo="Ocupación media" valor={`${e.ocupacionMedia}%`} nota={`${e.plazasLibres} plazas libres`} tono={e.ocupacionMedia >= 75 ? 'ok' : e.ocupacionMedia >= 50 ? 'ambar' : 'rojo'} />
         <Kpi titulo="Asistencias" valor={e.asistencias} nota={`${e.faltas} faltas`} />
         <Kpi titulo="Cancelaciones" valor={e.cancelaciones.total} nota={`${e.cancelaciones.recuperables} recup. · ${e.cancelaciones.noRecuperables} no recup. · ${e.cancelaciones.centro} centro`} />
         <Kpi titulo="Recuperaciones usadas" valor={e.recuperacionesUsadas} />
@@ -75,7 +75,7 @@ export function Estadisticas() {
               {e.porHora.map((h) => (
                 <div key={h.hora} className="flex-1 flex flex-col items-center justify-end h-full min-w-0" title={`${h.hora}: ${h.ocupadas}/${h.plazas} (${h.clases} clases)`}>
                   <span className="text-[11px] font-semibold text-ink-soft mb-1">{h.porcentaje}%</span>
-                  <div className={cn('w-full rounded-t-lg', h.porcentaje >= 75 ? 'bg-brand-500' : h.porcentaje >= 50 ? 'bg-brand-300' : 'bg-clay/60')} style={{ height: `${Math.max(3, h.porcentaje)}%` }} />
+                  <div className={cn('w-full rounded-t-lg', h.porcentaje >= 75 ? 'bg-brand-500' : h.porcentaje >= 50 ? 'bg-beige-500' : 'bg-beige-300')} style={{ height: `${Math.max(3, h.porcentaje)}%` }} />
                   <span className="text-[11px] text-ink-muted mt-1 truncate">{h.hora}</span>
                 </div>
               ))}
@@ -103,11 +103,11 @@ export function Estadisticas() {
   );
 }
 
-function Kpi({ titulo, valor, nota, tono }: { titulo: string; valor: ReactNode; nota?: string; tono?: 'verde' | 'ambar' | 'rojo' }) {
+function Kpi({ titulo, valor, nota, tono }: { titulo: string; valor: ReactNode; nota?: string; tono?: 'ok' | 'ambar' | 'rojo' }) {
   return (
     <Tarjeta className="p-4">
       <div className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{titulo}</div>
-      <div className={cn('text-3xl font-bold mt-1 tabular-nums', tono === 'verde' && 'text-brand-600', tono === 'ambar' && 'text-clay', tono === 'rojo' && 'text-rose')}>{valor}</div>
+      <div className={cn('text-3xl font-bold mt-1 tabular-nums', tono === 'ok' && 'text-ink', tono === 'ambar' && 'text-clay', tono === 'rojo' && 'text-rose')}>{valor}</div>
       {nota && <div className="text-xs text-ink-muted mt-1">{nota}</div>}
     </Tarjeta>
   );

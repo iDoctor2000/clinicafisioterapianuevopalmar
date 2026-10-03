@@ -29,7 +29,7 @@ export function Mas() {
             {secciones.map((i) => (
               <li key={i.to}>
                 <Link to={i.to} className="flex items-center gap-3 p-4 hover:bg-sand tap">
-                  <span className="h-10 w-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center"><i.icono className="h-5 w-5" /></span>
+                  <span className="h-10 w-10 rounded-xl bg-beige-100 text-ink flex items-center justify-center"><i.icono className="h-5 w-5" /></span>
                   <span className="flex-1 font-semibold">{i.etiqueta}</span>
                   <ChevronRight className="h-5 w-5 text-ink-muted" />
                 </Link>
@@ -40,7 +40,7 @@ export function Mas() {
       )}
       <Tarjeta className="mb-4">
         <Link to="/privacidad" className="flex items-center gap-3 p-4 hover:bg-sand tap">
-          <span className="h-10 w-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center"><ShieldCheck className="h-5 w-5" /></span>
+          <span className="h-10 w-10 rounded-xl bg-beige-100 text-ink flex items-center justify-center"><ShieldCheck className="h-5 w-5" /></span>
           <span className="flex-1 min-w-0">
             <span className="block font-semibold">Política de privacidad</span>
             <span className="block text-sm text-ink-muted">Qué datos tratamos y el texto de consentimiento (app y papel).</span>

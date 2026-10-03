@@ -1,11 +1,11 @@
 import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
 
-export type Tono = 'verde' | 'gris' | 'azul' | 'ambar' | 'rojo' | 'cocoa';
+export type Tono = 'beige' | 'gris' | 'azul' | 'ambar' | 'rojo' | 'cocoa';
 
 const tonos: Record<Tono, string> = {
-  verde: 'bg-brand-100 text-brand-800',
-  gris: 'bg-ink/5 text-ink-soft',
+  beige: 'bg-beige-100 text-ink',
+  gris: 'bg-brand-100 text-ink-soft',
   azul: 'bg-sky/10 text-sky',
   ambar: 'bg-clay/10 text-clay',
   rojo: 'bg-rose/10 text-rose',

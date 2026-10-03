@@ -13,7 +13,7 @@ import { contratosDeCliente, plantillaVista, resumenCliente, reservasDeClienteSe
 import { ChipAsistencia, ChipEstadoReserva, ChipOrigen, Confirmacion, Dato, PuntoColor, Segmentado, fechaMedia, may } from './comunes';
 
 const TIPO_TARIFA = { RECURRENTE: 'Mensual', BONO: 'Bono', CLASE_SUELTA: 'Clase suelta' } as const;
-const ESTADO_CONTRATO = { ACTIVO: { texto: 'Activo', tono: 'verde' }, FINALIZADO: { texto: 'Finalizado', tono: 'gris' }, CANCELADO: { texto: 'Cancelado', tono: 'rojo' } } as const;
+const ESTADO_CONTRATO = { ACTIVO: { texto: 'Activo', tono: 'beige' }, FINALIZADO: { texto: 'Finalizado', tono: 'gris' }, CANCELADO: { texto: 'Cancelado', tono: 'rojo' } } as const;
 
 // ---------------------------------------------------------------------------
 // Tarifa
@@ -44,7 +44,7 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
           <Tarjeta className="p-4 sm:p-6">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div>
-                <div className="flex items-center gap-2 flex-wrap"><h2 className="text-xl font-sans font-semibold">{tarifa.nombre}</h2><Chip tono="verde">Activo</Chip><Chip tono="gris">{TIPO_TARIFA[tarifa.tipo]}</Chip></div>
+                <div className="flex items-center gap-2 flex-wrap"><h2 className="text-xl font-sans font-semibold">{tarifa.nombre}</h2><Chip tono="beige">Activo</Chip><Chip tono="gris">{TIPO_TARIFA[tarifa.tipo]}</Chip></div>
                 <p className="text-sm text-ink-muted mt-1">{tarifa.descripcion}</p>
               </div>
             </div>
@@ -177,7 +177,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
                 const v = plantillaVista(db, p.id)!;
                 const activa = franjas.includes(p.id);
                 return (
-                  <label key={p.id} className={cn('flex items-center gap-3 p-3 cursor-pointer', activa ? 'bg-brand-50' : 'hover:bg-sand')}>
+                  <label key={p.id} className={cn('flex items-center gap-3 p-3 cursor-pointer', activa ? 'bg-beige-50' : 'hover:bg-sand')}>
                     <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={activa} onChange={() => alternar(p.id)} />
                     <PuntoColor color={v.actividad?.color ?? '#999'} />
                     <span className="flex-1 min-w-0"><span className="font-semibold">{DIAS_SEMANA_LABEL[p.diaSemana]} {p.horaInicio}</span><span className="block text-sm text-ink-muted truncate">{v.actividad?.nombre} · {v.monitor?.nombre} · {p.plazas} plazas</span></span>
@@ -185,7 +185,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
                 );
               })}
             </div>
-            {previstas != null && <p className="text-sm font-medium text-brand-700 mt-2">{previstas} sesiones previstas en el periodo (descontando días de cierre).</p>}
+            {previstas != null && <p className="text-sm font-medium text-beige-600 mt-2">{previstas} sesiones previstas en el periodo (descontando días de cierre).</p>}
           </div>
         )}
         {tarifa?.tipo === 'BONO' && tarifa.bono && <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3">Bono de <strong>{tarifa.bono.sesiones} sesiones</strong> de {CATEGORIA_LABEL[tarifa.bono.categoria].toLowerCase()}, válido hasta el {fechaMedia(fin)}.</p>}
@@ -255,7 +255,7 @@ export function PestanaReservas({ cliente }: { cliente: Cliente }) {
           <>
             <p>Clase del <strong className="text-ink">{may(fechaLarga(claseCancelar.fecha))}</strong> a las {claseCancelar.horaInicio}.</p>
             {clasif.recuperable
-              ? <p className="text-brand-700 font-medium">Se cancela con {Math.max(0, Math.round(clasif.minutosAntelacion / 60))} h de antelación: el cliente recibe una recuperación.</p>
+              ? <p className="text-beige-600 font-medium">Se cancela con {Math.max(0, Math.round(clasif.minutosAntelacion / 60))} h de antelación: el cliente recibe una recuperación.</p>
               : <p className="text-rose font-medium">Quedan menos de {db.config.minutosAntelacionCancelacion} minutos: la cancelación no es recuperable.</p>}
           </>
         )}
@@ -289,7 +289,7 @@ function HojaReservarPara({ cliente, onCerrar }: { cliente: Cliente; onCerrar: (
           <li key={v.clase.id} className="p-3 flex items-center gap-3">
             <div className="font-bold w-12">{v.clase.horaInicio}</div>
             <div className="flex-1 min-w-0"><div className="font-semibold flex items-center gap-2"><PuntoColor color={v.actividad.color} />{v.actividad.nombre}</div><div className="text-sm text-ink-muted">{v.monitor?.nombre} · {v.libres} libres de {v.clase.plazas}</div></div>
-            {mias.has(v.clase.id) ? <Chip tono="verde">Ya apuntado</Chip> : <Boton tamano="sm" variante="suave" disabled={v.libres <= 0} onClick={() => reservar(v.clase.id)}>Reservar</Boton>}
+            {mias.has(v.clase.id) ? <Chip tono="beige">Ya apuntado</Chip> : <Boton tamano="sm" variante="suave" disabled={v.libres <= 0} onClick={() => reservar(v.clase.id)}>Reservar</Boton>}
           </li>
         ))}
       </ul>

@@ -19,9 +19,9 @@ on conflict (fecha) do nothing;
 
 -- Actividades
 insert into public.actividades (id, nombre, categoria, descripcion, color, orden) values
-  ('a0000000-0000-4000-8000-000000000001', 'Pilates suelo', 'DIRIGIDA', 'Trabajo de control postural, core y movilidad en colchoneta. Grupo reducido dirigido por fisioterapeuta.', '#548C2F', 1),
-  ('a0000000-0000-4000-8000-000000000002', 'Espalda sana',  'DIRIGIDA', 'Sesión terapéutica centrada en columna: movilidad, estabilidad y prevención del dolor.', '#7FB356', 2),
-  ('a0000000-0000-4000-8000-000000000003', 'Hipopresivos',  'DIRIGIDA', 'Técnicas hipopresivas para suelo pélvico, postura y respiración.', '#A3CB80', 3),
+  ('a0000000-0000-4000-8000-000000000001', 'Pilates suelo', 'DIRIGIDA', 'Trabajo de control postural, core y movilidad en colchoneta. Grupo reducido dirigido por fisioterapeuta.', '#86735F', 1),
+  ('a0000000-0000-4000-8000-000000000002', 'Espalda sana',  'DIRIGIDA', 'Sesión terapéutica centrada en columna: movilidad, estabilidad y prevención del dolor.', '#B9A795', 2),
+  ('a0000000-0000-4000-8000-000000000003', 'Hipopresivos',  'DIRIGIDA', 'Técnicas hipopresivas para suelo pélvico, postura y respiración.', '#A08D79', 3),
   ('a0000000-0000-4000-8000-000000000004', 'Reformer',      'REFORMER', 'Pilates en máquina Reformer. Máximo 4 personas por sesión, supervisión individualizada.', '#3B82C4', 4)
 on conflict (id) do nothing;
 
@@ -49,7 +49,7 @@ on conflict do nothing;
 
 -- Trabajadores de ejemplo (sin user_id: se vinculan al invitar a cada uno por email en Auth)
 insert into public.trabajadores (id, nombre, apellidos, email, telefono, rol, es_monitor, color) values
-  ('c0000000-0000-4000-8000-000000000001', 'José Diego', 'Frutos',   'josediego@fisioterapianuevopalmar.com', '968 885 931', 'ADMIN',     true,  '#548C2F'),
+  ('c0000000-0000-4000-8000-000000000001', 'José Diego', 'Frutos',   'josediego@fisioterapianuevopalmar.com', '968 885 931', 'ADMIN',     true,  '#3A3A3A'),
   ('c0000000-0000-4000-8000-000000000002', 'Ana',        'Martínez', 'ana@fisioterapianuevopalmar.com',       '',            'MONITOR',   true,  '#3B82C4'),
   ('c0000000-0000-4000-8000-000000000003', 'Laura',      'Pérez',    'recepcion@fisioterapianuevopalmar.com', '',            'RECEPCION', false, '#C9713F')
 on conflict (id) do nothing;

@@ -1,8 +1,13 @@
-import { useState } from 'react';
-import { CalendarOff, History, Plus, Save, Settings, Trash2 } from 'lucide-react';
-import type { DiaCierre } from '@/domain/types';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, CalendarOff, Eye, EyeOff, History, ImagePlus, Images, Plus, Save, Settings, Trash2 } from 'lucide-react';
+import type { DiaCierre, PortadaImagen } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
-import { Boton, Entrada, Tarjeta, Vacio, toast } from '@/ui';
+import { useModo } from '@/data/store';
+import { MAX_PORTADA } from '@/data/comandos';
+import { portadaOrdenada } from '@/data/selectores';
+import { subirImagenPortada } from '@/data/supabase/portada';
+import { ANCHO_PORTADA, blobADataUrl, ErrorImagen, reducirAncho } from '@/lib/imagen';
+import { Boton, Chip, Entrada, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { normalizar } from './consultas';
@@ -17,6 +22,7 @@ export function Ajustes() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Reglas />
         <Cierres />
+        <div className="lg:col-span-2"><FotosPortada /></div>
         <div className="lg:col-span-2"><Auditoria /></div>
       </div>
     </div>
@@ -28,9 +34,21 @@ function Reglas() {
   const c = db.config;
   const [f, setF] = useState({ minutosAntelacionCancelacion: c.minutosAntelacionCancelacion, diasVentanaReserva: c.diasVentanaReserva, recuperacionCaducaConContrato: c.recuperacionCaducaConContrato, diasCaducidadRecuperacion: c.diasCaducidadRecuperacion });
   const cambiado = JSON.stringify(f) !== JSON.stringify({ minutosAntelacionCancelacion: c.minutosAntelacionCancelacion, diasVentanaReserva: c.diasVentanaReserva, recuperacionCaducaConContrato: c.recuperacionCaducaConContrato, diasCaducidadRecuperacion: c.diasCaducidadRecuperacion });
+  const [guardando, setGuardando] = useState(false);
   const guardar = async () => {
-    const r = await ejecutar('actualizarConfig', { config: { ...f, minutosAntelacionCancelacion: Number(f.minutosAntelacionCancelacion), diasVentanaReserva: Number(f.diasVentanaReserva), diasCaducidadRecuperacion: Number(f.diasCaducidadRecuperacion) } });
-    if (r.ok) toast.ok('Ajustes guardados.'); else toast.error(r.error);
+    const config = { ...f, minutosAntelacionCancelacion: Number(f.minutosAntelacionCancelacion), diasVentanaReserva: Number(f.diasVentanaReserva), diasCaducidadRecuperacion: Number(f.diasCaducidadRecuperacion) };
+    if (!Number.isFinite(config.minutosAntelacionCancelacion) || config.minutosAntelacionCancelacion < 0) return toast.error('La antelación de cancelación debe ser 0 o más minutos.');
+    if (!Number.isFinite(config.diasVentanaReserva) || config.diasVentanaReserva < 1) return toast.error('La ventana de reserva debe ser al menos 1 día.');
+    if (!config.recuperacionCaducaConContrato && (!Number.isFinite(config.diasCaducidadRecuperacion) || config.diasCaducidadRecuperacion < 1)) return toast.error('Los días de validez de las recuperaciones deben ser al menos 1.');
+    setGuardando(true);
+    const r = await ejecutar('actualizarConfig', { config });
+    setGuardando(false);
+    if (r.ok) {
+      const caducidad = config.recuperacionCaducaConContrato ? 'caducan con el contrato' : `caducan a los ${config.diasCaducidadRecuperacion} días`;
+      toast.ok(`Ajustes guardados: cancelación con ${config.minutosAntelacionCancelacion} min de antelación, reserva con ${config.diasVentanaReserva} días de ventana, las recuperaciones ${caducidad}.`);
+    } else {
+      toast.error(`No se han guardado los ajustes. ${r.error}`);
+    }
   };
   const horas = Math.floor(Number(f.minutosAntelacionCancelacion) / 60);
   const mins = Number(f.minutosAntelacionCancelacion) % 60;
@@ -47,7 +65,7 @@ function Reglas() {
               ? <p className="text-sm text-ink-muted mt-1">Las recuperaciones caducan al finalizar el periodo de la tarifa del cliente.</p>
               : <div className="mt-2"><Entrada etiqueta="Días de validez" type="number" min={1} value={f.diasCaducidadRecuperacion} onChange={(e) => setF({ ...f, diasCaducidadRecuperacion: Number(e.target.value) })} /></div>}
           </div>
-          <div className="flex justify-end"><Boton onClick={guardar} disabled={!cambiado}><Save className="h-5 w-5" /> Guardar</Boton></div>
+          <div className="flex justify-end"><Boton onClick={guardar} disabled={!cambiado} cargando={guardando}><Save className="h-5 w-5" /> Guardar</Boton></div>
         </div>
       </Seccion>
     </Tarjeta>
@@ -69,7 +87,7 @@ function Cierres() {
   };
   const guardar = async () => {
     const r = await ejecutar('actualizarConfig', { config: { diasCierre: lista } });
-    if (r.ok) toast.ok('Días de cierre guardados. Las clases de esos días quedan canceladas sin penalizar.'); else toast.error(r.error);
+    if (r.ok) toast.ok(`Días de cierre guardados (${lista.length}). Las clases de esos días quedan canceladas sin penalizar.`); else toast.error(`No se han guardado los días de cierre. ${r.error}`);
     setConfirmar(false);
   };
   const nuevosFuturos = lista.filter((d) => d.fecha >= hoy && !db.config.diasCierre.some((x) => x.fecha === d.fecha));
@@ -107,7 +125,132 @@ const ACCION_TEXTO: Record<string, string> = {
   CANCELAR_CLASE: 'Clase cancelada', CREAR_CLASE_EXTRA: 'Clase extraordinaria', CREAR_HORARIO: 'Franja creada', EDITAR_HORARIO: 'Franja editada', CREAR_CLIENTE: 'Cliente creado', EDITAR_CLIENTE: 'Cliente editado',
   CREAR_CONTRATO: 'Contratación', FINALIZAR_CONTRATO: 'Contrato finalizado', PUBLICAR_AVISO: 'Aviso publicado', EDITAR_PERFIL: 'Perfil editado', CREAR_TARIFA: 'Tarifa creada', EDITAR_TARIFA: 'Tarifa editada',
   CREAR_ACTIVIDAD: 'Actividad creada', EDITAR_ACTIVIDAD: 'Actividad editada', CREAR_TRABAJADOR: 'Trabajador creado', EDITAR_TRABAJADOR: 'Trabajador editado', CONFIG: 'Configuración',
+  FOTO_CLIENTE: 'Foto de cliente', QUITAR_FOTO_CLIENTE: 'Foto de cliente quitada', CONSENTIMIENTO: 'Consentimiento', CONSENTIMIENTO_PAPEL: 'Consentimiento en papel',
+  CREAR_PORTADA: 'Foto de portada añadida', EDITAR_PORTADA: 'Foto de portada editada', BORRAR_PORTADA: 'Foto de portada borrada', ORDENAR_PORTADA: 'Portada reordenada',
 };
+
+// ---------------------------------------------------------------------------
+// Fotos de la portada (carrusel del Inicio del cliente)
+// ---------------------------------------------------------------------------
+
+function FotosPortada() {
+  const { db, ejecutar } = useTrabajador();
+  const modo = useModo();
+  const fotos = portadaOrdenada(db.portada);
+  const entrada = useRef<HTMLInputElement>(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const [borrar, setBorrar] = useState<PortadaImagen | null>(null);
+  const [pies, setPies] = useState<Record<string, string>>({});
+  // Si cambia la lista desde fuera (otro administrador), descartamos los pies que ya no existen.
+  useEffect(() => { setPies((p) => Object.fromEntries(Object.entries(p).filter(([id]) => fotos.some((f) => f.id === id)))); }, [fotos.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const elegir = async (file: File | undefined) => {
+    if (entrada.current) entrada.current.value = '';
+    if (!file) return;
+    if (fotos.length >= MAX_PORTADA) return toast.error(`La portada admite como mucho ${MAX_PORTADA} fotos. Borra alguna antes de añadir otra.`);
+    setSubiendo(true);
+    try {
+      const blob = await reducirAncho(file, ANCHO_PORTADA);
+      const id = modo === 'SUPABASE' ? crypto.randomUUID() : undefined;
+      const url = modo === 'SUPABASE' && id ? await subirImagenPortada(id, blob) : await blobADataUrl(blob);
+      const r = await ejecutar('guardarPortadaImagen', { imagen: { id, url, pie: '', activa: true } });
+      if (!r.ok) return toast.error(`No se ha podido añadir la foto. ${r.error}`);
+      toast.ok('Foto añadida a la portada.');
+    } catch (e) {
+      toast.error(e instanceof ErrorImagen || e instanceof Error ? e.message : 'No se ha podido procesar la imagen.');
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
+  const guardar = async (foto: PortadaImagen, cambios: Partial<Pick<PortadaImagen, 'pie' | 'activa'>>, mensaje: string) => {
+    setOcupado(foto.id);
+    const r = await ejecutar('guardarPortadaImagen', { imagen: { ...foto, ...cambios } });
+    setOcupado(null);
+    if (!r.ok) return toast.error(`No se ha podido guardar. ${r.error}`);
+    if (cambios.pie != null) setPies((p) => { const { [foto.id]: _quitar, ...resto } = p; return resto; });
+    toast.ok(mensaje);
+  };
+
+  const mover = async (i: number, delta: -1 | 1) => {
+    const j = i + delta;
+    if (j < 0 || j >= fotos.length) return;
+    const ids = fotos.map((f) => f.id);
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    setOcupado(fotos[i].id);
+    const r = await ejecutar('ordenarPortada', { ids });
+    setOcupado(null);
+    if (!r.ok) toast.error(`No se ha podido reordenar. ${r.error}`);
+  };
+
+  const confirmarBorrar = async () => {
+    if (!borrar) return;
+    setOcupado(borrar.id);
+    const r = await ejecutar('borrarPortadaImagen', { id: borrar.id });
+    setOcupado(null);
+    setBorrar(null);
+    if (!r.ok) return toast.error(`No se ha podido borrar la foto. ${r.error}`);
+    toast.ok('Foto borrada de la portada.');
+  };
+
+  const activas = fotos.filter((f) => f.activa).length;
+  return (
+    <Tarjeta className="p-4 sm:p-6">
+      <Seccion
+        titulo={<span className="flex items-center gap-2"><Images className="h-5 w-5 text-beige-600" /> Fotos de la portada</span>}
+        acciones={<span className="text-sm text-ink-muted">{activas} visible{activas === 1 ? '' : 's'} de {fotos.length}</span>}
+      >
+        <p className="text-sm text-ink-muted mb-3">Carrusel que ven los clientes al entrar (Inicio). Las fotos se reducen a {ANCHO_PORTADA} px de ancho antes de guardarse. Usa fotos apaisadas del centro: máximo {MAX_PORTADA}.</p>
+        <input ref={entrada} type="file" accept="image/*" className="sr-only" onChange={(e) => void elegir(e.target.files?.[0])} aria-label="Elegir imagen para la portada" />
+        {fotos.length === 0 ? (
+          <Vacio icono={Images} titulo="Todavía no hay fotos" texto="Sin fotos, la portada del cliente no muestra el carrusel." accion={<Boton onClick={() => entrada.current?.click()} cargando={subiendo}><ImagePlus className="h-5 w-5" /> Subir una foto</Boton>} />
+        ) : (
+          <ul className="space-y-3">
+            {fotos.map((f, i) => {
+              const pie = pies[f.id] ?? f.pie;
+              const pieCambiado = pie !== f.pie;
+              const trabajando = ocupado === f.id;
+              return (
+                <li key={f.id} className={cn('rounded-2xl border border-beige-200 p-3 grid gap-3 sm:grid-cols-[10rem_1fr_auto] items-start', !f.activa && 'bg-sand')}>
+                  <div className="relative aspect-[16/10] rounded-xl overflow-hidden bg-beige-100">
+                    <img src={f.url} alt={f.pie || `Foto ${i + 1}`} loading="lazy" className={cn('h-full w-full object-cover', !f.activa && 'opacity-50')} />
+                    <span className="absolute top-1.5 left-1.5 h-6 min-w-6 px-1.5 rounded-full bg-brand-500 text-sand text-xs font-bold flex items-center justify-center">{i + 1}</span>
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Chip tono={f.activa ? 'beige' : 'gris'}>{f.activa ? 'Visible' : 'Oculta'}</Chip>
+                    </div>
+                    <div className="flex gap-2 items-end">
+                      <Entrada etiqueta="Pie de foto" value={pie} maxLength={120} placeholder="Opcional: p. ej. Sala de Reformer" onChange={(e) => setPies((p) => ({ ...p, [f.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && pieCambiado && void guardar(f, { pie: pie.trim() }, 'Pie de foto guardado.')} />
+                      <Boton variante="suave" disabled={!pieCambiado || trabajando} onClick={() => void guardar(f, { pie: pie.trim() }, 'Pie de foto guardado.')} aria-label="Guardar pie de foto"><Save className="h-5 w-5" /></Boton>
+                    </div>
+                  </div>
+                  <div className="flex sm:flex-col gap-1 flex-wrap">
+                    <Boton variante="fantasma" tamano="sm" disabled={i === 0 || trabajando} onClick={() => void mover(i, -1)} aria-label="Subir"><ArrowUp className="h-5 w-5" /><span className="sm:hidden">Subir</span></Boton>
+                    <Boton variante="fantasma" tamano="sm" disabled={i === fotos.length - 1 || trabajando} onClick={() => void mover(i, 1)} aria-label="Bajar"><ArrowDown className="h-5 w-5" /><span className="sm:hidden">Bajar</span></Boton>
+                    <Boton variante="fantasma" tamano="sm" disabled={trabajando} onClick={() => void guardar(f, { activa: !f.activa }, f.activa ? 'Foto oculta: ya no se muestra en la portada.' : 'Foto visible en la portada.')} aria-label={f.activa ? 'Ocultar' : 'Mostrar'}>
+                      {f.activa ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}<span className="sm:hidden">{f.activa ? 'Ocultar' : 'Mostrar'}</span>
+                    </Boton>
+                    <Boton variante="fantasma" tamano="sm" disabled={trabajando} className="text-rose hover:bg-rose/10" onClick={() => setBorrar(f)} aria-label="Borrar"><Trash2 className="h-5 w-5" /><span className="sm:hidden">Borrar</span></Boton>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {fotos.length > 0 && (
+          <div className="flex justify-end mt-4">
+            <Boton onClick={() => entrada.current?.click()} cargando={subiendo} disabled={fotos.length >= MAX_PORTADA}><ImagePlus className="h-5 w-5" /> Subir otra foto</Boton>
+          </div>
+        )}
+      </Seccion>
+      <Confirmacion abierta={borrar !== null} onCerrar={() => setBorrar(null)} titulo="Borrar foto de la portada" textoConfirmar="Borrar" peligro onConfirmar={() => void confirmarBorrar()}>
+        <p>La foto <strong className="text-ink">{borrar?.pie || `nº ${fotos.findIndex((f) => f.id === borrar?.id) + 1}`}</strong> dejará de verse en la portada y se eliminará del servidor.</p>
+      </Confirmacion>
+    </Tarjeta>
+  );
+}
 
 function Auditoria() {
   const { db } = useTrabajador();

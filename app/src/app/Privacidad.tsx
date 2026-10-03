@@ -83,8 +83,8 @@ export function Inline({ texto }: { texto: string }) {
 function enlazar(texto: string): ReactNode {
   const trozos = texto.split(/([\w.+-]+@[\w-]+\.[\w.-]+|www\.[\w-]+\.[\w./-]+)/g).filter(Boolean);
   return trozos.map((t, i) => {
-    if (/^[\w.+-]+@/.test(t)) return <a key={i} href={`mailto:${t}`} className="text-brand-700 underline underline-offset-4 break-all">{t}</a>;
-    if (t.startsWith('www.')) return <a key={i} href={`https://${t}`} target="_blank" rel="noreferrer" className="text-brand-700 underline underline-offset-4">{t}</a>;
+    if (/^[\w.+-]+@/.test(t)) return <a key={i} href={`mailto:${t}`} className="text-beige-600 underline underline-offset-4 break-all">{t}</a>;
+    if (t.startsWith('www.')) return <a key={i} href={`https://${t}`} target="_blank" rel="noreferrer" className="text-beige-600 underline underline-offset-4">{t}</a>;
     return <Fragment key={i}>{t}</Fragment>;
   });
 }
@@ -104,12 +104,12 @@ function BloqueVista({ b }: { b: Bloque }) {
     case 'h1': return <h1 className="text-3xl sm:text-4xl leading-tight mb-2"><Inline texto={b.lineas[0]} /></h1>;
     case 'h2': return <h2 className="text-2xl leading-snug mt-10 mb-3"><Inline texto={b.lineas[0]} /></h2>;
     case 'p': return <p className="text-[17px] leading-relaxed text-ink-soft mb-4"><Lineas lineas={b.lineas} /></p>;
-    case 'cita': return <blockquote className="border-l-4 border-brand-300 bg-brand-50/60 rounded-r-2xl px-4 py-3 text-[17px] leading-relaxed text-ink mb-4"><Lineas lineas={b.lineas} /></blockquote>;
+    case 'cita': return <blockquote className="border-l-4 border-beige-300 bg-beige-50/60 rounded-r-2xl px-4 py-3 text-[17px] leading-relaxed text-ink mb-4"><Lineas lineas={b.lineas} /></blockquote>;
     case 'hr': return <hr className="my-10 border-ink/10" />;
     case 'lista': {
       const Tag = b.ordenada ? 'ol' : 'ul';
       return (
-        <Tag className={`${b.ordenada ? 'list-decimal' : 'list-disc'} pl-6 space-y-2 text-[17px] leading-relaxed text-ink-soft mb-4 marker:text-brand-600`}>
+        <Tag className={`${b.ordenada ? 'list-decimal' : 'list-disc'} pl-6 space-y-2 text-[17px] leading-relaxed text-ink-soft mb-4 marker:text-beige-500`}>
           {b.items.map((it, i) => <li key={i} className="pl-1"><Inline texto={it} /></li>)}
         </Tag>
       );
@@ -173,7 +173,7 @@ export function TextoConsentimiento() {
 
 /** Enlace a la política, para pies de página y casillas. */
 export function EnlacePrivacidad({ children = 'Política de privacidad', className = '' }: { children?: ReactNode; className?: string }) {
-  return <Link to="/privacidad" className={`text-brand-700 font-semibold underline underline-offset-4 ${className}`}>{children}</Link>;
+  return <Link to="/privacidad" className={`text-beige-600 font-semibold underline underline-offset-4 ${className}`}>{children}</Link>;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +191,7 @@ export function Privacidad() {
       <header className="sticky top-0 z-10 bg-sand/95 backdrop-blur border-b border-ink/5 pt-safe">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
           <Boton variante="fantasma" tamano="sm" onClick={volver} className="-ml-3"><ChevronLeft className="h-5 w-5" /> Volver</Boton>
-          <span className="ml-auto inline-flex items-center gap-1.5 text-sm text-ink-muted"><ShieldCheck className="h-4 w-4 text-brand-600" /> Nuevo Palmar Pilates</span>
+          <span className="ml-auto inline-flex items-center gap-1.5 text-sm text-ink-muted"><ShieldCheck className="h-4 w-4 text-beige-600" /> Nuevo Palmar Pilates</span>
         </div>
       </header>
       <main className="max-w-3xl mx-auto px-4 py-6 pb-16">

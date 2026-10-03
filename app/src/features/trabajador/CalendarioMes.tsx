@@ -3,8 +3,8 @@ import { DIAS_SEMANA_CORTO, DIAS_SEMANA_LABEL, diaSemanaDe } from '@/domain/fech
 import { cn } from '@/lib/cn';
 import { ocupacionDia, semanasDelMes, type OcupacionDia } from './consultas';
 
-const COLOR_NIVEL: Record<OcupacionDia['nivel'], string> = { verde: 'bg-brand-500', ambar: 'bg-clay', rojo: 'bg-rose' };
-const TEXTO_NIVEL: Record<OcupacionDia['nivel'], string> = { verde: 'text-brand-700', ambar: 'text-clay', rojo: 'text-rose' };
+const COLOR_NIVEL: Record<OcupacionDia['nivel'], string> = { verde: 'bg-beige-400', ambar: 'bg-beige-600', rojo: 'bg-rose' };
+const TEXTO_NIVEL: Record<OcupacionDia['nivel'], string> = { verde: 'text-beige-600', ambar: 'text-beige-600', rojo: 'text-rose' };
 
 /**
  * Cuadrícula mensual (lunes-primero, 6 filas como máximo). Cada día muestra el
@@ -37,14 +37,14 @@ export function CalendarioMes({ fecha, hoy, cierres, clasesPorFecha, onElegirDia
             <button
               key={d} type="button" role="gridcell" onClick={() => onElegirDia(d)} aria-label={etiqueta} aria-current={esHoy ? 'date' : undefined}
               className={cn(
-                'min-h-[64px] sm:min-h-[84px] md:min-h-[96px] rounded-xl border p-1 sm:p-1.5 flex flex-col text-left tap hover:border-brand-300 focus-visible:ring-2 focus-visible:ring-brand-300 outline-none',
+                'min-h-[64px] sm:min-h-[84px] md:min-h-[96px] rounded-xl border p-1 sm:p-1.5 flex flex-col text-left tap hover:border-beige-300 focus-visible:ring-2 focus-visible:ring-beige-300 outline-none',
                 cierre ? 'bg-ink/5 border-transparent' : 'bg-white border-ink/5',
                 fuera && 'opacity-40',
-                activa && !esHoy && 'border-brand-300 bg-brand-50/60',
+                activa && !esHoy && 'border-beige-300 bg-beige-50/60',
                 esHoy && 'border-brand-500 ring-1 ring-brand-500',
               )}
             >
-              <span className={cn('self-start text-sm sm:text-base font-bold leading-none rounded-md px-1 py-0.5 -ml-0.5', esHoy ? 'bg-brand-500 text-white' : 'text-ink')}>{Number(d.slice(8))}</span>
+              <span className={cn('self-start text-sm sm:text-base font-bold leading-none rounded-md px-1 py-0.5 -ml-0.5', esHoy ? 'bg-brand-500 text-sand' : 'text-ink')}>{Number(d.slice(8))}</span>
               {cierre ? (
                 <span className="mt-auto text-[10px] sm:text-xs text-ink-soft font-semibold leading-tight line-clamp-2" title={cierre.motivo}>{cierre.motivo}</span>
               ) : oc.clases > 0 || canceladas > 0 ? (
@@ -67,8 +67,8 @@ export function CalendarioMes({ fecha, hoy, cierres, clasesPorFecha, onElegirDia
         })}
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs text-ink-muted px-1">
-        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-brand-500" /> menos del 50 %</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-clay" /> 50–85 %</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-beige-400" /> menos del 50 %</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-beige-600" /> 50–85 %</span>
         <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-rose" /> más del 85 %</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-ink/10" /> cierre</span>
       </div>

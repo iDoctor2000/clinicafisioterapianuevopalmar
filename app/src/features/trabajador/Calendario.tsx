@@ -63,7 +63,7 @@ export function Calendario() {
       {vista === 'DIA' && (
         <>
           <TiraSemana semana={semana} fecha={fecha} hoy={hoy} onElegir={setFecha} cierres={new Set(db.config.diasCierre.map((d) => d.fecha))} />
-          <h2 className="text-xl mt-5 mb-3 font-sans font-semibold">{may(fechaLarga(fecha))}{fecha === hoy && <span className="text-brand-600 text-base font-medium"> · hoy</span>}</h2>
+          <h2 className="text-xl mt-5 mb-3 font-sans font-semibold">{may(fechaLarga(fecha))}{fecha === hoy && <span className="text-beige-600 text-base font-medium"> · hoy</span>}</h2>
           {cierre && (
             <div className="mb-3 flex items-center gap-3 rounded-2xl bg-ink/5 px-4 py-3 text-ink-soft">
               <DoorClosed className="h-5 w-5 shrink-0" /> <span>Día de cierre: <strong className="text-ink">{cierre.motivo}</strong>. No hay clases.</span>
@@ -79,7 +79,7 @@ export function Calendario() {
       {vista === 'SEMANA' && (
         <>
           <NavegadorRango
-            titulo={<><span className="hidden sm:inline">Semana del </span>{textoRangoSemana(fecha)}{inicioSemana(fecha) === inicioSemana(hoy) && <span className="text-brand-600 text-sm font-medium block sm:inline"><span className="hidden sm:inline"> · </span>esta semana</span>}</>}
+            titulo={<><span className="hidden sm:inline">Semana del </span>{textoRangoSemana(fecha)}{inicioSemana(fecha) === inicioSemana(hoy) && <span className="text-beige-600 text-sm font-medium block sm:inline"><span className="hidden sm:inline"> · </span>esta semana</span>}</>}
             etiquetaAnterior="Semana anterior" etiquetaSiguiente="Semana siguiente"
             onAnterior={() => setFecha(sumarDias(fecha, -7))} onSiguiente={() => setFecha(sumarDias(fecha, 7))}
             onHoy={fecha !== hoy ? () => setFecha(hoy) : undefined}
@@ -91,7 +91,7 @@ export function Calendario() {
       {vista === 'MES' && (
         <>
           <NavegadorRango
-            titulo={<>{may(mesLargo(fecha))}{fecha.slice(0, 7) === hoy.slice(0, 7) && <span className="text-brand-600 text-sm font-medium block sm:inline"><span className="hidden sm:inline"> · </span>este mes</span>}</>}
+            titulo={<>{may(mesLargo(fecha))}{fecha.slice(0, 7) === hoy.slice(0, 7) && <span className="text-beige-600 text-sm font-medium block sm:inline"><span className="hidden sm:inline"> · </span>este mes</span>}</>}
             etiquetaAnterior="Mes anterior" etiquetaSiguiente="Mes siguiente"
             onAnterior={() => setFecha(sumarMeses(fecha, -1))} onSiguiente={() => setFecha(sumarMeses(fecha, 1))}
             onHoy={fecha !== hoy ? () => setFecha(hoy) : undefined}
@@ -129,10 +129,10 @@ function TiraSemana({ semana, fecha, hoy, onElegir, cierres }: { semana: { fecha
           return (
             <button
               key={d.fecha} type="button" onClick={() => onElegir(d.fecha)} aria-pressed={activa}
-              className={cn('h-[68px] rounded-2xl flex flex-col items-center justify-center gap-0.5 tap border', activa ? 'bg-brand-500 text-white border-brand-500 shadow-lift' : cerrado ? 'bg-ink/5 text-ink-muted border-transparent' : 'bg-white border-ink/5 hover:border-brand-200')}
+              className={cn('h-[68px] rounded-2xl flex flex-col items-center justify-center gap-0.5 tap border', activa ? 'bg-brand-500 text-sand border-brand-500 shadow-lift' : cerrado ? 'bg-ink/5 text-ink-muted border-transparent' : 'bg-white border-ink/5 hover:border-beige-200')}
             >
               <span className={cn('text-xs font-semibold uppercase', activa ? 'text-white/80' : 'text-ink-muted')}>{DIAS_SEMANA_CORTO[diaSemanaDe(d.fecha)]}</span>
-              <span className={cn('text-lg font-bold leading-none', esHoy && !activa && 'text-brand-600')}>{Number(d.fecha.slice(8))}</span>
+              <span className={cn('text-lg font-bold leading-none', esHoy && !activa && 'text-beige-600')}>{Number(d.fecha.slice(8))}</span>
               <span className={cn('text-[11px] leading-none', activa ? 'text-white/80' : 'text-ink-muted')}>{cerrado ? 'cierre' : n ? `${n} cl.` : '·'}</span>
             </button>
           );
@@ -149,7 +149,7 @@ export function TarjetaClase({ vista }: { vista: ClaseVista }) {
   const cancelada = clase.estado === 'CANCELADA';
   const cs = clasesSueltasDe(vista);
   return (
-    <Link to={`/clase/${clase.id}`} className={cn('block bg-white rounded-2xl shadow-card border border-ink/5 p-4 tap hover:border-brand-200', cancelada && 'opacity-70')}>
+    <Link to={`/clase/${clase.id}`} className={cn('block bg-white rounded-2xl shadow-card border border-ink/5 p-4 tap hover:border-beige-200', cancelada && 'opacity-70')}>
       <div className="flex gap-4">
         <div className="w-16 shrink-0 text-center">
           <div className="text-xl font-bold leading-tight">{clase.horaInicio}</div>

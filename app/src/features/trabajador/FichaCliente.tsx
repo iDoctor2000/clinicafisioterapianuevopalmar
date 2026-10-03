@@ -36,7 +36,7 @@ export function FichaCliente() {
           <div className="flex-1 min-w-0">
             <div className="flex gap-1.5 flex-wrap">
               {!cliente.activo && <Chip tono="rojo">Baja</Chip>}
-              {r.tarifa ? <Chip tono="verde"><Tag className="h-3.5 w-3.5" /> {r.tarifa.nombre}</Chip> : <Chip tono="gris">Sin tarifa activa</Chip>}
+              {r.tarifa ? <Chip tono="beige"><Tag className="h-3.5 w-3.5" /> {r.tarifa.nombre}</Chip> : <Chip tono="gris">Sin tarifa activa</Chip>}
               {r.contrato && <Chip tono="gris">{r.contrato.modalidad === 'FIJO' ? 'Horario fijo' : 'Turno libre'}</Chip>}
               {r.tarifa?.tipo === 'BONO' && r.contrato && <Chip tono="cocoa">Bono {r.contrato.sesionesRestantes ?? 0}/{r.tarifa.bono?.sesiones}</Chip>}
               {r.recuperaciones > 0 && <Chip tono="azul">{r.recuperaciones} recup.</Chip>}
@@ -46,7 +46,7 @@ export function FichaCliente() {
               {cliente.email && <a href={`mailto:${cliente.email}`} className="inline-flex items-center gap-1 hover:underline truncate"><Mail className="h-4 w-4" />{cliente.email}</a>}
             </div>
             <p className="text-sm text-ink-muted mt-1">
-              <span className="font-semibold text-brand-700">{h.asistidas}</span> asistidas · <span className="font-semibold text-rose">{h.faltas}</span> faltas · <span className="font-semibold">{h.canceladas}</span> cancelaciones
+              <span className="font-semibold text-beige-600">{h.asistidas}</span> asistidas · <span className="font-semibold text-rose">{h.faltas}</span> faltas · <span className="font-semibold">{h.canceladas}</span> cancelaciones
               {h.canceladas > 0 && <span> ({h.recuperables} recup., {h.noRecuperables} no recup., {h.porCentro} centro)</span>}
             </p>
           </div>
@@ -81,7 +81,7 @@ function BotonAvatar({ cliente, editable, onClick }: { cliente: Cliente; editabl
   return (
     <button type="button" onClick={onClick} aria-label={cliente.fotoUrl ? 'Cambiar foto del cliente' : 'Poner foto al cliente'} title={cliente.fotoUrl ? 'Cambiar foto' : 'Poner foto'} className="relative shrink-0 rounded-full tap">
       <AvatarCliente cliente={cliente} tamano="lg" />
-      <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-white text-brand-700 shadow-card ring-1 ring-ink/10 flex items-center justify-center"><Camera className="h-4 w-4" /></span>
+      <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-white text-beige-600 shadow-card ring-1 ring-ink/10 flex items-center justify-center"><Camera className="h-4 w-4" /></span>
     </button>
   );
 }
@@ -129,7 +129,7 @@ function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => voi
         <Dato etiqueta="Protección de datos" className="sm:col-span-2">
           {cliente.consentimientoEl ? (
             <span className="inline-flex items-center gap-2 flex-wrap">
-              <Chip tono="verde"><ShieldCheck className="h-3.5 w-3.5" /> Consentimiento aceptado el {instanteCorto(cliente.consentimientoEl)}</Chip>
+              <Chip tono="beige"><ShieldCheck className="h-3.5 w-3.5" /> Consentimiento aceptado el {instanteCorto(cliente.consentimientoEl)}</Chip>
               <span className="text-sm text-ink-muted font-normal">{cliente.consentimientoVersion === 'papel' ? 'Firmado en papel en recepción.' : `Aceptado en la app (política del ${cliente.consentimientoVersion ?? '-'}).`}</span>
             </span>
           ) : (
@@ -147,7 +147,7 @@ function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => voi
       )}
       <Hoja abierta={papel} onCerrar={() => setPapel(false)} titulo="Consentimiento en papel">
         <p className="text-ink-soft">Confirma que <strong className="text-ink">{nombreCompleto(cliente)}</strong> ha firmado en recepción la hoja de consentimiento de la política de privacidad (incluye los datos de salud y, en su caso, la imagen). Se guardará la fecha de hoy y quedará registrado quién lo anota.</p>
-        <p className="text-sm text-ink-muted mt-2">El texto para imprimir está al final de la <Link to="/privacidad" className="text-brand-700 font-semibold underline underline-offset-4">política de privacidad</Link>.</p>
+        <p className="text-sm text-ink-muted mt-2">El texto para imprimir está al final de la <Link to="/privacidad" className="text-beige-600 font-semibold underline underline-offset-4">política de privacidad</Link>.</p>
         <div className="mt-5 grid gap-2">
           <Boton tamano="lg" ancho cargando={registrando} onClick={registrarPapel}><PenLine className="h-5 w-5" /> Sí, registrar el consentimiento</Boton>
           <Boton tamano="lg" ancho variante="secundario" onClick={() => setPapel(false)}>Cancelar</Boton>
@@ -206,7 +206,7 @@ function PestanaClinica({ cliente }: { cliente: Cliente }) {
 // Recuperaciones
 // ---------------------------------------------------------------------------
 
-const ESTADO_REC = { DISPONIBLE: { texto: 'Disponible', tono: 'verde' }, USADA: { texto: 'Usada', tono: 'gris' }, CADUCADA: { texto: 'Caducada', tono: 'rojo' } } as const;
+const ESTADO_REC = { DISPONIBLE: { texto: 'Disponible', tono: 'beige' }, USADA: { texto: 'Usada', tono: 'gris' }, CADUCADA: { texto: 'Caducada', tono: 'rojo' } } as const;
 const MOTIVO_REC = { CANCELACION_CLIENTE: 'Cancelación del cliente', CANCELACION_CENTRO: 'Cancelación del centro', AUTORIZACION_MANUAL: 'Autorización excepcional' } as const;
 
 function PestanaRecuperaciones({ cliente }: { cliente: Cliente }) {
@@ -274,7 +274,7 @@ function HojaAutorizar({ cliente, onCerrar }: { cliente: Cliente; onCerrar: () =
           <span className="block text-[15px] font-semibold mb-1.5">Categoría de origen</span>
           <div className="grid grid-cols-2 gap-2">
             {(['DIRIGIDA', 'REFORMER'] as Categoria[]).map((c) => (
-              <button key={c} type="button" onClick={() => { setOrigen(c); if (!permitidas.includes(c)) setPermitidas([...permitidas, c]); }} aria-pressed={origen === c} className={`h-12 rounded-2xl border font-semibold tap ${origen === c ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink/10'}`}>{CATEGORIA_LABEL[c]}</button>
+              <button key={c} type="button" onClick={() => { setOrigen(c); if (!permitidas.includes(c)) setPermitidas([...permitidas, c]); }} aria-pressed={origen === c} className={`h-12 rounded-2xl border font-semibold tap ${origen === c ? 'bg-brand-500 text-sand border-brand-500' : 'bg-white border-ink/10'}`}>{CATEGORIA_LABEL[c]}</button>
             ))}
           </div>
         </div>

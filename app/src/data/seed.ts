@@ -1,5 +1,5 @@
 import { addMonths, startOfMonth, subMonths } from 'date-fns';
-import type { Actividad, Cliente, Contrato, PlantillaClase, Reserva, Tarifa, Trabajador } from '@/domain/types';
+import type { Actividad, Cliente, Contrato, PlantillaClase, PortadaImagen, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import { VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import { generarClases, generarReservasAutomaticas, clasificarCancelacion, caducidadRecuperacion, categoriasPermitidasRecuperacion } from '@/domain/rules';
@@ -14,7 +14,19 @@ function fotoDemo(fondo: string, piel: string): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${fondo}"/><circle cx="32" cy="25" r="11" fill="${piel}"/><path d="M12 60c2-14 10-20 20-20s18 6 20 20z" fill="${piel}"/></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
-const FOTOS_DEMO: Record<string, string> = { maria: fotoDemo('#cfe3c2', '#8d6e63'), juan: fotoDemo('#c7d7ea', '#a1887f') };
+const FOTOS_DEMO: Record<string, string> = { maria: fotoDemo('#E1D5C8', '#8d6e63'), juan: fotoDemo('#CFCBC6', '#a1887f') };
+
+/** Base pública de la app ('/app/' en producción, '/' en pruebas): las imágenes de demo viven en public/portada/. */
+const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
+
+/** Carrusel de la portada en demo: tres ilustraciones locales (SVG) con pie. */
+export function portadaDemo(creadoEl: string): PortadaImagen[] {
+  return [
+    { id: 'por-1', url: `${BASE}portada/sala.svg`, pie: 'Sala de Reformer', orden: 1, activa: true, creadoEl },
+    { id: 'por-2', url: `${BASE}portada/suelo.svg`, pie: 'Clases dirigidas en grupo reducido', orden: 2, activa: true, creadoEl },
+    { id: 'por-3', url: `${BASE}portada/equipo.svg`, pie: 'Control · Precisión · Bienestar', orden: 3, activa: true, creadoEl },
+  ];
+}
 
 export function crearSeed(ahora: Date = new Date()): Db {
   let n = 0;
@@ -26,9 +38,9 @@ export function crearSeed(ahora: Date = new Date()): Db {
   const finClases = aISODate(addMonths(ahora, 2));
 
   const actividades: Actividad[] = [
-    { id: 'act-suelo', nombre: 'Pilates suelo', categoria: 'DIRIGIDA', descripcion: 'Trabajo de control postural, core y movilidad en colchoneta. Grupo reducido dirigido por fisioterapeuta.', color: '#548C2F', activa: true },
-    { id: 'act-espalda', nombre: 'Espalda sana', categoria: 'DIRIGIDA', descripcion: 'Sesión terapéutica centrada en columna: movilidad, estabilidad y prevención del dolor.', color: '#7FB356', activa: true },
-    { id: 'act-hipo', nombre: 'Hipopresivos', categoria: 'DIRIGIDA', descripcion: 'Técnicas hipopresivas para suelo pélvico, postura y respiración.', color: '#A3CB80', activa: true },
+    { id: 'act-suelo', nombre: 'Pilates suelo', categoria: 'DIRIGIDA', descripcion: 'Trabajo de control postural, core y movilidad en colchoneta. Grupo reducido dirigido por fisioterapeuta.', color: '#86735F', activa: true },
+    { id: 'act-espalda', nombre: 'Espalda sana', categoria: 'DIRIGIDA', descripcion: 'Sesión terapéutica centrada en columna: movilidad, estabilidad y prevención del dolor.', color: '#B9A795', activa: true },
+    { id: 'act-hipo', nombre: 'Hipopresivos', categoria: 'DIRIGIDA', descripcion: 'Técnicas hipopresivas para suelo pélvico, postura y respiración.', color: '#A08D79', activa: true },
     { id: 'act-reformer', nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Pilates en máquina Reformer. Máximo 4 personas por sesión, supervisión individualizada.', color: '#3B82C4', activa: true },
   ];
 
@@ -46,7 +58,7 @@ export function crearSeed(ahora: Date = new Date()): Db {
 
   const TODOS = ['CLIENTES_EDITAR', 'CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'HORARIOS_GESTIONAR', 'CLASES_CREAR_CANCELAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'TARIFAS_GESTIONAR', 'ESTADISTICAS_VER', 'TRABAJADORES_GESTIONAR', 'ASISTENCIA_REGISTRAR'] as const;
   const trabajadores: Trabajador[] = [
-    { id: 'tra-jose', nombre: 'José Diego', apellidos: 'Frutos', email: 'josediego@fisioterapianuevopalmar.com', telefono: '968 885 931', rol: 'ADMIN', permisos: [...TODOS], ambito: 'CENTRO', esMonitor: true, color: '#548C2F', activo: true, userId: 'usr-jose' },
+    { id: 'tra-jose', nombre: 'José Diego', apellidos: 'Frutos', email: 'josediego@fisioterapianuevopalmar.com', telefono: '968 885 931', rol: 'ADMIN', permisos: [...TODOS], ambito: 'CENTRO', esMonitor: true, color: '#3A3A3A', activo: true, userId: 'usr-jose' },
     { id: 'tra-ana', nombre: 'Ana', apellidos: 'Martínez', email: 'ana@fisioterapianuevopalmar.com', telefono: '', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'CLINICA_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#3B82C4', activo: true, userId: 'usr-ana' },
     { id: 'tra-laura', nombre: 'Laura', apellidos: 'Pérez', email: 'recepcion@fisioterapianuevopalmar.com', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_EDITAR', 'CLIENTES_VER', 'RESERVAS_GESTIONAR', 'CLASES_SUELTAS', 'AVISOS_ENVIAR', 'ESTADISTICAS_VER'], ambito: 'CENTRO', esMonitor: false, color: '#C9713F', activo: true, userId: 'usr-laura' },
   ];
@@ -200,5 +212,6 @@ export function crearSeed(ahora: Date = new Date()): Db {
     config, actividades, tarifas, clientes, contratos, plantillas, clases, reservas, recuperaciones, avisos,
     lecturas: [], trabajadores, usuarios,
     auditoria: [{ id: id('aud'), instante: ahoraISO, actorId: 'sistema', actorNombre: 'Sistema', accion: 'SEED', entidad: 'db', entidadId: '-', detalle: 'Datos de demostración generados' }],
+    portada: portadaDemo(ahoraISO),
   };
 }

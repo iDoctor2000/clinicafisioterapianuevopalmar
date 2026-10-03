@@ -17,7 +17,8 @@ import type { Db } from '../db';
 import type { ArgsComando, NombreComando, ValorComando } from '../tiposComandos';
 import { mensajeError, servidor } from './cliente';
 import { borrarFoto } from './fotos';
-import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePlantilla, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
+import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePlantilla, dePortadaImagen, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
+import { borrarImagenPortada } from './portada';
 
 export type ResultadoRemoto<T = unknown> = { ok: true; valor: (db: Db) => T } | { ok: false; error: string };
 
@@ -242,7 +243,12 @@ const impl: Impl = {
   async actualizarConfig(args) {
     const sb = servidor();
     const fila = deConfig(args.config);
-    if (Object.keys(fila).length > 0) comprobar(await sb.from('config_centro').upsert({ id: true, ...fila }, { onConflict: 'id' }));
+    // update y no upsert: la fila única ya existe y un INSERT ... ON CONFLICT exigiría las columnas NOT NULL (nombre).
+    if (Object.keys(fila).length > 0) {
+      const r = await sb.from('config_centro').update(fila).eq('id', true).select('id');
+      comprobar(r);
+      if (!r.data || r.data.length === 0) throw new Error('No se ha podido guardar la configuración: solo el administrador puede cambiarla.');
+    }
     if (args.config.diasCierre) {
       // Se reemplaza la lista completa (la tabla tiene la fecha como clave).
       comprobar(await sb.from('dias_cierre').delete().not('fecha', 'is', null));
@@ -255,6 +261,51 @@ const impl: Impl = {
       } catch (e) {
         console.warn('[supabase] No se han podido regenerar las clases tras cambiar los cierres:', mensajeError(e));
       }
+    }
+    return () => undefined;
+  },
+
+  // -------------------------------------------------------------------------
+  // Portada del cliente (0008): tabla portada_imagenes + bucket público `portada`.
+  // La subida del archivo la hace la pantalla (subirImagenPortada) antes de llamar al comando con la URL pública.
+  // RLS: solo es_admin() escribe; si no afecta a ninguna fila, no hay permiso.
+  // -------------------------------------------------------------------------
+  async guardarPortadaImagen(args) {
+    const sb = servidor();
+    const id = args.imagen.id ?? nuevoUuid();
+    let orden = args.imagen.orden;
+    if (orden == null && !args.imagen.id) {
+      const r = comprobar(await sb.from('portada_imagenes').select('orden').order('orden', { ascending: false }).limit(1));
+      orden = ((r?.[0] as { orden: number } | undefined)?.orden ?? 0) + 1;
+    }
+    const fila = dePortadaImagen({ id, url: args.imagen.url.trim(), pie: (args.imagen.pie ?? '').trim(), orden: orden ?? 0, activa: args.imagen.activa ?? true, creadoEl: '' });
+    if (args.imagen.orden == null && args.imagen.id) delete (fila as Partial<typeof fila>).orden;
+    const r = await sb.from('portada_imagenes').upsert(fila).select('id');
+    comprobar(r);
+    if (!r.data || r.data.length === 0) throw new Error('No se ha podido guardar la foto: solo el administrador puede cambiar la portada.');
+    return (db) => db.portada.find((x) => x.id === id) ?? { ...fila, pie: fila.pie, creadoEl: new Date().toISOString() };
+  },
+
+  async borrarPortadaImagen(args) {
+    const sb = servidor();
+    const r = await sb.from('portada_imagenes').delete().eq('id', args.id).select('id, url');
+    comprobar(r);
+    if (!r.data || r.data.length === 0) throw new Error('No se ha podido borrar la foto: solo el administrador puede cambiar la portada.');
+    // El objeto del bucket se borra después (si falla, la fila ya no existe y no se muestra).
+    try {
+      await borrarImagenPortada((r.data[0] as { url: string }).url);
+    } catch (e) {
+      console.warn('[portada] No se ha podido borrar el archivo del bucket:', mensajeError(e));
+    }
+    return () => undefined;
+  },
+
+  async ordenarPortada(args) {
+    const sb = servidor();
+    for (let i = 0; i < args.ids.length; i++) {
+      const r = await sb.from('portada_imagenes').update({ orden: i + 1 }).eq('id', args.ids[i]).select('id');
+      comprobar(r);
+      if (!r.data || r.data.length === 0) throw new Error('No se ha podido reordenar la portada: solo el administrador puede cambiarla.');
     }
     return () => undefined;
   },

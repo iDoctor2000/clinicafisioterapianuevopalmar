@@ -271,3 +271,24 @@ bash supabase/tests/prueba_local.sh
 ```
 
 Termina con `TODAS LAS PRUEBAS HAN PASADO` o se detiene en la primera comprobación que falle.
+
+## Carrusel de la portada e identidad visual (0008)
+
+Qué hace `migrations/0008_portada.sql`:
+
+- Crea la tabla `portada_imagenes` (url, pie, orden, activa): las fotos del centro que ven los clientes
+  en el carrusel de Inicio. RLS: cualquier usuario autenticado las lee; solo el administrador
+  (`es_admin()`) las crea, edita, reordena o borra.
+- Crea el bucket **público** `portada` (límite 2 MB; `image/jpeg`, `image/png`, `image/webp`) con lectura
+  pública y escritura solo del administrador. La app reduce cada foto a 1600 px de ancho (JPEG 82 %)
+  antes de subirla, así que pesan unos 150-300 KB.
+- Añade la tabla a la publicación `supabase_realtime`.
+- Nueva identidad (antracita + beige): cambia el color por defecto de actividades y trabajadores y
+  sustituye los verdes de ejemplo (`#548C2F`, `#7FB356`, `#A3CB80`, `#8FBF6A`) por tonos beige/antracita.
+  Los colores siguen siendo por actividad y se cambian en Tarifas.
+
+Aplicación: pega `migrations/0008_portada.sql` en **SQL Editor → Run** (o `supabase db push`). Es
+idempotente. Comprobar: en **Storage** aparece el bucket `portada` marcado como *Public* con las políticas
+`portada_leer` y `portada_admin_escribir`; en la app, Ajustes → «Fotos de la portada» permite subir,
+reordenar, ocultar y borrar fotos. Si la app avisa «El almacén de fotos de la portada no está
+configurado», falta ejecutar esta migración.

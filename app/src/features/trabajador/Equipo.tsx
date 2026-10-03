@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { Avatar, Encabezado, ROL_TEXTO } from './comunes';
 
-const COLORES = ['#548C2F', '#3B82C4', '#C9713F', '#D95A6A', '#6E2818', '#7FB356', '#8A98A6'];
+const COLORES = ['#3A3A3A', '#86735F', '#3B82C4', '#C9713F', '#D95A6A', '#A08D79', '#6B7A8F'];
 
 export function Equipo() {
   const { db } = useTrabajador();
@@ -41,7 +41,7 @@ function ChipsTrabajador({ t }: { t: Trabajador }) {
   return (
     <>
       <Chip tono={t.rol === 'ADMIN' ? 'cocoa' : 'gris'}>{ROL_TEXTO[t.rol]}</Chip>
-      {t.esMonitor && t.rol !== 'MONITOR' && <Chip tono="verde">Imparte clases</Chip>}
+      {t.esMonitor && t.rol !== 'MONITOR' && <Chip tono="beige">Imparte clases</Chip>}
       {t.rol !== 'ADMIN' && t.ambito === 'SUS_CLASES' && <Chip tono="ambar"><GraduationCap className="h-3.5 w-3.5" /> Solo sus clases</Chip>}
       <Chip tono="azul"><ShieldCheck className="h-3.5 w-3.5" /> {t.rol === 'ADMIN' ? 'todos' : t.permisos.length} permisos</Chip>
     </>
@@ -65,9 +65,9 @@ function SelectorAmbito({ valor, onCambio, esAdmin }: { valor: Ambito; onCambio:
           return (
             <button
               key={a.valor} type="button" role="radio" aria-checked={activo} disabled={esAdmin} onClick={() => onCambio(a.valor)}
-              className={cn('text-left rounded-2xl border p-4 flex gap-3 tap', activo ? 'border-brand-400 bg-brand-50' : 'border-ink/10 bg-white hover:border-brand-300', esAdmin && 'opacity-60 cursor-not-allowed')}
+              className={cn('text-left rounded-2xl border p-4 flex gap-3 tap', activo ? 'border-beige-500 bg-beige-50' : 'border-ink/10 bg-white hover:border-beige-300', esAdmin && 'opacity-60 cursor-not-allowed')}
             >
-              <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', activo ? 'bg-brand-500 text-white' : 'bg-sand text-ink-soft')}><a.icono className="h-5 w-5" /></span>
+              <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', activo ? 'bg-brand-500 text-sand' : 'bg-sand text-ink-soft')}><a.icono className="h-5 w-5" /></span>
               <span className="min-w-0">
                 <span className="block font-semibold">{AMBITO_LABEL[a.valor]}</span>
                 <span className="block text-sm text-ink-muted">{AMBITO_DESCRIPCION[a.valor]}</span>
@@ -119,11 +119,11 @@ function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | nul
             {f.rol !== 'ADMIN' && <span className="flex gap-1"><Boton variante="fantasma" tamano="sm" onClick={() => setF({ ...f, permisos: [...PERMISOS] })}>Todos</Boton><Boton variante="fantasma" tamano="sm" onClick={() => setF({ ...f, permisos: [] })}>Ninguno</Boton></span>}
           </div>
           {f.rol === 'ADMIN' ? (
-            <p className="rounded-2xl bg-brand-50 text-brand-800 p-3 text-sm flex gap-2"><ShieldCheck className="h-5 w-5 shrink-0" /> El administrador tiene todos los permisos siempre, incluida la configuración del centro.</p>
+            <p className="rounded-2xl bg-beige-100 text-ink p-3 text-sm flex gap-2"><ShieldCheck className="h-5 w-5 shrink-0" /> El administrador tiene todos los permisos siempre, incluida la configuración del centro.</p>
           ) : (
             <div className="grid sm:grid-cols-2 gap-1.5">
               {PERMISOS.map((p) => (
-                <label key={p} className={cn('flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer', f.permisos.includes(p) ? 'border-brand-300 bg-brand-50' : 'border-ink/10 bg-white')}>
+                <label key={p} className={cn('flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer', f.permisos.includes(p) ? 'border-beige-300 bg-beige-50' : 'border-ink/10 bg-white')}>
                   <input type="checkbox" className="h-5 w-5 accent-brand-500 shrink-0" checked={f.permisos.includes(p)} onChange={() => alternar(p)} />
                   <span className="text-sm font-medium">{PERMISO_LABEL[p]}</span>
                 </label>

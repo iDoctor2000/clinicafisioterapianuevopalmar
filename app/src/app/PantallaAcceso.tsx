@@ -11,11 +11,12 @@ import { CasillaConsentimiento } from './Consentimiento';
 /** Cabecera y pie comunes de las pantallas de acceso. */
 function Marco({ children, subtitulo = 'Reserva tus clases en dos toques.' }: { children: ReactNode; subtitulo?: string }) {
   return (
-    <div className="min-h-dvh flex flex-col">
-      <header className="pt-safe px-6 pt-10 pb-6 text-center">
-        <img src={`${import.meta.env.BASE_URL}icons/mark.png`} alt="" className="h-20 w-20 mx-auto mb-4" />
-        <h1 className="text-3xl leading-tight">Nuevo Palmar <span className="text-brand-600">Pilates</span></h1>
-        <p className="text-ink-muted mt-2">{subtitulo}</p>
+    <div className="min-h-dvh flex flex-col bg-sand">
+      <header className="pt-safe px-6 pt-8 pb-5 text-center">
+        <div className="inline-block rounded-3xl bg-beige-100 px-7 py-6 shadow-card">
+          <img src={`${import.meta.env.BASE_URL}logo-marca.png`} alt="Nuevo Palmar Pilates · Control · Precisión · Bienestar" className="w-60 sm:w-72 max-w-full mx-auto" />
+        </div>
+        <p className="text-ink-soft mt-5">{subtitulo}</p>
       </header>
       <main className="flex-1 px-4 pb-10 max-w-lg w-full mx-auto">
         {children}
@@ -104,11 +105,11 @@ function FormularioEntrada() {
               <input
                 type={ver ? 'text' : 'password'} autoComplete="current-password" placeholder="Tu contraseña"
                 value={password} onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                className="w-full h-14 rounded-2xl border border-ink/10 bg-white pl-4 pr-24 text-lg text-ink placeholder:text-ink-muted focus:border-brand-400 focus:ring-4 focus:ring-brand-100 outline-none"
+                className="w-full h-14 rounded-2xl border border-ink/10 bg-white pl-4 pr-24 text-lg text-ink placeholder:text-ink-muted focus:border-beige-500 focus:ring-4 focus:ring-beige-100 outline-none"
               />
               <button
                 type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-xl text-sm font-semibold text-brand-700 hover:bg-brand-50 flex items-center gap-1 tap"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-xl text-sm font-semibold text-beige-600 hover:bg-beige-50 flex items-center gap-1 tap"
               >
                 {ver ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {ver ? 'Ocultar' : 'Mostrar'}
               </button>
@@ -122,7 +123,7 @@ function FormularioEntrada() {
           <Boton type="submit" tamano="lg" ancho cargando={enviando}>Entrar <ChevronRight className="h-5 w-5" /></Boton>
         </form>
         <div className="text-center mt-4">
-          <button type="button" onClick={() => setOlvido(true)} className="text-brand-700 font-semibold text-[15px] underline-offset-4 hover:underline tap py-2 px-3">
+          <button type="button" onClick={() => setOlvido(true)} className="text-beige-600 font-semibold text-[15px] underline-offset-4 hover:underline tap py-2 px-3">
             He olvidado mi contraseña
           </button>
         </div>
@@ -186,7 +187,7 @@ function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver
     return (
       <Marco subtitulo="Un último paso">
         <Tarjeta className="p-6 text-center space-y-4">
-          <Mail className="h-12 w-12 mx-auto text-brand-600" />
+          <Mail className="h-12 w-12 mx-auto text-beige-600" />
           <p className="text-lg font-semibold">Revisa tu correo</p>
           <p className="text-ink-muted">Hemos enviado un enlace a <strong className="text-ink">{email}</strong> para confirmar tu cuenta. Ábrelo y después entra con tu contraseña.</p>
           <Boton tamano="lg" ancho variante="secundario" onClick={onVolver}>Volver</Boton>
@@ -210,11 +211,11 @@ function PrimeraVez({ emailInicial, onVolver }: { emailInicial: string; onVolver
               <input
                 type={ver ? 'text' : 'password'} autoComplete="new-password" placeholder="Al menos 6"
                 value={p1} onChange={(e) => { setP1(e.target.value); setError(null); }}
-                className="w-full h-14 rounded-2xl border border-ink/10 bg-white pl-4 pr-24 text-lg text-ink placeholder:text-ink-muted focus:border-brand-400 focus:ring-4 focus:ring-brand-100 outline-none"
+                className="w-full h-14 rounded-2xl border border-ink/10 bg-white pl-4 pr-24 text-lg text-ink placeholder:text-ink-muted focus:border-beige-500 focus:ring-4 focus:ring-beige-100 outline-none"
               />
               <button
                 type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-xl text-sm font-semibold text-brand-700 hover:bg-brand-50 flex items-center gap-1 tap"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-xl text-sm font-semibold text-beige-600 hover:bg-beige-50 flex items-center gap-1 tap"
               >
                 {ver ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {ver ? 'Ocultar' : 'Mostrar'}
               </button>
@@ -264,7 +265,7 @@ function OlvidoContrasena({ emailInicial, onVolver }: { emailInicial: string; on
       <Tarjeta className="p-5 sm:p-6">
         {enviado ? (
           <div className="text-center space-y-4">
-            <Mail className="h-12 w-12 mx-auto text-brand-600" />
+            <Mail className="h-12 w-12 mx-auto text-beige-600" />
             <p className="text-lg font-semibold">Revisa tu correo</p>
             <p className="text-ink-muted">Hemos enviado un enlace a <strong className="text-ink">{email.trim()}</strong>. Ábrelo desde este dispositivo para elegir una contraseña nueva. Si no lo ves, mira en la carpeta de spam.</p>
             <Boton tamano="lg" ancho variante="secundario" onClick={onVolver}>Volver</Boton>
@@ -315,7 +316,7 @@ function NuevaContrasena() {
         <form onSubmit={guardar} className="space-y-4" noValidate>
           <Entrada etiqueta="Nueva contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" autoFocus value={p1} onChange={(e) => { setP1(e.target.value); setError(null); }} className="text-lg h-14" />
           <Entrada etiqueta="Repite la contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" value={p2} onChange={(e) => { setP2(e.target.value); setError(null); }} className="text-lg h-14" />
-          <button type="button" onClick={() => setVer((v) => !v)} className="text-brand-700 font-semibold text-[15px] flex items-center gap-1 tap py-1">
+          <button type="button" onClick={() => setVer((v) => !v)} className="text-beige-600 font-semibold text-[15px] flex items-center gap-1 tap py-1">
             {ver ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {ver ? 'Ocultar contraseñas' : 'Mostrar contraseñas'}
           </button>
           {error && <p role="alert" className="rounded-2xl bg-rose/10 text-rose px-4 py-3 text-[15px] font-medium">{error}</p>}
@@ -384,7 +385,7 @@ function AccesoDemo() {
               key={p.id} type="button" onClick={() => iniciar(p.userId!)}
               className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-sand tap text-left"
             >
-              <span className="h-11 w-11 rounded-full bg-brand-100 text-brand-800 font-bold flex items-center justify-center shrink-0">
+              <span className="h-11 w-11 rounded-full bg-beige-100 text-ink font-bold flex items-center justify-center shrink-0">
                 {p.nombre[0]}{p.apellidos[0]}
               </span>
               <span className="flex-1 min-w-0">

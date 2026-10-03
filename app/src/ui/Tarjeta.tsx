@@ -7,6 +7,6 @@ export function Tarjeta({ className, ...rest }: HTMLAttributes<HTMLDivElement>) 
 
 export function TarjetaBoton({ className, ...rest }: HTMLAttributes<HTMLButtonElement> & { type?: 'button' }) {
   return (
-    <button type="button" className={cn('w-full text-left bg-white rounded-2xl shadow-card border border-ink/5 tap hover:border-brand-200', className)} {...rest} />
+    <button type="button" className={cn('w-full text-left bg-white rounded-2xl shadow-card border border-ink/5 tap hover:border-beige-200', className)} {...rest} />
   );
 }
