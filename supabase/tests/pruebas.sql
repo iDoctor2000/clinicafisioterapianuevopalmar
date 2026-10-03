@@ -777,4 +777,44 @@ select pruebas.sistema();
 do $$ begin raise notice 'OK portada'; end $$;
 
 \echo
+\echo '== 23. Web pública (0009): cualquiera lee los textos; solo el administrador los guarda'
+select pruebas.sistema();
+do $$ begin
+  assert exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'web_contenido'), 'existe web_contenido';
+  assert (select relrowsecurity from pg_class where oid = 'public.web_contenido'::regclass), 'web_contenido tiene RLS';
+end $$;
+-- Administrador: crea la fila y la actualiza.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+insert into public.web_contenido (id, datos, actualizado_por) values ('main', '{"schema": 2, "hero": {"title": "Hola"}}'::jsonb, pruebas.id('u_admin'))
+  on conflict (id) do update set datos = excluded.datos, actualizado_por = excluded.actualizado_por;
+update public.web_contenido set datos = '{"schema": 2, "hero": {"title": "Cuidamos tu salud"}}'::jsonb where id = 'main';
+do $$ begin
+  assert (select datos->'hero'->>'title' from public.web_contenido where id = 'main') = 'Cuidamos tu salud', 'el admin guarda los textos de la web';
+end $$;
+commit;
+-- anon (la web sin sesión): lee, no escribe.
+begin;
+set local role anon;
+do $$ begin assert (select datos->'hero'->>'title' from public.web_contenido where id = 'main') = 'Cuidamos tu salud', 'la web lee los textos sin sesión'; end $$;
+select pruebas.espera_error('update public.web_contenido set datos = ''{}''::jsonb where id = ''main''', '%permission denied%');
+commit;
+-- Cliente y recepción: leen, pero no guardan.
+begin;
+set local role authenticated;
+select pruebas.como('a');
+do $$ begin assert (select count(*) from public.web_contenido) = 1, 'el cliente lee los textos'; end $$;
+select pruebas.espera_sin_efecto('update public.web_contenido set datos = ''{"schema": 2, "hero": {"title": "Hackeado"}}''::jsonb where id = ''main''');
+select pruebas.como('recep');
+select pruebas.espera_sin_efecto('update public.web_contenido set datos = ''{"schema": 2, "hero": {"title": "Hackeado"}}''::jsonb where id = ''main''');
+select pruebas.espera_error('insert into public.web_contenido (id, datos) values (''otro'', ''{}''::jsonb)', '%');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select datos->'hero'->>'title' from public.web_contenido where id = 'main') = 'Cuidamos tu salud', 'nadie salvo el admin ha cambiado los textos';
+  raise notice 'OK web pública';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

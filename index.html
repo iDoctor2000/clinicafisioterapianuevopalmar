@@ -87,6 +87,7 @@
     "react": "https://esm.sh/react@18.2.0",
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.117.2",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/"
   }
@@ -135,42 +136,11 @@
 <body class="font-sans text-ink bg-white">
     <div id="root"></div>
 
-    <!-- FIREBASE -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
-
-        const firebaseConfig = {
-          apiKey: "AIzaSyAxfEaTZqJhAn9lx3kvT4EJNEG3ay2nd5Q",
-          authDomain: "fisionuevopalmar.firebaseapp.com",
-          projectId: "fisionuevopalmar",
-          storageBucket: "fisionuevopalmar.firebasestorage.app",
-          messagingSenderId: "572234588881",
-          appId: "1:572234588881:web:fbe44bd1dad06e08df9bf0",
-          measurementId: "G-XL65BT4FR7"
-        };
-
-        if (firebaseConfig.apiKey) {
-            const app = initializeApp(firebaseConfig);
-            window.db = getFirestore(app);
-            window.doc = doc;
-            window.onSnapshot = onSnapshot;
-            window.setDoc = setDoc;
-            // Subida de fotos desde el editor (Firebase Storage, carpeta "web/").
-            const storage = getStorage(app);
-            window.subirImagenWeb = async (blob, nombre) => {
-                const r = ref(storage, `web/${Date.now()}-${nombre}`);
-                await uploadBytes(r, blob, { contentType: blob.type || 'image/jpeg', cacheControl: 'public, max-age=31536000' });
-                return getDownloadURL(r);
-            };
-        }
-    </script>
-
     <!-- APLICACIÓN -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef, useMemo, useCallback, createContext, useContext, forwardRef } from 'react';
         import { createRoot } from 'react-dom/client';
+        import { createClient } from '@supabase/supabase-js';
         import {
             Phone, MapPin, Mail, Clock, Menu, X, Settings, ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight,
             Lock, LogOut, RotateCcw, Fingerprint, Plus, Trash2, ChevronUp, ChevronDown, MessageCircle, Instagram,
@@ -326,8 +296,40 @@
         const DIRECTIONS_URL = "https://www.google.com/maps/dir//Av.+de+Burgos,+30120+El+Palmar,+Murcia";
         const PILATES_APP_URL = "app/";
         const PRIVACY_URL = "app/#/privacidad";
-        const ADMIN_PASSWORD = "JoseDiego2026";
         const LOCAL_KEY = "site_content_v2";
+
+        // ------------------------------------------------------------------
+        // NUBE (Supabase): el mismo proyecto que la app de Pilates.
+        // Los textos e imágenes de la web viven en la tabla `web_contenido` (fila "main")
+        // y las fotos subidas desde el editor, en el bucket público `web`.
+        // Para editar hay que entrar con el correo y la contraseña de un administrador de la app.
+        // ------------------------------------------------------------------
+        const SUPABASE_URL = "https://mgiekkqbgptxmqcrhxlr.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_zyUcLhEPpzRkgiHnZXP6uA_aJIofroh";
+        let supabase = null;
+        try {
+            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+        } catch (e) { console.error("No se ha podido conectar con la nube:", e); }
+
+        // Subida de fotos desde el editor (bucket público `web`). Devuelve la URL pública.
+        window.subirImagenWeb = async (blob, nombre) => {
+            if (!supabase) throw new Error("Sin conexión con la nube");
+            const ruta = `${Date.now()}-${nombre}`;
+            const { error } = await supabase.storage.from('web').upload(ruta, blob, { contentType: blob.type || 'image/jpeg', cacheControl: '31536000', upsert: false });
+            if (error) { const err = new Error(error.message); err.code = /row-level|policy|permission|unauthorized|403/i.test(error.message) ? 'unauthorized' : (error.statusCode || ''); throw err; }
+            return supabase.storage.from('web').getPublicUrl(ruta).data.publicUrl;
+        };
+
+        // Importación puntual de los textos guardados en la versión anterior de la web (Firebase).
+        // Solo se carga la librería de Firebase si el administrador pulsa el botón.
+        const FIREBASE_LEGACY = { apiKey: "AIzaSyAxfEaTZqJhAn9lx3kvT4EJNEG3ay2nd5Q", authDomain: "fisionuevopalmar.firebaseapp.com", projectId: "fisionuevopalmar", appId: "1:572234588881:web:fbe44bd1dad06e08df9bf0" };
+        const leerContenidoFirebase = async () => {
+            const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+            const { getFirestore, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+            const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_LEGACY);
+            const snap = await getDoc(doc(getFirestore(app), "site_content", "main"));
+            return snap.exists() ? snap.data() : null;
+        };
 
         // Fusiona lo guardado con los valores por defecto. Si la estructura guardada es la antigua
         // (sin `schema` o con otra versión), se usan los valores por defecto nuevos sin romper nada.
@@ -356,7 +358,7 @@
         const pad = (n) => String(n + 1).padStart(2, '0');
 
         // ------------------------------------------------------------------
-        // CONTEXTO DE CONTENIDO (Firebase + copia local)
+        // CONTEXTO DE CONTENIDO (Supabase + copia local)
         // ------------------------------------------------------------------
         const ContentContext = createContext();
         const useContent = () => useContext(ContentContext);
@@ -364,49 +366,82 @@
         const ContentProvider = ({ children }) => {
             const [content, setContent] = useState(DEFAULT_CONTENT);
             const [isAdmin, setIsAdmin] = useState(false);
-            const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+            const [adminUser, setAdminUser] = useState(null);
+            const [isCloudReady, setIsCloudReady] = useState(false);
+            const [hasCloudContent, setHasCloudContent] = useState(false);
             const [isLoading, setIsLoading] = useState(true);
             const [saveState, setSaveState] = useState('idle'); // idle | saving | saved | error
+            const [saveError, setSaveError] = useState('');
             const saveTimer = useRef(null);
             const pending = useRef(null);
 
+            const loadFromLocal = () => {
+                try { const raw = localStorage.getItem(LOCAL_KEY); if (raw) setContent(mergeContent(JSON.parse(raw))); } catch (e) {}
+            };
+
+            // Carga inicial y actualización en tiempo real desde la nube.
             useEffect(() => {
-                let unsubscribe;
-                let attempts = 0;
-                const loadFromLocal = () => {
-                    try { const raw = localStorage.getItem(LOCAL_KEY); if (raw) setContent(mergeContent(JSON.parse(raw))); } catch (e) {}
-                };
-                const timer = setInterval(() => {
-                    attempts++;
-                    if (window.db) {
-                        clearInterval(timer);
-                        setIsFirebaseReady(true);
-                        unsubscribe = window.onSnapshot(window.doc(window.db, "site_content", "main"),
-                            (snap) => { if (snap.exists()) setContent(mergeContent(snap.data())); setIsLoading(false); },
-                            (err) => { console.error("Error conectando con la base de datos:", err); loadFromLocal(); setIsLoading(false); }
-                        );
-                    } else if (attempts >= 20) {
-                        clearInterval(timer);
+                if (!supabase) { loadFromLocal(); setIsLoading(false); return; }
+                let activo = true;
+                (async () => {
+                    try {
+                        const { data, error } = await supabase.from('web_contenido').select('datos').eq('id', 'main').maybeSingle();
+                        if (!activo) return;
+                        if (error) throw error;
+                        setIsCloudReady(true);
+                        if (data && data.datos) { setContent(mergeContent(data.datos)); setHasCloudContent(true); }
+                        else loadFromLocal();
+                    } catch (err) {
+                        console.error("Error leyendo el contenido de la nube:", err);
                         loadFromLocal();
-                        setIsLoading(false);
-                    }
-                }, 100);
-                return () => { clearInterval(timer); if (unsubscribe) unsubscribe(); };
+                    } finally { if (activo) setIsLoading(false); }
+                })();
+                const canal = supabase.channel('web_contenido')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'web_contenido' }, (payload) => {
+                        if (payload.new && payload.new.datos) { setContent(mergeContent(payload.new.datos)); setHasCloudContent(true); }
+                    })
+                    .subscribe();
+                return () => { activo = false; supabase.removeChannel(canal); };
             }, []);
+
+            // Sesión ya iniciada (misma cuenta que la app de Pilates): comprobar si es administrador.
+            const comprobarAdmin = useCallback(async (user) => {
+                if (!supabase || !user) { setIsAdmin(false); setAdminUser(null); return false; }
+                const { data, error } = await supabase.rpc('es_admin');
+                if (error) { console.error("No se ha podido comprobar el rol:", error); setIsAdmin(false); setAdminUser(null); return false; }
+                setIsAdmin(!!data); setAdminUser(data ? user : null);
+                return !!data;
+            }, []);
+            useEffect(() => {
+                if (!supabase) return;
+                supabase.auth.getSession().then(({ data }) => { if (data && data.session) comprobarAdmin(data.session.user); });
+                const { data: sub } = supabase.auth.onAuthStateChange((evento, sesion) => {
+                    if (evento === 'SIGNED_OUT') { setIsAdmin(false); setAdminUser(null); }
+                    else if (sesion && sesion.user) comprobarAdmin(sesion.user);
+                });
+                return () => sub.subscription.unsubscribe();
+            }, [comprobarAdmin]);
 
             const persist = useCallback((next) => {
                 pending.current = next;
                 clearTimeout(saveTimer.current);
-                setSaveState('saving');
+                setSaveState('saving'); setSaveError('');
                 saveTimer.current = setTimeout(async () => {
                     const data = pending.current;
                     try {
-                        if (window.db) await window.setDoc(window.doc(window.db, "site_content", "main"), data);
-                        else localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+                        try { localStorage.setItem(LOCAL_KEY, JSON.stringify(data)); } catch (_) {}
+                        if (supabase) {
+                            const { data: sesion } = await supabase.auth.getSession();
+                            const uid = sesion && sesion.session ? sesion.session.user.id : null;
+                            const { error } = await supabase.from('web_contenido').upsert({ id: 'main', datos: data, actualizado_por: uid });
+                            if (error) throw error;
+                            setHasCloudContent(true);
+                        }
                         setSaveState('saved');
                     } catch (e) {
-                        console.error(e);
-                        try { localStorage.setItem(LOCAL_KEY, JSON.stringify(data)); } catch (_) {}
+                        console.error("Error guardando en la nube:", e);
+                        const msg = e && e.message ? e.message : String(e);
+                        setSaveError(/row-level|policy|permission|401|403/i.test(msg) ? 'Tu usuario no tiene permiso para guardar (solo administradores).' : msg);
                         setSaveState('error');
                     }
                 }, 700);
@@ -427,12 +462,33 @@
                 persist(next);
             }, [persist]);
 
+            // Trae los textos de la versión anterior (Firebase) y los guarda en la nube nueva.
+            const importarAntiguo = useCallback(async () => {
+                const viejo = await leerContenidoFirebase();
+                if (!viejo) throw new Error("No hay textos guardados en la versión anterior.");
+                const next = mergeContent(viejo);
+                if (next === DEFAULT_CONTENT) throw new Error("Los textos antiguos tienen otro formato y no se pueden importar.");
+                setContent(next);
+                persist(next);
+            }, [persist]);
+
+            const login = useCallback(async (email, password) => {
+                if (!supabase) return { ok: false, error: "Sin conexión con la nube." };
+                const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+                if (error) return { ok: false, error: /invalid login/i.test(error.message) ? "Correo o contraseña incorrectos." : /email not confirmed/i.test(error.message) ? "Tu correo aún no está confirmado: revisa tu bandeja de entrada." : error.message };
+                const admin = await comprobarAdmin(data.user);
+                if (!admin) { await supabase.auth.signOut(); return { ok: false, error: "Tu usuario no es administrador del centro. Solo los administradores pueden editar la web." }; }
+                return { ok: true };
+            }, [comprobarAdmin]);
+
+            const logout = useCallback(async () => {
+                if (supabase) await supabase.auth.signOut();
+                setIsAdmin(false); setAdminUser(null);
+            }, []);
+
             const value = useMemo(() => ({
-                content, updateField, resetToDefaults, isAdmin, isFirebaseReady, saveState,
-                login: (p) => { if (p === ADMIN_PASSWORD) { setIsAdmin(true); return true; } return false; },
-                logout: () => setIsAdmin(false),
-                setIsAdmin
-            }), [content, updateField, resetToDefaults, isAdmin, isFirebaseReady, saveState]);
+                content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, logout,
+            }), [content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, logout]);
 
             // Pantalla de arranque: el logotipo aparece en fundido, se mantiene un instante y se desvanece
             // cuando el contenido está listo (mínimo 1,4 s para que la entrada luzca).
@@ -1352,18 +1408,17 @@
         };
 
         const AdminPanel = ({ isOpen, onClose }) => {
-            const { isAdmin, login, logout, resetToDefaults, isFirebaseReady, setIsAdmin, saveState } = useContent();
+            const { isAdmin, adminUser, login, logout, resetToDefaults, importarAntiguo, isCloudReady, hasCloudContent, saveState, saveError } = useContent();
+            const [email, setEmail] = useState("");
             const [pass, setPass] = useState("");
+            const [entrando, setEntrando] = useState(false);
+            const [loginError, setLoginError] = useState("");
             const [tab, setTab] = useState('hero');
-            const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
-            const [biometricEnabled, setBiometricEnabled] = useState(false);
+            const [importando, setImportando] = useState(false);
+            const [importMsg, setImportMsg] = useState("");
 
             useEffect(() => {
                 if (!isOpen) return;
-                (async () => {
-                    try { if (window.PublicKeyCredential && (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) setIsBiometricAvailable(true); } catch (e) {}
-                    if (localStorage.getItem('bio_id')) setBiometricEnabled(true);
-                })();
                 const onKey = (e) => { if (e.key === 'Escape') onClose(); };
                 document.addEventListener('keydown', onKey);
                 document.body.style.overflow = 'hidden';
@@ -1372,45 +1427,34 @@
 
             if (!isOpen) return null;
 
-            const registerBiometric = async () => {
-                try {
-                    const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
-                    const userId = new Uint8Array(16); window.crypto.getRandomValues(userId);
-                    const credential = await navigator.credentials.create({ publicKey: {
-                        challenge, rp: { name: "Clínica de Fisioterapia Nuevo Palmar", id: window.location.hostname },
-                        user: { id: userId, name: "admin", displayName: "Admin" },
-                        pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
-                        timeout: 60000, authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
-                    } });
-                    if (credential) {
-                        localStorage.setItem('bio_id', btoa(String.fromCharCode(...new Uint8Array(credential.rawId))));
-                        setBiometricEnabled(true);
-                        alert("Acceso biométrico activado.");
-                    }
-                } catch (e) { console.error(e); alert("No se pudo activar. Necesita HTTPS o localhost."); }
+            const entrar = async (e) => {
+                e.preventDefault();
+                setEntrando(true); setLoginError("");
+                const r = await login(email, pass);
+                setEntrando(false);
+                if (!r.ok) setLoginError(r.error); else setPass("");
             };
-            const loginBiometric = async () => {
-                try {
-                    const savedId = localStorage.getItem('bio_id'); if (!savedId) return;
-                    const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
-                    await navigator.credentials.get({ publicKey: { challenge, allowCredentials: [{ id: Uint8Array.from(atob(savedId), c => c.charCodeAt(0)), type: 'public-key' }], userVerification: "required" } });
-                    setIsAdmin(true);
-                } catch (e) { console.error(e); }
+            const importar = async () => {
+                if (!confirm("Se traerán los textos y fotos guardados en la versión anterior de la web y sustituirán a los actuales. ¿Continuar?")) return;
+                setImportando(true); setImportMsg("");
+                try { await importarAntiguo(); setImportMsg("Textos importados y guardados en la nube."); }
+                catch (err) { console.error(err); setImportMsg(`No se ha podido importar: ${err && err.message ? err.message : err}`); }
+                finally { setImportando(false); }
             };
 
             const current = ADMIN_TABS.find(t => t.id === tab) || ADMIN_TABS[0];
-            const saveLabel = { idle: '', saving: 'Guardando…', saved: 'Guardado', error: 'Error al guardar (copia local)' }[saveState];
+            const saveLabel = { idle: '', saving: 'Guardando…', saved: 'Guardado', error: `No se ha guardado en la nube${saveError ? `: ${saveError}` : ''} (queda una copia en este dispositivo)` }[saveState];
 
             return (
                 <div className="fixed inset-0 z-[100] bg-ink-deep/70 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4" onClick={onClose}>
                     <div role="dialog" aria-modal="true" aria-label="Editor de contenido" className="bg-white sm:rounded-4xl shadow-2xl w-full max-w-3xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
                         <div className="bg-ink-deep px-6 py-4 flex justify-between items-center text-white">
-                            <div className="flex items-center gap-3">
-                                {isAdmin ? <Settings size={18} className="text-sand" /> : <Lock size={18} className="text-sand" />}
-                                <h2 className="font-serif text-xl">{isAdmin ? 'Editor de la web' : 'Acceso privado'}</h2>
+                            <div className="flex items-center gap-3 min-w-0">
+                                {isAdmin ? <Settings size={18} className="text-sand shrink-0" /> : <Lock size={18} className="text-sand shrink-0" />}
+                                <h2 className="font-serif text-xl truncate">{isAdmin ? 'Editor de la web' : 'Acceso privado'}</h2>
                                 {isAdmin && (
-                                    <span className={`ml-2 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-full ${isFirebaseReady ? 'bg-white/10 text-sand-light' : 'bg-sand/20 text-sand'}`}>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseReady ? 'bg-sand-light' : 'bg-sand'}`}></span>{isFirebaseReady ? 'Nube conectada' : 'Modo local'}
+                                    <span className={`ml-2 hidden sm:inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-full ${isCloudReady ? 'bg-white/10 text-sand-light' : 'bg-sand/20 text-sand'}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isCloudReady ? 'bg-sand-light' : 'bg-sand'}`}></span>{isCloudReady ? 'Nube conectada' : 'Sin nube'}
                                     </span>
                                 )}
                             </div>
@@ -1418,14 +1462,16 @@
                         </div>
 
                         {!isAdmin ? (
-                            <form className="p-8 sm:p-12 text-center" onSubmit={(e) => { e.preventDefault(); if (!login(pass)) alert("Contraseña incorrecta"); }}>
+                            <form className="p-8 sm:p-12 text-center" onSubmit={entrar}>
                                 <div className="w-14 h-14 rounded-full border border-sand text-sand-deep flex items-center justify-center mx-auto mb-6"><Lock size={22} /></div>
-                                <p className="text-ink-soft font-light text-sm mb-6">Introduce la contraseña para editar los textos e imágenes de la web.</p>
-                                <div className="flex gap-2 justify-center max-w-xs mx-auto mb-5">
-                                    <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Contraseña" className={`${inputCls} text-center`} autoFocus />
-                                    {biometricEnabled && <button type="button" onClick={loginBiometric} className="px-3 rounded-xl border border-sand-light text-sand-deep hover:bg-sand-light" title="Usar huella o cara" aria-label="Acceso biométrico"><Fingerprint size={22} /></button>}
+                                <p className="text-ink-soft font-light text-sm mb-6">Entra con el <strong className="font-medium text-ink">mismo correo y contraseña que usas en la app de Pilates</strong>. Solo los administradores del centro pueden editar la web.</p>
+                                <div className="flex flex-col gap-2 max-w-xs mx-auto mb-5">
+                                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Correo electrónico" autoComplete="username" className={`${inputCls} text-center`} autoFocus required />
+                                    <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Contraseña" autoComplete="current-password" className={`${inputCls} text-center`} required />
                                 </div>
-                                <Btn type="submit">Entrar</Btn>
+                                {loginError && <p className="text-sm text-red-700 mb-4" role="alert">{loginError}</p>}
+                                <Btn type="submit" disabled={entrando}>{entrando ? 'Entrando…' : 'Entrar'}</Btn>
+                                <p className="text-xs text-ink-soft font-light mt-6">¿Entras en la app con Google o no recuerdas la contraseña? En la app, usa <em>"Crear mi contraseña"</em> con tu correo y luego vuelve aquí.</p>
                             </form>
                         ) : (
                             <>
@@ -1437,19 +1483,23 @@
                                     </div>
                                 </div>
                                 <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-5">
-                                    {tab === 'general' && !biometricEnabled && isBiometricAvailable && (
-                                        <div className="flex items-center justify-between gap-4 p-4 bg-sand-ivory rounded-2xl border border-sand-light">
-                                            <div className="flex items-center gap-3 text-sm"><Fingerprint className="text-sand-deep shrink-0" /><div><p className="font-medium text-ink">Acceso biométrico</p><p className="text-ink-soft font-light">Activa FaceID / TouchID para entrar sin contraseña en este dispositivo.</p></div></div>
-                                            <SmallBtn onClick={registerBiometric}>Activar</SmallBtn>
+                                    {!hasCloudContent && isCloudReady && (
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-sand-ivory rounded-2xl border border-sand-light">
+                                            <div className="text-sm"><p className="font-medium text-ink">Todavía no hay textos guardados en la nube nueva</p><p className="text-ink-soft font-light">Si cambiaste textos o fotos en la versión anterior de la web, impórtalos aquí una sola vez. Si no, no hace falta: se muestran los textos por defecto.</p>{importMsg && <p className="mt-1 text-ink">{importMsg}</p>}</div>
+                                            <SmallBtn onClick={importar} disabled={importando}>{importando ? 'Importando…' : 'Importar de la versión anterior'}</SmallBtn>
                                         </div>
                                     )}
                                     {current.fields.map(f => <Field key={f.k} section={current.id} field={f} />)}
                                 </div>
                                 <div className="px-6 py-4 border-t border-sand-light flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-sand-ivory/50">
-                                    <span className={`text-xs ${saveState === 'error' ? 'text-red-700' : 'text-ink-soft'}`} aria-live="polite">{saveLabel}</span>
-                                    <div className="flex gap-2">
+                                    <div className="min-w-0">
+                                        <span className={`text-xs ${saveState === 'error' ? 'text-red-700' : 'text-ink-soft'}`} aria-live="polite">{saveLabel}</span>
+                                        {adminUser && <span className="block text-[11px] text-ink-soft font-light truncate">Sesión: {adminUser.email}</span>}
+                                    </div>
+                                    <div className="flex gap-2 flex-wrap">
                                         <SmallBtn onClick={resetToDefaults} className="text-red-700 border-red-100 hover:bg-red-50"><RotateCcw size={14} /> Restaurar textos por defecto</SmallBtn>
-                                        <SmallBtn onClick={logout} className="bg-ink text-white border-ink hover:bg-ink-deep"><LogOut size={14} /> Salir</SmallBtn>
+                                        <SmallBtn onClick={onClose}>Cerrar</SmallBtn>
+                                        <SmallBtn onClick={() => { logout(); onClose(); }} className="bg-ink text-white border-ink hover:bg-ink-deep" title="Cierra también la sesión de la app de Pilates en este navegador"><LogOut size={14} /> Cerrar sesión</SmallBtn>
                                     </div>
                                 </div>
                             </>

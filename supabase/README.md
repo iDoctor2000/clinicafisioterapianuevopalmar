@@ -292,3 +292,25 @@ idempotente. Comprobar: en **Storage** aparece el bucket `portada` marcado como 
 `portada_leer` y `portada_admin_escribir`; en la app, Ajustes → «Fotos de la portada» permite subir,
 reordenar, ocultar y borrar fotos. Si la app avisa «El almacén de fotos de la portada no está
 configurado», falta ejecutar esta migración.
+
+## Web pública: textos y fotos en Supabase (0009)
+
+Qué hace `migrations/0009_web.sql`:
+
+- Crea la tabla `web_contenido` (una sola fila, `id = 'main'`, columna `datos` en JSON): los textos e
+  imágenes de la web pública, tal y como los guarda el editor de `index.html`. RLS: lectura pública
+  (la web los lee sin sesión); inserción y actualización solo del administrador (`es_admin()`).
+- Crea el bucket **público** `web` (límite 5 MB; `image/jpeg`, `image/png`, `image/webp`) para las fotos
+  que se suben desde el editor, con lectura pública y escritura solo del administrador. El editor reduce
+  cada foto a 1600 px (JPEG 84 %) antes de subirla.
+- Añade la tabla a la publicación `supabase_realtime` (la web abierta en otro dispositivo se actualiza sola).
+
+Con esto la web deja de usar Firebase. El editor (rueda dentada del pie de la web) pide el **correo y la
+contraseña de un administrador de la app**; quien entra en la app con Google tiene que crearse antes una
+contraseña con «Crear mi contraseña». La primera vez que un administrador abre el editor, un aviso le
+ofrece **importar los textos de la versión anterior (Firebase)**: es una lectura puntual, sin tocar nada
+en Firebase, y los guarda en `web_contenido`.
+
+Aplicación: pega `migrations/0009_web.sql` en **SQL Editor → Run**. Es idempotente. Comprobar: en
+**Table Editor** aparece `web_contenido` (vacía hasta el primer guardado) y en **Storage** el bucket `web`
+marcado como *Public* con las políticas `web_leer` y `web_admin_escribir`.
