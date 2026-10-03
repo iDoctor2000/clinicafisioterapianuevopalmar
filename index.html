@@ -308,7 +308,7 @@
         const SUPABASE_ANON_KEY = "sb_publishable_zyUcLhEPpzRkgiHnZXP6uA_aJIofroh";
         let supabase = null;
         try {
-            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
         } catch (e) { console.error("No se ha podido conectar con la nube:", e); }
 
         // Subida de fotos desde el editor (bucket público `web`). Devuelve la URL pública.
@@ -472,6 +472,35 @@
                 persist(next);
             }, [persist]);
 
+            // Entrar con Google: Supabase redirige a Google y vuelve a esta misma página; al volver, el
+            // editor se abre solo (marca en sessionStorage) y se comprueba que el usuario es administrador.
+            const [reabrirEditor, setReabrirEditor] = useState(false);
+            const [googleError, setGoogleError] = useState("");
+            useEffect(() => {
+                if (sessionStorage.getItem('np_editor_google') !== '1') return;
+                if (!supabase) return;
+                let intentos = 0;
+                const t = setInterval(async () => {
+                    intentos++;
+                    const { data } = await supabase.auth.getSession();
+                    if (data && data.session) {
+                        clearInterval(t); sessionStorage.removeItem('np_editor_google');
+                        const admin = await comprobarAdmin(data.session.user);
+                        if (!admin) { await supabase.auth.signOut(); setGoogleError("Tu cuenta de Google no es la de un administrador del centro. Solo los administradores pueden editar la web."); }
+                        setReabrirEditor(true);
+                    } else if (intentos > 40) { clearInterval(t); sessionStorage.removeItem('np_editor_google'); setGoogleError("No se ha completado el acceso con Google. Vuelve a intentarlo."); setReabrirEditor(true); }
+                }, 250);
+                return () => clearInterval(t);
+            }, [comprobarAdmin]);
+            const loginGoogle = useCallback(async () => {
+                if (!supabase) return { ok: false, error: "Sin conexión con la nube." };
+                sessionStorage.setItem('np_editor_google', '1');
+                const volverA = location.origin + location.pathname;
+                const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: volverA, queryParams: { prompt: 'select_account' } } });
+                if (error) { sessionStorage.removeItem('np_editor_google'); return { ok: false, error: error.message }; }
+                return { ok: true };
+            }, []);
+
             const login = useCallback(async (email, password) => {
                 if (!supabase) return { ok: false, error: "Sin conexión con la nube." };
                 const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -487,8 +516,9 @@
             }, []);
 
             const value = useMemo(() => ({
-                content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, logout,
-            }), [content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, logout]);
+                content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, loginGoogle, googleError, logout,
+                reabrirEditor, consumirReapertura: () => setReabrirEditor(false),
+            }), [content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, loginGoogle, googleError, logout, reabrirEditor]);
 
             // Pantalla de arranque: el logotipo aparece en fundido, se mantiene un instante y se desvanece
             // cuando el contenido está listo (mínimo 1,4 s para que la entrada luzca).
@@ -1408,7 +1438,8 @@
         };
 
         const AdminPanel = ({ isOpen, onClose }) => {
-            const { isAdmin, adminUser, login, logout, resetToDefaults, importarAntiguo, isCloudReady, hasCloudContent, saveState, saveError } = useContent();
+            const { isAdmin, adminUser, login, loginGoogle, googleError, logout, resetToDefaults, importarAntiguo, isCloudReady, hasCloudContent, saveState, saveError } = useContent();
+            const [googleLoading, setGoogleLoading] = useState(false);
             const [email, setEmail] = useState("");
             const [pass, setPass] = useState("");
             const [entrando, setEntrando] = useState(false);
@@ -1469,9 +1500,15 @@
                                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Correo electrónico" autoComplete="username" className={`${inputCls} text-center`} autoFocus required />
                                     <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Contraseña" autoComplete="current-password" className={`${inputCls} text-center`} required />
                                 </div>
-                                {loginError && <p className="text-sm text-red-700 mb-4" role="alert">{loginError}</p>}
+                                {(loginError || googleError) && <p className="text-sm text-red-700 mb-4" role="alert">{loginError || googleError}</p>}
                                 <Btn type="submit" disabled={entrando}>{entrando ? 'Entrando…' : 'Entrar'}</Btn>
-                                <p className="text-xs text-ink-soft font-light mt-6">¿Entras en la app con Google o no recuerdas la contraseña? En la app, usa <em>"Crear mi contraseña"</em> con tu correo y luego vuelve aquí.</p>
+                                <div className="flex items-center gap-3 max-w-xs mx-auto my-5 text-[11px] uppercase tracking-widest text-ink-soft"><span className="flex-1 h-px bg-sand-light"></span>o<span className="flex-1 h-px bg-sand-light"></span></div>
+                                <button type="button" disabled={googleLoading} onClick={async () => { setGoogleLoading(true); setLoginError(""); const r = await loginGoogle(); if (!r.ok) { setLoginError(r.error); setGoogleLoading(false); } }}
+                                    className="inline-flex items-center justify-center gap-3 w-full max-w-xs mx-auto px-5 py-3 rounded-full border border-sand text-ink text-sm font-medium hover:bg-sand-ivory disabled:opacity-60 transition">
+                                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.2 5.5-4.7 7.2l7.4 5.7c4.3-4 7.1-9.9 7.1-16.9z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.9 2.3-8.5 2.3-6.3 0-11.7-4.1-13.6-9.8l-7.8 6C6.5 42.6 14.6 48 24 48z"/></svg>
+                                    {googleLoading ? 'Abriendo Google…' : 'Entrar con Google'}
+                                </button>
+                                <p className="text-xs text-ink-soft font-light mt-6">Usa la misma cuenta de Google que en la app de Pilates. Si prefieres contraseña y no la tienes, créala en la app con <em>"Crear mi contraseña"</em>.</p>
                             </form>
                         ) : (
                             <>
@@ -1518,6 +1555,8 @@
             const openCita = useCallback(() => setCitaOpen(true), []);
             const closeCita = useCallback(() => setCitaOpen(false), []);
             const closeAdmin = useCallback(() => setAdminOpen(false), []);
+            const { reabrirEditor, consumirReapertura } = useContent();
+            useEffect(() => { if (reabrirEditor) { setAdminOpen(true); consumirReapertura(); } }, [reabrirEditor, consumirReapertura]);
 
             useEffect(() => {
                 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
