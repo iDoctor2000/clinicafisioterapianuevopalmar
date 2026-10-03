@@ -242,7 +242,12 @@ const impl: Impl = {
   async actualizarConfig(args) {
     const sb = servidor();
     const fila = deConfig(args.config);
-    if (Object.keys(fila).length > 0) comprobar(await sb.from('config_centro').upsert({ id: true, ...fila }, { onConflict: 'id' }));
+    // update y no upsert: la fila única ya existe y un INSERT ... ON CONFLICT exigiría las columnas NOT NULL (nombre).
+    if (Object.keys(fila).length > 0) {
+      const r = await sb.from('config_centro').update(fila).eq('id', true).select('id');
+      comprobar(r);
+      if (!r.data || r.data.length === 0) throw new Error('No se ha podido guardar la configuración: solo el administrador puede cambiarla.');
+    }
     if (args.config.diasCierre) {
       // Se reemplaza la lista completa (la tabla tiene la fecha como clave).
       comprobar(await sb.from('dias_cierre').delete().not('fecha', 'is', null));
