@@ -3,23 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- SEO & METADATA -->
-    <title>Clínica Nuevo Palmar | Fisioterapia, Osteopatía & Pilates en Murcia</title>
-    <meta name="description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
-    <meta name="keywords" content="fisioterapia el palmar, pilates murcia, osteopatía, rehabilitación deportiva, punción seca, terapia manual, clínica fisioterapia murcia, jose diego frutos">
-    <meta name="author" content="Clínica Nuevo Palmar">
+
+    <!-- SEO -->
+    <title>Clínica de Fisioterapia Nuevo Palmar | El Palmar, Murcia</title>
+    <meta name="description" content="Clínica de Fisioterapia Nuevo Palmar: 25 años cuidando la salud de nuestros pacientes en El Palmar (Murcia). Especialistas en columna vertebral, fisioterapia geriátrica, traumatológica y deportiva, osteopatía, accidentes de tráfico, escuela de espalda y Pilates terapéutico.">
+    <meta name="keywords" content="fisioterapia el palmar, clínica de fisioterapia murcia, especialistas columna vertebral, osteopatía el palmar, fisioterapia geriátrica, fisioterapia deportiva, accidentes de tráfico rehabilitación, escuela de espalda, pilates terapéutico el palmar">
+    <meta name="author" content="Clínica de Fisioterapia Nuevo Palmar">
     <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#2B2B2B">
 
     <!-- OPEN GRAPH -->
-    <meta property="og:title" content="Clínica Nuevo Palmar | Fisioterapia & Pilates">
-    <meta property="og:description" content="La clínica de fisioterapia Nuevo Palmar lleva 25 años ofreciendo servicios de diagnóstico, tratamiento y rehabilitación física. Nuestros especialistas, de primer nivel, tratan toda clase de dolencias musculares, lesiones deportivas y recuperación tras accidentes, bien de forma particular o en convenio con las principales mutuas de seguros.">
-    <meta property="og:image" content="assets/Portada Clinica.png">
+    <meta property="og:title" content="Clínica de Fisioterapia Nuevo Palmar | El Palmar, Murcia">
+    <meta property="og:description" content="25 años cuidando tu salud. Especialistas en columna vertebral, fisioterapia geriátrica, traumatológica y deportiva, osteopatía, accidentes de tráfico y Pilates terapéutico en El Palmar (Murcia).">
+    <meta property="og:image" content="assets/og.jpg">
     <meta property="og:type" content="website">
-    
+    <meta property="og:locale" content="es_ES">
+    <meta name="twitter:card" content="summary_large_image">
+
     <!-- FAVICON -->
     <link rel="icon" type="image/png" href="assets/favicon.png">
-    
+    <link rel="apple-touch-icon" href="assets/favicon.png">
+
+    <!-- DATOS ESTRUCTURADOS -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Physiotherapy",
+      "name": "Clínica de Fisioterapia Nuevo Palmar",
+      "image": "assets/og.jpg",
+      "telephone": "+34968885931",
+      "email": "info@fisioterapianuevopalmar.com",
+      "address": { "@type": "PostalAddress", "streetAddress": "Avenida de Burgos s/n", "postalCode": "30120", "addressLocality": "El Palmar", "addressRegion": "Murcia", "addressCountry": "ES" },
+      "medicalSpecialty": ["Physiotherapy", "Osteopathic"],
+      "priceRange": "€€"
+    }
+    </script>
+
     <!-- TAILWIND CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -27,42 +46,26 @@
         theme: {
           extend: {
             colors: {
-              brand: {
-                green: '#548C2F',
-                dark: '#2c3e50',
-                light: '#f8f9fa',
-                accent: '#e74c3c',
-                beige: '#F5F5F0'
-              }
+              ink: { DEFAULT: '#3A3A3A', deep: '#2B2B2B', soft: '#5C5752', logo: '#484848' },
+              sand: { DEFAULT: '#B9A795', deep: '#7F6D57', mid: '#D9CCBF', light: '#EDE4DB', ivory: '#F7F3EE' }
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Playfair Display', 'serif'],
+              sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+              serif: ['"Cormorant Garamond"', '"Playfair Display"', 'Georgia', 'serif'],
             },
+            letterSpacing: { label: '0.28em', btn: '0.18em' },
+            borderRadius: { '4xl': '2rem' },
             animation: {
-              'fade-in': 'fadeIn 0.3s ease-out',
-              'scale-in': 'scaleIn 0.3s ease-out',
-              'breath': 'breath 2.5s ease-in-out infinite',
-              'subtle-pulse': 'subtlePulse 3s ease-in-out infinite',
+              'fade-in': 'fadeIn 0.35s ease-out',
+              'scale-in': 'scaleIn 0.35s ease-out',
+              'breath': 'breath 2.4s ease-in-out infinite',
+              'rise': 'rise 0.5s ease-out'
             },
             keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              scaleIn: {
-                '0%': { transform: 'scale(0.95)', opacity: '0' },
-                '100%': { transform: 'scale(1)', opacity: '1' },
-              },
-              breath: {
-                '0%': { transform: 'scale(0.9)', opacity: '0.85' },
-                '50%': { transform: 'scale(1.05)', opacity: '1' },
-                '100%': { transform: 'scale(0.9)', opacity: '0.85' },
-              },
-              subtlePulse: {
-                '0%, 100%': { transform: 'scale(1)' },
-                '50%': { transform: 'scale(1.1)' },
-              }
+              fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+              scaleIn: { '0%': { transform: 'scale(0.97)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+              breath: { '0%, 100%': { opacity: '0.55', transform: 'scale(0.98)' }, '50%': { opacity: '1', transform: 'scale(1)' } },
+              rise: { '0%': { transform: 'translateY(16px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
             }
           }
         }
@@ -70,8 +73,10 @@
     </script>
 
     <!-- FUENTES -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
     <!-- BABEL -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
@@ -89,22 +94,41 @@
 </script>
 
     <style>
-        .reveal { opacity: 0; transform: translateY(30px); transition: all 1s ease-out; }
+        html { scroll-padding-top: 96px; }
+        body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+        ::selection { background: #EDE4DB; color: #2B2B2B; }
+        :focus-visible { outline: 2px solid #3A3A3A; outline-offset: 3px; border-radius: 2px; }
+        .on-dark :focus-visible { outline-color: #EDE4DB; }
+
+        /* Aparición suave al hacer scroll */
+        .reveal { opacity: 0; transform: translateY(22px); transition: opacity .9s cubic-bezier(.22,.61,.36,1), transform .9s cubic-bezier(.22,.61,.36,1); will-change: opacity, transform; }
         .reveal.active { opacity: 1; transform: translateY(0); }
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
-        /* Estilos para el calendario */
-        .react-calendar-tile:disabled { opacity: 0.3; cursor: not-allowed; }
-        details > summary { list-style: none; }
-        details > summary::-webkit-details-marker { display: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { opacity: 1; transform: none; transition: none; }
+            .animate-breath, .animate-fade-in, .animate-scale-in, .animate-rise { animation: none; }
+            html { scroll-behavior: auto; }
+        }
+
+        /* Rótulos decorativos en beige claro con contorno fino antracita */
+        .outline-text { color: #EDE4DB; -webkit-text-stroke: 1px rgba(58,58,58,.55); text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+        .outline-text-dark { color: transparent; -webkit-text-stroke: 1px rgba(185,167,149,.45); }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #F7F3EE; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #B9A795; border-radius: 4px; }
+
+        /* Carrusel */
+        .carousel-track { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+        .carousel-track img { -webkit-user-drag: none; pointer-events: none; }
+
+        .map-frame { filter: grayscale(1) contrast(.95); transition: filter .7s ease; }
+        .map-frame:hover, .map-frame:focus-within { filter: none; }
     </style>
 </head>
-<body class="font-sans text-brand-dark bg-white antialiased">
+<body class="font-sans text-ink bg-white">
     <div id="root"></div>
 
-    <!-- FIREBASE SETUP -->
+    <!-- FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -128,508 +152,364 @@
         }
     </script>
 
-    <!-- REACT APPLICATION CODE -->
+    <!-- APLICACIÓN -->
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
+        import React, { useState, useEffect, useRef, useMemo, useCallback, createContext, useContext, forwardRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { 
-            Phone, MapPin, Mail, Clock, Menu, X, Settings, 
-            ArrowRight, Check, Star, CheckCircle2, ArrowUpRight,
-            Activity, Car, Heart, UserCheck, Bone, Lock, Save, LogOut, RotateCcw, Copy,
-            ZoomIn, Maximize2, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, AlertCircle, Quote,
-            Plus, Minus, User, MessageCircle, Fingerprint
+        import {
+            Phone, MapPin, Mail, Clock, Menu, X, Settings, ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight,
+            Lock, LogOut, RotateCcw, Fingerprint, Plus, Trash2, ChevronUp, ChevronDown, MessageCircle, Instagram,
+            Activity, Bone, HeartPulse, PersonStanding, Dumbbell, Car, Users, Award, Building2, ShieldCheck,
+            Stethoscope, Hand, ExternalLink, Smartphone, Layers, Sparkles, HeartHandshake, ClipboardCheck, Heart, Check
         } from 'lucide-react';
 
-        // --- DATOS POR DEFECTO ---
+        // ------------------------------------------------------------------
+        // ICONOS DISPONIBLES PARA LAS TARJETAS (seleccionables desde el editor)
+        // ------------------------------------------------------------------
+        const ICONS = { PersonStanding, Bone, Activity, Dumbbell, Hand, HeartPulse, Car, Award, Users, Building2, ShieldCheck, Stethoscope, Layers, Sparkles, HeartHandshake, ClipboardCheck, Heart };
+        const Icon = ({ name, ...props }) => { const C = ICONS[name] || Sparkles; return <C {...props} />; };
+
+        // ------------------------------------------------------------------
+        // CONTENIDO POR DEFECTO (todo el texto de la web sale de aquí)
+        // ------------------------------------------------------------------
+        const SCHEMA_VERSION = 2;
         const DEFAULT_CONTENT = {
+            schema: SCHEMA_VERSION,
+            general: {
+                navInicio: "Inicio",
+                navQuienes: "Quiénes somos",
+                navEspecialidades: "Especialidades",
+                navColumna: "Columna",
+                navAccidentes: "Accidentes de tráfico",
+                navPilates: "Pilates",
+                navInstalaciones: "Instalaciones",
+                navContacto: "Contacto",
+                ctaCita: "Pedir cita",
+                ctaPilates: "Área Pilates",
+                citaTitle: "Pedir cita",
+                citaText: "Elige cómo prefieres contactar con nosotros. Te atendemos en horario de consulta.",
+                footerTagline: "25 años cuidando la salud y el bienestar de nuestros pacientes en El Palmar (Murcia).",
+                footerPrivacy: "Privacidad · Área Pilates",
+                footerRights: "Clínica de Fisioterapia Nuevo Palmar"
+            },
             hero: {
-                badge: "Estrategia Digital 2026",
-                titleLine1: "Tu Bienestar es",
-                titleLine2: "Nuestra Prioridad",
-                description: "25 años de trayectoria trasladados a un ecosistema de salud integral. Fisioterapia honesta, pilates terapéutico y trato humano en El Palmar.",
-                buttonPrimary: "Reservar Cita",
-                buttonSecondary: "Ver Tratamientos"
+                label: "25 años cuidando tu salud",
+                title: "Cuidamos tu salud con experiencia, cercanía y confianza.",
+                subtitle: "Centro de fisioterapia de referencia en El Palmar: tratamientos personalizados, basados en la evidencia y con un trato humano y familiar desde la primera visita.",
+                buttonPrimary: "Pedir cita",
+                buttonSecondary: "Conócenos",
+                image: "assets/portada.jpg",
+                imageAlt: "Clínica de Fisioterapia Nuevo Palmar",
+                statNumber: "25",
+                statLabel: "años de experiencia"
             },
-            config: {
-                whatsappPhone: "34968885931",
-                whatsappTemplate: "Hola, soy {name}. Me gustaría solicitar una cita el {date} a las {time}. Comentarios: {comments}",
-                holidays: "2024-01-01, 2024-01-06, 2024-03-19, 2024-03-28, 2024-03-29, 2024-05-01, 2024-06-09, 2024-08-15, 2024-10-12, 2024-11-01, 2024-12-06, 2024-12-09, 2024-12-25, 2025-01-01"
+            about: {
+                label: "Quiénes somos",
+                title: "Un centro de referencia con trato cercano, humano y familiar.",
+                text: "En Clínicas de Fisioterapia Nuevo Palmar llevamos 25 años de experiencia cuidando la salud y el bienestar de nuestros pacientes. Somos un centro de referencia gracias a un trato cercano, humano y familiar, que genera confianza y seguridad desde la primera visita.\n\nNuestro equipo está formado por profesionales altamente cualificados, comprometidos con una atención personalizada y basada en la evidencia, adaptando cada tratamiento a las necesidades reales de cada persona.",
+                image: "assets/equipo.jpg",
+                imageAlt: "Equipo de la Clínica de Fisioterapia Nuevo Palmar"
             },
-            gallery: {
-                title: "Galería de Servicios",
-                subtitle: "Nuestras Especialidades"
+            philosophy: {
+                label: "Nuestra filosofía",
+                title: "Fisioterapia honesta, individualizada y eficaz.",
+                text: "Creemos en una fisioterapia honesta, individualizada y eficaz. Escuchamos al paciente, entendemos su problema y diseñamos un plan de tratamiento integral orientado a la recuperación funcional, la prevención de recaídas y la mejora de la calidad de vida. La confianza, la experiencia y el seguimiento continuo son los pilares de nuestro trabajo diario.",
+                pillars: ["Confianza", "Experiencia", "Seguimiento continuo"]
             },
-            contact: {
-                phone: "968 885 931",
-                address: "Avenida de Burgos s/n",
-                city: "CP 30120. El Palmar-Murcia",
-                email: "info@fisioterapianuevopalmar.com"
+            specialties: {
+                label: "Áreas de especialización",
+                title: "Tratamientos adaptados a cada persona.",
+                intro: "Cada paciente es distinto. Por eso valoramos, planificamos y acompañamos cada tratamiento de forma individual.",
+                items: [
+                    { icon: "PersonStanding", title: "Fisioterapia geriátrica", points: ["Mejora de la movilidad y la autonomía", "Prevención de caídas", "Tratamiento del dolor crónico", "Rehabilitación funcional en personas mayores"] },
+                    { icon: "Bone", title: "Fisioterapia traumatológica", points: ["Rehabilitación postquirúrgica", "Fracturas, esguinces y luxaciones", "Recuperación tras inmovilizaciones", "Tratamiento del dolor musculoesquelético"] },
+                    { icon: "Activity", title: "Lesiones musculares y articulares", points: ["Contracturas, sobrecargas y roturas fibrilares", "Tendinitis y bursitis", "Lesiones de rodilla, hombro, cadera y tobillo"] },
+                    { icon: "Dumbbell", title: "Fisioterapia deportiva", points: ["Prevención de lesiones", "Recuperación funcional y readaptación al deporte", "Tratamientos específicos para deportistas amateurs y profesionales"] },
+                    { icon: "Hand", title: "Osteopatía", points: ["Tratamiento global del cuerpo", "Equilibrio estructural, visceral y craneal", "Abordaje integral del dolor y las disfunciones"] }
+                ]
+            },
+            spine: {
+                label: "Especialistas en columna vertebral",
+                title: "La columna vertebral, nuestra especialidad.",
+                intro: "Somos especialistas en lesiones de la columna vertebral, abordando de forma específica y personalizada:",
+                items: ["Cervicalgias", "Dorsalgias", "Lumbalgias", "Hernias discales", "Ciáticas", "Alteraciones posturales"],
+                outro: "Nuestro enfoque combina terapia manual, ejercicio terapéutico y educación postural para lograr resultados duraderos.",
+                button: "Pedir cita"
+            },
+            accidents: {
+                label: "Accidentes de tráfico",
+                title: "Tratamiento integral, sin preocupaciones para el paciente.",
+                intro: "En Clínicas de Fisioterapia Nuevo Palmar ofrecemos un tratamiento integral para pacientes de accidentes de tráfico, sin preocupaciones para el paciente:",
+                items: ["Rehabilitación completa y personalizada", "Coordinación con compañías aseguradoras", "Servicio médico de valoración del daño corporal", "Seguimiento continuo hasta el alta"],
+                outro: "Nos encargamos de todo el proceso para que el paciente solo se preocupe de su recuperación.",
+                button: "Pedir cita"
             },
             pilates: {
-                title: "Pilates Terapéutico: Movimiento Consciente",
-                description: "Más que ejercicio, es rehabilitación. Supervisado por fisioterapeutas para garantizar seguridad y efectividad.",
-                priceIndividual: "Consultar",
-                pricePair: "Consultar",
-                priceGroup: "Consultar"
+                label: "Escuela de espalda y Pilates terapéutico",
+                title: "Control, precisión y bienestar para tu espalda.",
+                intro: "En nuestros centros encontrarás programas específicos de escuela de espalda, orientados a la prevención y tratamiento de patologías vertebrales:",
+                programs: ["Pilates terapéutico", "Pilates Reformer", "Pilates Torre", "Pilates Senior"],
+                outro: "Estos tratamientos mejoran la postura, la fuerza, la flexibilidad y el control corporal, siempre adaptados a la edad y condición física del paciente.",
+                buttonApp: "Entrar en el Área Pilates",
+                buttonBook: "Reservar clases desde el móvil",
+                centerLabel: "Centro de Pilates",
+                address: "C/ Artemisa 6, Bajo, El Palmar",
+                phone: "686 25 74 56",
+                instagram: "@pilatesnuevopalmar",
+                logo: "assets/logo-pilates-beige.png"
             },
-            blog: {
-                post1_title: "Beneficios del Pilates Terapéutico",
-                post1_excerpt: "Descubre cómo el pilates puede transformar tu postura y eliminar dolores crónicos de espalda.",
-                post2_title: "Prevención de Lesiones",
-                post2_excerpt: "Pequeños cambios en tu rutina diaria que protegen tus articulaciones a largo plazo.",
-                post3_title: "Terapia Manual vs Masaje",
-                post3_excerpt: "Diferencias clave entre un masaje relajante y un tratamiento clínico fisioterapéutico."
+            facilities: {
+                label: "Nuestras instalaciones",
+                title: "Un espacio pensado para tu recuperación.",
+                intro: "Instalaciones equipadas, en un ambiente profesional y acogedor.",
+                images: [
+                    { src: "assets/instalaciones-1.jpg", caption: "Recepción y sala de espera" },
+                    { src: "assets/instalaciones-2.jpg", caption: "Salas de tratamiento" },
+                    { src: "assets/instalaciones-3.jpg", caption: "Sala de ejercicio terapéutico" },
+                    { src: "assets/instalaciones-4.jpg", caption: "Centro de Pilates" }
+                ]
+            },
+            whyUs: {
+                label: "Por qué elegirnos",
+                title: "Razones para confiar en nosotros.",
+                items: [
+                    { icon: "Award", title: "25 años de experiencia en el sector" },
+                    { icon: "HeartHandshake", title: "Trato cercano y familiar" },
+                    { icon: "Bone", title: "Especialización en columna vertebral" },
+                    { icon: "Car", title: "Atención integral en accidentes de tráfico" },
+                    { icon: "Layers", title: "Amplia variedad de tratamientos personalizados" },
+                    { icon: "Building2", title: "Instalaciones equipadas y ambiente profesional y acogedor" }
+                ]
+            },
+            commitment: {
+                label: "Nuestro compromiso",
+                text: "En Clínicas de Fisioterapia Nuevo Palmar trabajamos cada día con un objetivo claro: ayudar a nuestros pacientes a recuperar su salud, su movilidad y su calidad de vida, acompañándolos con profesionalidad, cercanía y confianza.",
+                highlight: "Porque tu bienestar es nuestra prioridad."
+            },
+            contact: {
+                label: "Contacto",
+                title: "Estamos en El Palmar.",
+                intro: "Llámanos, escríbenos por WhatsApp o ven a vernos. Te atenderemos encantados.",
+                address: "Avenida de Burgos s/n",
+                city: "30120 El Palmar (Murcia)",
+                phone: "968 885 931",
+                email: "info@fisioterapianuevopalmar.com",
+                whatsappPhone: "34968885931",
+                whatsappMessage: "Hola, me gustaría pedir cita en la Clínica de Fisioterapia Nuevo Palmar.",
+                buttonWhatsapp: "Escribir por WhatsApp",
+                buttonCall: "Llamar",
+                buttonDirections: "Cómo llegar"
+            },
+            schedule: {
+                title: "Horario",
+                lines: ["Lunes a viernes: 9:00 – 14:00 y 17:00 – 21:00", "Sábados y domingos: cerrado"],
+                note: "Atención con cita previa"
             }
         };
 
         const MAP_URL = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3145.897350785168!2d-1.1627!3d37.9315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd63806295555555%3A0x123456789!2sAv.%20de%20Burgos%2C%2030120%20El%20Palmar%2C%20Murcia!5e0!3m2!1ses!2ses!4v1234567890";
         const DIRECTIONS_URL = "https://www.google.com/maps/dir//Av.+de+Burgos,+30120+El+Palmar,+Murcia";
+        const PILATES_APP_URL = "app/";
+        const PRIVACY_URL = "app/#/privacidad";
+        const ADMIN_PASSWORD = "JoseDiego2026";
+        const LOCAL_KEY = "site_content_v2";
 
-        const SERVICES_LIST = [
-            { 
-                id: 'osteopatia',
-                title: 'Osteopatía', 
-                description: 'Terapia manual para la integridad estructural (visceral y craneal). Restauramos el equilibrio del cuerpo mediante técnicas suaves y efectivas.', 
-                icon: Bone,
-                img: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&q=80&w=800',
-                category: 'Estructural'
-            },
-            { 
-                id: 'puncion',
-                title: 'Punción Seca', 
-                description: 'Técnica invasiva de alta efectividad muscular para puntos gatillo. Alivio inmediato del dolor miofascial crónico y agudo.', 
-                icon: Activity,
-                img: 'https://plus.unsplash.com/premium_photo-1661764256397-af154e87b1b3?auto=format&fit=crop&q=80&w=800',
-                category: 'Invasiva'
-            },
-            { 
-                id: 'deportiva',
-                title: 'Lesiones Deportivas', 
-                description: 'Desde traumatismos y esguinces hasta gestos deportivos. Readaptación funcional personalizada para volver a competir al máximo nivel.', 
-                icon: Activity,
-                img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=800',
-                category: 'Deportiva'
-            },
-            { 
-                id: 'trafico',
-                title: 'Accidentes Tráfico', 
-                description: 'Gestión integral, rehabilitación y valoración del daño corporal. Recuperación completa asistida sin costes directos para ti.', 
-                icon: Car,
-                img: 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=800',
-                category: 'Rehabilitación'
-            },
-            { 
-                id: 'manual',
-                title: 'Terapia Manual', 
-                description: 'Desde estiramientos hasta quiropraxia avanzada. El poder de las manos para sanar, aliviar tensiones y mejorar la movilidad.', 
-                icon: Heart,
-                img: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800',
-                category: 'Manual'
-            },
-            { 
-                id: 'geriatria',
-                title: 'Fisioterapia Geriátrica', 
-                description: 'Tratamiento especializado para personas mayores. Mantenimiento de la movilidad, independencia y calidad de vida.', 
-                icon: UserCheck,
-                img: 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&q=80&w=800',
-                category: 'Geriátrica'
+        // Fusiona lo guardado con los valores por defecto. Si la estructura guardada es la antigua
+        // (sin `schema` o con otra versión), se usan los valores por defecto nuevos sin romper nada.
+        const mergeContent = (saved) => {
+            if (!saved || typeof saved !== 'object' || saved.schema !== SCHEMA_VERSION) return DEFAULT_CONTENT;
+            const out = { ...DEFAULT_CONTENT };
+            for (const [section, def] of Object.entries(DEFAULT_CONTENT)) {
+                if (section === 'schema') continue;
+                const s = saved[section];
+                if (!s || typeof s !== 'object') continue;
+                const merged = { ...def };
+                for (const [k, dv] of Object.entries(def)) {
+                    const sv = s[k];
+                    if (typeof dv === 'string' && typeof sv === 'string') merged[k] = sv;
+                    else if (Array.isArray(dv) && Array.isArray(sv)) merged[k] = sv;
+                }
+                out[section] = merged;
             }
-        ];
+            return out;
+        };
 
-        const TESTIMONIALS = [
-            { id: 1, name: "María García", rating: 5, text: "Después de mi accidente, el equipo fue fundamental. Su profesionalidad no tiene igual." },
-            { id: 2, name: "Juan López", rating: 5, text: "Llevaba años con dolor de espalda. Los especialistas en columna me devolvieron la calidad de vida." },
-            { id: 3, name: "Sofía Martínez", rating: 5, text: "El trato humano es excepcional. Se nota la experiencia de José Diego." },
-        ];
+        const cloneDefaults = () => JSON.parse(JSON.stringify(DEFAULT_CONTENT));
+        const telHref = (p) => `tel:${(p || '').replace(/[^\d+]/g, '')}`;
+        const waHref = (phone, msg) => `https://wa.me/${(phone || '').replace(/\D/g, '')}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
+        const paragraphs = (t) => (t || '').split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+        const pad = (n) => String(n + 1).padStart(2, '0');
 
-        const FAQS = [
-            { q: "¿Trabajáis con compañías de seguros?", a: "Sí, trabajamos con las principales aseguradoras como ASISA, MAPFRE, DKV y CASER. Consúltanos para verificar tu cobertura específica." },
-            { q: "¿Tengo que llevar ropa especial?", a: "Recomendamos ropa cómoda que permita la movilidad y facilite el acceso a la zona a tratar. Disponemos de vestuarios." },
-            { q: "¿Hay aparcamiento cerca?", a: "Sí, la zona de Avenida de Burgos cuenta con zonas de aparcamiento público y fácil acceso." },
-            { q: "¿Cuánto dura una sesión?", a: "Las sesiones de fisioterapia suelen durar entre 45 y 60 minutos, dependiendo de la patología y el tratamiento necesario." }
-        ];
-
-        const TEAM = [
-            { name: "José Diego Frutos", role: "Director & Fisioterapeuta", num: "Col. 345", img: "assets/Jose Diego.png" },
-            { name: "Ana Martínez", role: "Especialista en Pilates", num: "Col. 892", img: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=400" },
-            { name: "Carlos Ruiz", role: "Fisioterapia Deportiva", num: "Col. 1240", img: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=400" }
-        ];
-
-        // --- CONTEXT ---
+        // ------------------------------------------------------------------
+        // CONTEXTO DE CONTENIDO (Firebase + copia local)
+        // ------------------------------------------------------------------
         const ContentContext = createContext();
+        const useContent = () => useContext(ContentContext);
 
         const ContentProvider = ({ children }) => {
             const [content, setContent] = useState(DEFAULT_CONTENT);
             const [isAdmin, setIsAdmin] = useState(false);
             const [isFirebaseReady, setIsFirebaseReady] = useState(false);
             const [isLoading, setIsLoading] = useState(true);
+            const [saveState, setSaveState] = useState('idle'); // idle | saving | saved | error
+            const saveTimer = useRef(null);
+            const pending = useRef(null);
 
             useEffect(() => {
                 let unsubscribe;
                 let attempts = 0;
-                const maxAttempts = 30;
-
-                const checkFirebase = setInterval(() => {
+                const loadFromLocal = () => {
+                    try { const raw = localStorage.getItem(LOCAL_KEY); if (raw) setContent(mergeContent(JSON.parse(raw))); } catch (e) {}
+                };
+                const timer = setInterval(() => {
                     attempts++;
-                    
                     if (window.db) {
-                        clearInterval(checkFirebase);
+                        clearInterval(timer);
                         setIsFirebaseReady(true);
-                        
-                        unsubscribe = window.onSnapshot(window.doc(window.db, "site_content", "main"), 
-                            (docSnap) => {
-                                if (docSnap.exists()) {
-                                    setContent({ ...DEFAULT_CONTENT, ...docSnap.data() });
-                                }
-                                setIsLoading(false);
-                            }, 
-                            (error) => {
-                                console.error("Error conectando a BD:", error);
-                                loadFromLocal();
-                                setIsLoading(false);
-                            }
+                        unsubscribe = window.onSnapshot(window.doc(window.db, "site_content", "main"),
+                            (snap) => { if (snap.exists()) setContent(mergeContent(snap.data())); setIsLoading(false); },
+                            (err) => { console.error("Error conectando con la base de datos:", err); loadFromLocal(); setIsLoading(false); }
                         );
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(checkFirebase);
-                        console.log("Firebase no detectado a tiempo, usando local.");
+                    } else if (attempts >= 20) {
+                        clearInterval(timer);
                         loadFromLocal();
                         setIsLoading(false);
                     }
                 }, 100);
-
-                const loadFromLocal = () => {
-                     const saved = localStorage.getItem('site_content_v1');
-                     if (saved) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(saved) });
-                };
-
-                return () => {
-                    clearInterval(checkFirebase);
-                    if (unsubscribe) unsubscribe();
-                }
+                return () => { clearInterval(timer); if (unsubscribe) unsubscribe(); };
             }, []);
 
-            const updateContent = async (section, key, value) => {
-                const newContent = { ...content, [section]: { ...content[section], [key]: value } };
-                setContent(newContent); 
-                if (window.db) {
-                    try { await window.setDoc(window.doc(window.db, "site_content", "main"), newContent); } catch (e) {}
-                } else {
-                    localStorage.setItem('site_content_v1', JSON.stringify(newContent));
-                }
-            };
+            const persist = useCallback((next) => {
+                pending.current = next;
+                clearTimeout(saveTimer.current);
+                setSaveState('saving');
+                saveTimer.current = setTimeout(async () => {
+                    const data = pending.current;
+                    try {
+                        if (window.db) await window.setDoc(window.doc(window.db, "site_content", "main"), data);
+                        else localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+                        setSaveState('saved');
+                    } catch (e) {
+                        console.error(e);
+                        try { localStorage.setItem(LOCAL_KEY, JSON.stringify(data)); } catch (_) {}
+                        setSaveState('error');
+                    }
+                }, 700);
+            }, []);
+
+            const updateField = useCallback((section, key, value) => {
+                setContent(prev => {
+                    const next = { ...prev, schema: SCHEMA_VERSION, [section]: { ...prev[section], [key]: value } };
+                    persist(next);
+                    return next;
+                });
+            }, [persist]);
+
+            const resetToDefaults = useCallback(() => {
+                if (!confirm("¿Restaurar todos los textos e imágenes por defecto? Se perderán los cambios guardados.")) return;
+                const next = cloneDefaults();
+                setContent(next);
+                persist(next);
+            }, [persist]);
+
+            const value = useMemo(() => ({
+                content, updateField, resetToDefaults, isAdmin, isFirebaseReady, saveState,
+                login: (p) => { if (p === ADMIN_PASSWORD) { setIsAdmin(true); return true; } return false; },
+                logout: () => setIsAdmin(false),
+                setIsAdmin
+            }), [content, updateField, resetToDefaults, isAdmin, isFirebaseReady, saveState]);
 
             if (isLoading) {
                 return (
-                    <div className="fixed inset-0 bg-white z-[9999] flex items-center justify-center transition-opacity duration-500">
-                        <div className="w-full h-full flex items-center justify-center p-8">
-                             <img 
-                                src="assets/ico2026.png" 
-                                className="w-full max-w-md object-contain animate-breath" 
-                                alt="Cargando..." 
-                                onError={(e) => {
-                                    e.target.style.display='none';
-                                    e.target.parentNode.innerHTML = '<div class="flex flex-col items-center"><div class="w-20 h-20 rounded-full border-4 border-brand-green border-t-transparent animate-spin mb-4"></div><span class="text-2xl font-serif text-brand-dark">Cargando...</span></div>';
-                                }}
-                            />
-                        </div>
+                    <div className="fixed inset-0 bg-white z-[9999] flex items-center justify-center" aria-busy="true" aria-label="Cargando">
+                        <img src="assets/logo-clinica.png" alt="Clínica de Fisioterapia Nuevo Palmar" className="w-56 md:w-72 object-contain animate-breath" />
                     </div>
                 );
             }
 
-            return (
-                <ContentContext.Provider value={{ 
-                    content, updateContent, isAdmin, 
-                    login: (p) => { if(p==="JoseDiego2026"){setIsAdmin(true); return true;} return false; },
-                    logout: () => setIsAdmin(false), 
-                    resetToDefaults: () => { if(confirm("¿Restaurar?")) { setContent(DEFAULT_CONTENT); if(!window.db) localStorage.removeItem('site_content_v1'); }},
-                    isFirebaseReady,
-                    setIsAdmin // Exposed for biometric login
-                }}>
-                    {children}
-                </ContentContext.Provider>
-            );
+            return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;
         };
-        const useContent = () => useContext(ContentContext);
 
-        // --- UI COMPONENTS ---
-        const Reveal = ({ children, className = "", delay = 0 }) => {
+        // ------------------------------------------------------------------
+        // PIEZAS DE INTERFAZ
+        // ------------------------------------------------------------------
+        const Reveal = ({ children, className = "", delay = 0, as: Tag = 'div' }) => {
             const ref = useRef(null);
             useEffect(() => {
+                const el = ref.current;
+                if (!el) return;
+                if (!('IntersectionObserver' in window)) { el.classList.add('active'); return; }
                 const observer = new IntersectionObserver(([entry]) => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('active');
-                        observer.unobserve(entry.target);
-                    }
-                }, { threshold: 0.1 });
-                if (ref.current) observer.observe(ref.current);
+                    if (entry.isIntersecting) { entry.target.classList.add('active'); observer.unobserve(entry.target); }
+                }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+                observer.observe(el);
                 return () => observer.disconnect();
             }, []);
-            return <div ref={ref} className={`reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>{children}</div>;
+            return <Tag ref={ref} className={`reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>{children}</Tag>;
         };
 
-        const Button = ({ children, variant = 'primary', className = '', ...props }) => {
-            const base = "inline-flex items-center justify-center px-8 py-3 text-sm font-medium transition-all duration-300 rounded-full shadow-lg hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0 disabled:cursor-not-allowed";
+        const Eyebrow = ({ children, dark = false, className = "" }) => (
+            <p className={`flex items-center gap-3 text-[11px] md:text-xs font-medium uppercase tracking-label ${dark ? 'text-sand' : 'text-sand-deep'} ${className}`}>
+                <span aria-hidden="true" className={`inline-block h-px w-8 ${dark ? 'bg-sand' : 'bg-sand'}`}></span>
+                {children}
+            </p>
+        );
+
+        const Title = ({ children, dark = false, size = 'lg', className = "", as: Tag = 'h2' }) => {
+            const sizes = { xl: 'text-[2.75rem] leading-[1.02] sm:text-6xl lg:text-7xl', lg: 'text-4xl leading-[1.05] sm:text-5xl lg:text-[3.5rem]', md: 'text-3xl sm:text-4xl leading-[1.1]' };
+            return <Tag className={`font-serif font-medium ${sizes[size]} ${dark ? 'text-white' : 'text-ink'} ${className}`}>{children}</Tag>;
+        };
+
+        const Btn = forwardRef(({ children, variant = 'primary', className = '', as: Tag = 'button', ...props }, ref) => {
+            const base = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-7 py-3.5 text-[12px] font-medium uppercase tracking-btn transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0";
             const styles = {
-                primary: "bg-brand-green hover:bg-green-700 text-white",
-                outline: "border-2 border-brand-green text-brand-green hover:bg-brand-green hover:text-white bg-white/50 backdrop-blur-sm",
-                accent: "bg-brand-accent hover:bg-red-600 text-white",
-                dark: "bg-brand-dark hover:bg-gray-800 text-white",
-                whatsapp: "bg-[#25D366] hover:bg-[#128C7E] text-white"
+                primary: "bg-ink text-white hover:bg-ink-deep shadow-[0_10px_30px_-12px_rgba(43,43,43,.5)]",
+                secondary: "border border-ink text-ink hover:bg-ink hover:text-white bg-transparent",
+                sand: "bg-sand-light text-ink-deep hover:bg-white",
+                ghostDark: "border border-sand text-sand-light hover:bg-sand hover:text-ink-deep",
+                whatsapp: "bg-[#1f8f5a] text-white hover:bg-[#19764a] shadow-[0_10px_30px_-12px_rgba(31,143,90,.5)]"
             };
-            return <button className={`${base} ${styles[variant]} ${className}`} {...props}>{children}</button>;
+            return <Tag ref={ref} className={`${base} ${styles[variant]} ${className}`} {...props}>{children}</Tag>;
+        });
+
+        const Img = ({ src, alt, className = "", ...rest }) => {
+            const [err, setErr] = useState(false);
+            useEffect(() => setErr(false), [src]);
+            if (err || !src) return <div className={`bg-sand-light flex items-center justify-center text-sand-deep text-xs uppercase tracking-label ${className}`} role="img" aria-label={alt}>Imagen</div>;
+            return <img src={src} alt={alt} loading="lazy" onError={() => setErr(true)} className={className} {...rest} />;
         };
 
-        // --- BOOKING MODAL (UPDATED WITH WHATSAPP) ---
-        const BookingModal = ({ isOpen, onClose }) => {
+        // Modal "Pedir cita": WhatsApp o teléfono
+        const CitaModal = ({ isOpen, onClose }) => {
             const { content } = useContent();
-            const [step, setStep] = useState(1); 
-            const [selectedDate, setSelectedDate] = useState(null);
-            const [selectedTime, setSelectedTime] = useState(null);
-            const [currentMonth, setCurrentMonth] = useState(new Date());
-            const [formData, setFormData] = useState({ name: '', phone: '', comments: '' });
-            const [touched, setTouched] = useState({ name: false, phone: false });
-            const [errors, setErrors] = useState({ name: '', phone: '' });
-
+            const firstRef = useRef(null);
+            useEffect(() => {
+                if (!isOpen) return;
+                const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+                document.addEventListener('keydown', onKey);
+                document.body.style.overflow = 'hidden';
+                setTimeout(() => firstRef.current && firstRef.current.focus(), 50);
+                return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+            }, [isOpen, onClose]);
             if (!isOpen) return null;
-
-            const holidays = content.config.holidays.split(',').map(d => d.trim());
-
-            const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-            const getFirstDayOfMonth = (date) => {
-                let day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-                return day === 0 ? 6 : day - 1; 
-            };
-
-            const isDateDisabled = (day) => {
-                const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                if (date < today) return true;
-                if (date.getDay() === 0 || date.getDay() === 6) return true;
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                const dayStr = date.getDate().toString().padStart(2, '0');
-                const dateString = `${date.getFullYear()}-${month}-${dayStr}`;
-                if (holidays.includes(dateString)) return true;
-                return false;
-            };
-
-            // ... (Validation functions same as before)
-            const validateField = (name, value) => {
-                if (name === 'name') {
-                    if (!value.trim()) return "El nombre es obligatorio.";
-                    if (value.trim().length < 3) return "El nombre debe tener al menos 3 letras.";
-                }
-                if (name === 'phone') {
-                    if (!value.trim()) return "El teléfono es obligatorio.";
-                    const phoneRegex = /^[6789]\d{8}$/;
-                    if (!phoneRegex.test(value.replace(/\s/g, ''))) return "Introduce un teléfono válido (9 dígitos).";
-                }
-                return "";
-            };
-
-            const handleBlur = (e) => {
-                const { name, value } = e.target;
-                setTouched(prev => ({ ...prev, [name]: true }));
-                setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
-            };
-
-            const handleChange = (e) => {
-                const { name, value } = e.target;
-                setFormData(prev => ({ ...prev, [name]: value }));
-                if (touched[name]) setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
-            };
-
-            const isFormValid = () => {
-                const nameErr = validateField('name', formData.name);
-                const phoneErr = validateField('phone', formData.phone);
-                return !nameErr && !phoneErr && formData.name && formData.phone;
-            };
-
-            const handleDateClick = (day) => {
-                if (isDateDisabled(day)) return;
-                const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-                setSelectedDate(date);
-                setStep(2);
-            };
-
-            const generateTimeSlots = () => {
-                const slots = [];
-                for (let i = 9; i < 14; i++) slots.push(`${i.toString().padStart(2, '0')}:00`);
-                for (let i = 17; i < 21; i++) slots.push(`${i}:00`);
-                return slots;
-            };
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                const nameErr = validateField('name', formData.name);
-                const phoneErr = validateField('phone', formData.phone);
-                setTouched({ name: true, phone: true });
-                setErrors({ name: nameErr, phone: phoneErr });
-                if (nameErr || phoneErr) return;
-                setStep(4);
-            };
-
-            const sendWhatsApp = () => {
-                const phone = content.config.whatsappPhone.replace(/\D/g, '');
-                const dateStr = selectedDate?.toLocaleDateString('es-ES');
-                let message = content.config.whatsappTemplate
-                    .replace('{name}', formData.name)
-                    .replace('{date}', dateStr)
-                    .replace('{time}', selectedTime)
-                    .replace('{comments}', formData.comments || "Sin comentarios");
-                
-                const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-                window.open(url, '_blank');
-                onClose();
-            };
-
-            const renderCalendar = () => {
-                const daysInMonth = getDaysInMonth(currentMonth);
-                const firstDay = getFirstDayOfMonth(currentMonth);
-                const days = [];
-                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-                for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} />);
-                for (let i = 1; i <= daysInMonth; i++) {
-                    const disabled = isDateDisabled(i);
-                    const isSelected = selectedDate && selectedDate.getDate() === i && selectedDate.getMonth() === currentMonth.getMonth();
-                    days.push(
-                        <button 
-                            key={i} 
-                            disabled={disabled}
-                            onClick={() => handleDateClick(i)}
-                            className={`
-                                h-10 w-10 rounded-full flex items-center justify-center text-sm font-medium transition-all
-                                ${isSelected ? 'bg-brand-green text-white shadow-lg scale-110' : ''}
-                                ${disabled ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-brand-green/20 text-brand-dark'}
-                            `}
-                        >
-                            {i}
-                        </button>
-                    );
-                }
-
-                return (
-                    <div className="animate-fade-in">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-serif font-bold text-brand-dark">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</h3>
-                            <div className="flex gap-2">
-                                <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronLeft/></button>
-                                <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronRight/></button>
+            const { contact, schedule, general } = content;
+            return (
+                <div className="fixed inset-0 z-[90] bg-ink-deep/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
+                    <div role="dialog" aria-modal="true" aria-labelledby="cita-title" className="bg-white w-full sm:max-w-md rounded-t-4xl sm:rounded-4xl shadow-2xl animate-rise overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="px-8 pt-8 pb-6 border-b border-sand-light flex items-start justify-between gap-4">
+                            <div>
+                                <Eyebrow>{general.ctaCita}</Eyebrow>
+                                <h2 id="cita-title" className="font-serif text-3xl text-ink mt-3">{general.citaTitle}</h2>
+                                <p className="text-ink-soft text-sm mt-2 font-light leading-relaxed">{general.citaText}</p>
                             </div>
+                            <button onClick={onClose} className="p-2 -mr-2 -mt-2 text-ink-soft hover:text-ink rounded-full" aria-label="Cerrar"><X size={22} /></button>
                         </div>
-                        <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                            {['L','M','X','J','V','S','D'].map(d => <span key={d} className="text-xs font-bold text-gray-400">{d}</span>)}
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 place-items-center">
-                            {days}
-                        </div>
-                    </div>
-                );
-            };
-
-            return (
-                <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-                    <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                        <div className="bg-brand-dark p-6 flex justify-between items-center text-white">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <CalendarIcon size={20} className="text-brand-green" /> Reserva Online
-                            </h2>
-                            <button onClick={onClose} className="hover:text-brand-green transition-colors"><X/></button>
-                        </div>
-                        
-                        <div className="p-8 overflow-y-auto custom-scrollbar">
-                            {step === 1 && renderCalendar()}
-                            
-                            {step === 2 && (
-                                <div className="animate-fade-in">
-                                    <button onClick={() => setStep(1)} className="text-sm text-gray-500 mb-4 hover:text-brand-dark flex items-center gap-1"><ChevronLeft size={16}/> Volver al calendario</button>
-                                    <h3 className="text-xl font-serif font-bold mb-4">Turnos Disponibles</h3>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                                        {generateTimeSlots().map(time => (
-                                            <button 
-                                                key={time} 
-                                                onClick={() => { setSelectedTime(time); setStep(3); }}
-                                                className="py-2 px-4 rounded-lg border border-gray-200 hover:border-brand-green hover:bg-brand-green/5 hover:text-brand-green transition-all"
-                                            >
-                                                {time}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {step === 3 && (
-                                <form onSubmit={handleSubmit} className="animate-fade-in space-y-5">
-                                    <button type="button" onClick={() => setStep(2)} className="text-sm text-gray-500 mb-2 hover:text-brand-dark flex items-center gap-1"><ChevronLeft size={16}/> Volver a horas</button>
-                                    <div className="bg-brand-light p-6 rounded-xl mb-6 border border-brand-green/20 relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 w-20 h-20 bg-brand-green/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                                        <h3 className="font-serif text-lg font-bold text-brand-dark mb-4 relative z-10">Resumen de tu Reserva</h3>
-                                        <div className="space-y-3 relative z-10">
-                                            <div className="flex items-center gap-3">
-                                                <CalendarIcon size={18} className="text-brand-green"/>
-                                                <span className="capitalize text-gray-700 font-medium">
-                                                    {selectedDate?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <Clock size={18} className="text-brand-green"/>
-                                                <span className="text-gray-700 font-medium">{selectedTime} horas</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo <span className="text-red-500">*</span></label>
-                                        <input name="name" value={formData.name} onChange={handleChange} onBlur={handleBlur} placeholder="Ej: Ana García" className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 ${touched.name && errors.name ? 'border-red-500 focus:ring-red-100 bg-red-50' : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} />
-                                        {touched.name && errors.name && (<p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.name}</p>)}
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Móvil <span className="text-red-500">*</span></label>
-                                        <input name="phone" type="tel" value={formData.phone} onChange={handleChange} onBlur={handleBlur} placeholder="Ej: 600 123 456" className={`w-full p-3 border rounded-lg transition-all outline-none focus:ring-2 ${touched.phone && errors.phone ? 'border-red-500 focus:ring-red-100 bg-red-50' : 'border-gray-200 focus:border-brand-green focus:ring-brand-green/20'}`} />
-                                        {touched.phone && errors.phone && (<p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.phone}</p>)}
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Comentarios (Opcional)</label>
-                                        <textarea name="comments" value={formData.comments} onChange={handleChange} placeholder="Indícanos si tienes alguna patología previa..." className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all" rows="3" />
-                                    </div>
-                                    <Button type="submit" className="w-full" disabled={!isFormValid() && (touched.name || touched.phone)}>Continuar</Button>
-                                </form>
-                            )}
-
-                            {step === 4 && (
-                                <div className="text-center py-8 animate-fade-in">
-                                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <MessageCircle size={40} />
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-brand-dark mb-2">Casi listo...</h3>
-                                    <p className="text-gray-600 mb-8">Para confirmar tu cita definitivamente, envía los datos a nuestro WhatsApp oficial automáticamente pulsando el botón:</p>
-                                    <Button onClick={sendWhatsApp} variant="whatsapp" className="w-full flex items-center justify-center gap-2 mb-4 py-4 text-lg shadow-green-200">
-                                        <MessageCircle size={24} /> Confirmar por WhatsApp
-                                    </Button>
-                                    <button onClick={onClose} className="text-gray-400 text-sm hover:text-gray-600 underline">Cancelar</button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const ImageModal = ({ image, onClose }) => {
-            if (!image) return null;
-            return (
-                <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-                    <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full" onClick={onClose} aria-label="Cerrar modal"><X size={24} /></button>
-                    <div className="max-w-5xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col md:flex-row max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                        <div className="md:w-2/3 bg-gray-100 flex items-center justify-center overflow-hidden">
-                            <img src={image.img} alt={image.title} className="w-full h-full object-contain max-h-[60vh] md:max-h-full" />
-                        </div>
-                        <div className="md:w-1/3 p-8 flex flex-col justify-center bg-white">
-                            <span className="text-xs font-bold text-brand-green uppercase tracking-wider mb-2">{image.category}</span>
-                            <h3 className="text-3xl font-serif text-brand-dark mb-4">{image.title}</h3>
-                            <p className="text-gray-600 leading-relaxed mb-6">{image.description}</p>
-                            <div className="mt-auto pt-6 border-t border-gray-100">
-                                <a href="#contact" onClick={onClose} className="flex items-center gap-2 text-brand-dark font-medium hover:text-brand-green transition-colors">Solicitar información <ArrowRight size={16} /></a>
+                        <div className="p-8 space-y-3">
+                            <Btn as="a" ref={firstRef} href={waHref(contact.whatsappPhone, contact.whatsappMessage)} target="_blank" rel="noreferrer" variant="whatsapp" className="w-full"><MessageCircle size={18} /> {contact.buttonWhatsapp}</Btn>
+                            <Btn as="a" href={telHref(contact.phone)} variant="secondary" className="w-full"><Phone size={18} /> {contact.buttonCall} · {contact.phone}</Btn>
+                            <div className="pt-4 text-sm text-ink-soft font-light space-y-1">
+                                <p className="flex items-center gap-2"><Clock size={15} className="text-sand" /> {schedule.lines[0]}</p>
+                                <p className="flex items-center gap-2"><MapPin size={15} className="text-sand" /> {contact.address}, {contact.city}</p>
                             </div>
                         </div>
                     </div>
@@ -637,588 +517,913 @@
             );
         };
 
-        const MapModal = ({ isOpen, onClose }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-                     <button className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full z-50" onClick={onClose} aria-label="Cerrar mapa"><X size={24} /></button>
-                    <div className="w-full h-full max-w-6xl max-h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in relative">
-                         <iframe src={MAP_URL} className="w-full h-full border-0" allowFullScreen loading="lazy" title="Mapa ubicación"></iframe>
-                    </div>
-                </div>
-            );
-        };
+        // ------------------------------------------------------------------
+        // CABECERA
+        // ------------------------------------------------------------------
+        const NAV = [
+            { key: 'navInicio', href: '#inicio' },
+            { key: 'navQuienes', href: '#quienes-somos' },
+            { key: 'navEspecialidades', href: '#especialidades' },
+            { key: 'navColumna', href: '#columna' },
+            { key: 'navAccidentes', href: '#accidentes' },
+            { key: 'navPilates', href: '#pilates' },
+            { key: 'navInstalaciones', href: '#instalaciones' },
+            { key: 'navContacto', href: '#contacto' }
+        ];
 
-        const Services = () => {
-            const [selectedImage, setSelectedImage] = useState(null);
-            
-            return (
-                <section id="services" className="py-24 bg-brand-light">
-                    <div className="max-w-7xl mx-auto px-4">
-                        <div className="text-center max-w-3xl mx-auto mb-16">
-                            <Reveal>
-                                <h2 className="text-brand-green font-bold uppercase mb-2">Servicios Clínicos</h2>
-                                <h3 className="font-serif text-4xl text-brand-dark mb-6">Cartera Integral de Servicios</h3>
-                                <p className="text-gray-600 text-lg">Abordamos tu salud desde una perspectiva global, combinando técnicas manuales tradicionales con la última evidencia científica.</p>
-                            </Reveal>
-                        </div>
-                        
-                        <div className="grid md:grid-cols-3 gap-8 mb-24">
-                            {SERVICES_LIST.map((svc, i) => (
-                                <Reveal key={i} delay={i*100}>
-                                    <div 
-                                        className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-brand-green/5 border border-gray-100 h-full relative overflow-hidden cursor-pointer"
-                                        onClick={() => setSelectedImage(svc)}
-                                    >
-                                        <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity"><ArrowUpRight className="text-brand-green h-6 w-6" /></div>
-                                        <div className="w-14 h-14 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center mb-6 group-hover:bg-brand-green group-hover:text-white transition-colors animate-subtle-pulse"><svc.icon size={28} /></div>
-                                        <h4 className="text-xl font-bold mb-3">{svc.title}</h4>
-                                        <p className="text-gray-600">{svc.description}</p>
-                                    </div>
-                                </Reveal>
-                            ))}
-                        </div>
-
-                        <Reveal>
-                            <div className="text-center mb-12 border-t border-gray-200 pt-16">
-                                <h3 className="font-serif text-3xl text-brand-dark">Galería de Tratamientos</h3>
-                                <p className="text-gray-600 mt-2">Nuestras instalaciones y técnicas en acción</p>
-                            </div>
-                        </Reveal>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {SERVICES_LIST.map((item, index) => (
-                                <Reveal key={index} delay={index * 100}>
-                                    <div className="group relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all hover:-translate-y-1" onClick={() => setSelectedImage(item)}>
-                                        <img src={item.img} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                                        <div className="absolute inset-0 bg-brand-dark/0 group-hover:bg-brand-dark/40 transition-all duration-300 flex items-center justify-center">
-                                            <div className="opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 text-center p-4">
-                                                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white mb-3 mx-auto border border-white/30"><ZoomIn size={24} /></div>
-                                                <p className="text-white font-bold text-lg drop-shadow-md">{item.title}</p>
-                                                <p className="text-white/80 text-xs uppercase tracking-wider">{item.category}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Reveal>
-                            ))}
-                        </div>
-                    </div>
-                    <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} />
-                </section>
-            );
-        };
-
-        const Testimonials = () => {
-            const [activeIndex, setActiveIndex] = useState(0);
-
-            const next = () => setActiveIndex((prev) => (prev + 1) % TESTIMONIALS.length);
-            const prev = () => setActiveIndex((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+        const Header = ({ onCita }) => {
+            const { content } = useContent();
+            const g = content.general;
+            const [scrolled, setScrolled] = useState(false);
+            const [open, setOpen] = useState(false);
 
             useEffect(() => {
-                const interval = setInterval(next, 6000);
-                return () => clearInterval(interval);
+                const fn = () => setScrolled(window.scrollY > 24);
+                fn();
+                window.addEventListener('scroll', fn, { passive: true });
+                return () => window.removeEventListener('scroll', fn);
             }, []);
+            useEffect(() => {
+                document.body.style.overflow = open ? 'hidden' : '';
+                const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+                if (open) document.addEventListener('keydown', onKey);
+                return () => { document.body.style.overflow = ''; document.removeEventListener('keydown', onKey); };
+            }, [open]);
 
             return (
-                <section className="py-24 bg-brand-dark text-white relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-64 h-64 bg-brand-green/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-green/5 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
+                <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${scrolled ? 'bg-white/90 backdrop-blur-md border-b border-sand-light py-2.5' : 'bg-white/0 py-4 md:py-5'}`}>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-6">
+                        <a href="#inicio" className="shrink-0" aria-label="Clínica de Fisioterapia Nuevo Palmar, inicio">
+                            <img src="assets/logo-clinica.png" alt="Clínica de Fisioterapia Nuevo Palmar" className={`w-auto object-contain transition-all duration-500 ${scrolled ? 'h-10 md:h-11' : 'h-11 md:h-14'}`} />
+                        </a>
 
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                        <Reveal>
-                            <div className="text-center mb-16">
-                                <h2 className="text-brand-green font-semibold tracking-wider uppercase mb-2">Testimonios</h2>
-                                <h3 className="font-serif text-3xl md:text-4xl text-white">Pacientes Felices</h3>
+                        <nav className="hidden xl:flex items-center gap-5 2xl:gap-7" aria-label="Principal">
+                            {NAV.map(n => (
+                                <a key={n.key} href={n.href} className="whitespace-nowrap text-[13px] font-normal text-ink hover:text-sand-deep transition-colors tracking-wide py-2 border-b border-transparent hover:border-sand">{g[n.key]}</a>
+                            ))}
+                        </nav>
+
+                        <div className="hidden xl:flex items-center gap-3">
+                            <a href={PILATES_APP_URL} className="whitespace-nowrap text-[12px] uppercase tracking-btn font-medium text-ink px-5 py-3 rounded-full border border-sand hover:bg-sand-light transition-colors">{g.ctaPilates}</a>
+                            <Btn onClick={onCita}><Phone size={15} /> {g.ctaCita}</Btn>
+                        </div>
+
+                        <div className="xl:hidden flex items-center gap-2">
+                            <button onClick={onCita} className="hidden sm:inline-flex items-center gap-2 rounded-full bg-ink text-white px-5 py-2.5 text-[12px] uppercase tracking-btn font-medium"><Phone size={14} /> {g.ctaCita}</button>
+                            <button onClick={onCita} className="sm:hidden w-11 h-11 rounded-full bg-ink text-white flex items-center justify-center" aria-label={g.ctaCita}><Phone size={17} /></button>
+                            <button onClick={() => setOpen(true)} className="p-2.5 rounded-full text-ink hover:bg-sand-light transition-colors" aria-label="Abrir menú" aria-expanded={open}><Menu size={24} /></button>
+                        </div>
+                    </div>
+
+                    {/* Menú móvil */}
+                    {open && (
+                        <div className="xl:hidden fixed inset-0 z-[60] bg-white flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label="Menú">
+                            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-sand-light">
+                                <img src="assets/logo-clinica.png" alt="" className="h-10 w-auto" />
+                                <button onClick={() => setOpen(false)} className="p-2.5 rounded-full text-ink hover:bg-sand-light" aria-label="Cerrar menú"><X size={26} /></button>
                             </div>
-                        </Reveal>
-
-                        <Reveal delay={200}>
-                            <div className="max-w-4xl mx-auto relative">
-                                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 md:p-12 relative min-h-[300px] flex flex-col items-center justify-center text-center">
-                                    <Quote className="text-brand-green/20 w-16 h-16 absolute top-6 left-6 -scale-x-100" />
-                                    
-                                    <div className="flex gap-1 mb-6 relative z-10">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star key={i} size={20} className={`${i < TESTIMONIALS[activeIndex].rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
-                                        ))}
-                                    </div>
-
-                                    <p className="font-serif text-xl md:text-2xl italic leading-relaxed mb-8 text-gray-200 relative z-10">
-                                        "{TESTIMONIALS[activeIndex].text}"
-                                    </p>
-
-                                    <div className="relative z-10">
-                                        <h4 className="font-bold text-lg">{TESTIMONIALS[activeIndex].name}</h4>
-                                        <p className="text-brand-green text-sm font-semibold tracking-wider uppercase mt-1">Paciente Verificado</p>
-                                    </div>
-                                </div>
-
-                                <button onClick={prev} className="absolute top-1/2 -left-4 md:-left-12 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-brand-green transition-all text-white backdrop-blur-md z-20 group" aria-label="Anterior">
-                                    <ChevronLeft className="group-hover:-translate-x-0.5 transition-transform" />
-                                </button>
-                                <button onClick={next} className="absolute top-1/2 -right-4 md:-right-12 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-brand-green transition-all text-white backdrop-blur-md z-20 group" aria-label="Siguiente">
-                                    <ChevronRight className="group-hover:translate-x-0.5 transition-transform" />
-                                </button>
-
-                                <div className="flex justify-center gap-2 mt-8">
-                                    {TESTIMONIALS.map((_, idx) => (
-                                        <button key={idx} onClick={() => setActiveIndex(idx)} className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeIndex ? 'w-8 bg-brand-green' : 'w-2 bg-gray-600 hover:bg-gray-500'}`} aria-label={`Ir al testimonio ${idx + 1}`} />
+                            <nav className="flex-1 overflow-y-auto px-6 sm:px-8 py-6" aria-label="Principal móvil">
+                                <ul className="divide-y divide-sand-light">
+                                    {NAV.map((n, i) => (
+                                        <li key={n.key}>
+                                            <a href={n.href} onClick={() => setOpen(false)} className="flex items-center justify-between py-4 font-serif text-[1.7rem] text-ink hover:text-sand-deep">
+                                                <span>{g[n.key]}</span>
+                                                <span className="text-xs font-sans tracking-label text-sand">{pad(i)}</span>
+                                            </a>
+                                        </li>
                                     ))}
-                                </div>
+                                </ul>
+                            </nav>
+                            <div className="px-6 sm:px-8 py-6 border-t border-sand-light grid grid-cols-1 gap-3 bg-sand-ivory">
+                                <Btn onClick={() => { setOpen(false); onCita(); }} className="w-full"><Phone size={15} /> {g.ctaCita}</Btn>
+                                <Btn as="a" href={PILATES_APP_URL} variant="secondary" className="w-full">{g.ctaPilates} <ArrowUpRight size={15} /></Btn>
                             </div>
-                        </Reveal>
+                        </div>
+                    )}
+                </header>
+            );
+        };
+
+        // ------------------------------------------------------------------
+        // SECCIONES
+        // ------------------------------------------------------------------
+        const Hero = ({ onCita }) => {
+            const { content } = useContent();
+            const h = content.hero;
+            const areas = content.specialties.items.map(i => i.title);
+            return (
+                <section id="inicio" className="relative overflow-hidden bg-white">
+                    <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(60% 55% at 85% 10%, rgba(237,228,219,.9) 0%, rgba(247,243,238,.5) 45%, rgba(255,255,255,0) 100%)' }}></div>
+                    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 md:pt-36 lg:pt-44 pb-16 lg:pb-24 grid lg:grid-cols-12 gap-12 lg:gap-8 items-center lg:min-h-[100svh]">
+                        <div className="lg:col-span-6">
+                            <Reveal>
+                                <Eyebrow>{h.label}</Eyebrow>
+                                <Title as="h1" size="xl" className="mt-6">{h.title}</Title>
+                                <p className="mt-7 text-ink-soft text-lg md:text-xl leading-relaxed font-light max-w-xl">{h.subtitle}</p>
+                                <div className="mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                    <Btn onClick={onCita}>{h.buttonPrimary} <ArrowRight size={16} /></Btn>
+                                    <Btn as="a" href="#quienes-somos" variant="secondary">{h.buttonSecondary}</Btn>
+                                </div>
+                            </Reveal>
+                        </div>
+                        <div className="lg:col-span-6 lg:pl-8">
+                            <Reveal delay={150}>
+                                <div className="relative lg:max-w-[500px] lg:ml-auto">
+                                    <div aria-hidden="true" className="absolute -inset-3 sm:-inset-4 translate-x-4 translate-y-4 border border-sand rounded-4xl"></div>
+                                    <div className="relative rounded-4xl overflow-hidden aspect-[4/3] lg:aspect-[5/6] bg-sand-light">
+                                        <Img src={h.image} alt={h.imageAlt} className="w-full h-full object-cover" loading="eager" />
+                                    </div>
+                                    <div className="absolute -bottom-6 left-4 sm:-left-6 bg-white border border-sand-light rounded-3xl px-6 py-4 shadow-[0_20px_50px_-25px_rgba(43,43,43,.45)] flex items-center gap-4">
+                                        <span className="font-serif text-5xl md:text-6xl leading-none text-ink">{h.statNumber}</span>
+                                        <span className="text-[11px] md:text-xs uppercase tracking-label text-sand-deep leading-snug max-w-[7rem]">{h.statLabel}</span>
+                                    </div>
+                                </div>
+                            </Reveal>
+                        </div>
+                    </div>
+                    <div className="relative border-y border-sand-light bg-sand-ivory/60">
+                        <ul className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-center gap-x-7 gap-y-2 text-[11px] md:text-xs uppercase tracking-label text-ink-soft" aria-label="Áreas de especialización">
+                            {areas.map((a, i) => <li key={i} className="flex items-center gap-7"><span>{a}</span>{i < areas.length - 1 && <span aria-hidden="true" className="text-sand">·</span>}</li>)}
+                        </ul>
                     </div>
                 </section>
             );
         };
 
-        // --- NEW TEAM COMPONENT ---
-        const Team = () => {
+        const About = () => {
+            const { content } = useContent();
+            const a = content.about, f = content.philosophy;
             return (
-                <section className="py-24 bg-brand-beige">
-                     <div className="max-w-7xl mx-auto px-4">
-                        <Reveal>
-                            <div className="text-center mb-16">
-                                <h2 className="text-brand-green font-bold uppercase mb-2">Nuestro Equipo</h2>
-                                <h3 className="font-serif text-4xl text-brand-dark">Especialistas en tu Salud</h3>
-                            </div>
-                        </Reveal>
-                        <div className="grid md:grid-cols-3 gap-8">
-                            {TEAM.map((member, i) => (
-                                <Reveal key={i} delay={i*150}>
-                                    <div className="bg-white rounded-2xl overflow-hidden shadow-lg group">
-                                        <div className="h-80 overflow-hidden">
-                                            <img src={member.img} alt={member.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <>
+                    <section id="quienes-somos" className="py-20 md:py-28 lg:py-36 bg-white">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+                            <div className="lg:col-span-5 order-2 lg:order-1">
+                                <Reveal delay={120}>
+                                    <div className="relative">
+                                        <div aria-hidden="true" className="absolute -top-6 -left-6 w-2/3 h-2/3 bg-sand-light rounded-4xl"></div>
+                                        <div className="relative rounded-4xl overflow-hidden aspect-[4/5] bg-sand-light">
+                                            <Img src={a.image} alt={a.imageAlt} className="w-full h-full object-cover" />
                                         </div>
-                                        <div className="p-6 text-center">
-                                            <h4 className="font-serif text-xl font-bold text-brand-dark mb-1">{member.name}</h4>
-                                            <p className="text-brand-green font-medium mb-3">{member.role}</p>
-                                            <span className="inline-block px-3 py-1 bg-gray-100 text-gray-500 text-xs rounded-full">{member.num}</span>
-                                        </div>
+                                        <span aria-hidden="true" className="absolute -bottom-8 -right-2 sm:right-0 font-serif outline-text text-[6rem] md:text-[7.5rem] leading-none select-none">NP</span>
                                     </div>
                                 </Reveal>
-                            ))}
+                            </div>
+                            <div className="lg:col-span-6 lg:col-start-7 order-1 lg:order-2">
+                                <Reveal>
+                                    <Eyebrow>{a.label}</Eyebrow>
+                                    <Title className="mt-6">{a.title}</Title>
+                                    <div className="mt-8 space-y-5 text-ink-soft text-base md:text-lg leading-relaxed font-light">
+                                        {paragraphs(a.text).map((p, i) => <p key={i}>{p}</p>)}
+                                    </div>
+                                </Reveal>
+                            </div>
                         </div>
-                     </div>
+                    </section>
+
+                    <section id="filosofia" className="pt-36 pb-20 md:pt-52 md:pb-28 bg-sand-ivory relative overflow-hidden">
+                        <span aria-hidden="true" className="absolute -top-4 md:-top-8 left-1/2 -translate-x-1/2 font-serif outline-text text-[5rem] md:text-[12rem] leading-none select-none whitespace-nowrap opacity-80">Filosofía</span>
+                        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                            <Reveal>
+                                <Eyebrow className="justify-center">{f.label}</Eyebrow>
+                                <Title className="mt-6">{f.title}</Title>
+                                <p className="mt-8 font-serif text-xl md:text-2xl lg:text-[1.7rem] leading-relaxed text-ink">{f.text}</p>
+                            </Reveal>
+                            <Reveal delay={150}>
+                                <ul className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-0 sm:divide-x divide-sand">
+                                    {f.pillars.map((p, i) => (
+                                        <li key={i} className="px-4 py-2 flex flex-col items-center gap-3">
+                                            <span className="font-serif text-sand-deep text-lg">{pad(i)}</span>
+                                            <span className="text-[11px] md:text-xs uppercase tracking-label text-ink">{p}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Reveal>
+                        </div>
+                    </section>
+                </>
+            );
+        };
+
+        const Specialties = () => {
+            const { content } = useContent();
+            const s = content.specialties;
+            const n = s.items.length;
+            return (
+                <section id="especialidades" className="py-20 md:py-28 lg:py-36 bg-white">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <Reveal className="max-w-3xl">
+                            <Eyebrow>{s.label}</Eyebrow>
+                            <Title className="mt-6">{s.title}</Title>
+                            <p className="mt-6 text-ink-soft text-lg font-light leading-relaxed">{s.intro}</p>
+                        </Reveal>
+                        <ul className="mt-14 grid md:grid-cols-2 lg:grid-cols-6 gap-5 md:gap-6">
+                            {s.items.map((item, i) => {
+                                const span = n === 5 ? (i < 3 ? 'lg:col-span-2' : 'lg:col-span-3') : (n % 3 === 0 ? 'lg:col-span-2' : 'lg:col-span-3');
+                                return (
+                                    <Reveal as="li" key={i} delay={i * 80} className={`${span}`}>
+                                        <article className="group h-full bg-sand-ivory/70 border border-sand-light rounded-4xl p-7 md:p-9 transition-all duration-500 hover:border-sand hover:-translate-y-1 hover:shadow-[0_30px_60px_-40px_rgba(43,43,43,.35)]">
+                                            <div className="flex items-start justify-between">
+                                                <span className="w-12 h-12 rounded-full bg-white border border-sand-light text-sand-deep flex items-center justify-center transition-colors group-hover:bg-ink group-hover:text-sand-light group-hover:border-ink" aria-hidden="true"><Icon name={item.icon} size={22} strokeWidth={1.6} /></span>
+                                                <span className="font-serif text-sand-deep text-lg" aria-hidden="true">{pad(i)}</span>
+                                            </div>
+                                            <h3 className="font-serif text-[1.65rem] md:text-3xl leading-tight text-ink mt-7">{item.title}</h3>
+                                            <ul className="mt-5 space-y-2.5">
+                                                {item.points.map((p, j) => (
+                                                    <li key={j} className="flex gap-3 text-ink-soft font-light text-[15px] leading-relaxed"><span aria-hidden="true" className="mt-[11px] w-1.5 h-1.5 rounded-full bg-sand shrink-0"></span><span>{p}</span></li>
+                                                ))}
+                                            </ul>
+                                        </article>
+                                    </Reveal>
+                                );
+                            })}
+                        </ul>
+                    </div>
                 </section>
             );
         };
 
-        // --- NEW FAQ COMPONENT ---
-        const FAQ = () => {
-            const [open, setOpen] = useState(0);
+        const SpineDots = () => (
+            <svg aria-hidden="true" className="absolute right-6 lg:right-24 top-0 h-full w-24 opacity-[0.12] pointer-events-none" viewBox="0 0 100 800" preserveAspectRatio="xMidYMid slice" fill="none">
+                <path d="M55 0 C 25 150, 85 300, 50 400 S 25 650, 55 800" stroke="#B9A795" strokeWidth="1.5" />
+                {[60,120,180,240,300,360,420,480,540,600,660,720].map((y, i) => <circle key={y} cx={50 + Math.sin(i / 1.6) * 14} cy={y} r={i % 3 === 1 ? 6 : 4} fill="#B9A795" />)}
+            </svg>
+        );
+
+        const Spine = ({ onCita }) => {
+            const { content } = useContent();
+            const s = content.spine;
             return (
-                <section className="py-24 bg-white">
-                    <div className="max-w-4xl mx-auto px-4">
-                        <Reveal>
-                            <div className="text-center mb-16">
-                                <h2 className="text-brand-green font-bold uppercase mb-2">Dudas Frecuentes</h2>
-                                <h3 className="font-serif text-4xl text-brand-dark">Te ayudamos</h3>
-                            </div>
-                            <div className="space-y-4">
-                                {FAQS.map((faq, i) => (
-                                    <div key={i} className={`border rounded-2xl transition-all duration-300 ${open === i ? 'border-brand-green bg-brand-green/5 shadow-md' : 'border-gray-200 hover:border-brand-green/50'}`}>
-                                        <button 
-                                            onClick={() => setOpen(open === i ? -1 : i)}
-                                            className="w-full flex justify-between items-center p-6 text-left font-bold text-brand-dark"
-                                        >
-                                            {faq.q}
-                                            {open === i ? <Minus className="text-brand-green"/> : <Plus className="text-gray-400"/>}
-                                        </button>
-                                        <div className={`overflow-hidden transition-all duration-300 ${open === i ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                            <p className="p-6 pt-0 text-gray-600 leading-relaxed">{faq.a}</p>
-                                        </div>
-                                    </div>
+                <section id="columna" className="on-dark relative py-20 md:py-28 lg:py-36 bg-ink-deep text-white overflow-hidden">
+                    <SpineDots />
+                    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16">
+                        <div className="lg:col-span-5">
+                            <Reveal>
+                                <Eyebrow dark>{s.label}</Eyebrow>
+                                <Title dark className="mt-6">{s.title}</Title>
+                                <p className="mt-7 text-sand-light/85 text-lg font-light leading-relaxed">{s.intro}</p>
+                                <div className="mt-10 hidden lg:block">
+                                    <Btn onClick={onCita} variant="sand">{s.button} <ArrowRight size={16} /></Btn>
+                                </div>
+                            </Reveal>
+                        </div>
+                        <div className="lg:col-span-7">
+                            <Reveal delay={120}>
+                                <ul className="grid grid-cols-1 sm:grid-cols-2 border-t border-white/15">
+                                    {s.items.map((it, i) => (
+                                        <li key={i} className={`flex items-baseline gap-5 py-6 md:py-7 border-b border-white/15 ${i % 2 === 0 ? 'sm:pr-8' : 'sm:pl-8 sm:border-l sm:border-l-white/15'}`}>
+                                            <span className="font-serif text-sand text-base" aria-hidden="true">{pad(i)}</span>
+                                            <span className="font-serif text-2xl md:text-[1.85rem] text-white">{it}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-10 pl-6 border-l border-sand font-serif italic text-xl md:text-2xl text-sand-light leading-relaxed">{s.outro}</p>
+                                <div className="mt-10 lg:hidden">
+                                    <Btn onClick={onCita} variant="sand">{s.button} <ArrowRight size={16} /></Btn>
+                                </div>
+                            </Reveal>
+                        </div>
+                    </div>
+                </section>
+            );
+        };
+
+        const Accidents = ({ onCita }) => {
+            const { content } = useContent();
+            const a = content.accidents;
+            return (
+                <section id="accidentes" className="py-20 md:py-28 lg:py-36 bg-sand-ivory">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+                        <div className="lg:col-span-5 lg:sticky lg:top-32">
+                            <Reveal>
+                                <Eyebrow>{a.label}</Eyebrow>
+                                <Title className="mt-6">{a.title}</Title>
+                                <p className="mt-7 text-ink-soft text-lg font-light leading-relaxed">{a.intro}</p>
+                                <p className="mt-8 font-serif italic text-2xl text-ink leading-relaxed">{a.outro}</p>
+                                <div className="mt-10"><Btn onClick={onCita}>{a.button} <ArrowRight size={16} /></Btn></div>
+                            </Reveal>
+                        </div>
+                        <div className="lg:col-span-6 lg:col-start-7">
+                            <ol className="border-t border-sand">
+                                {a.items.map((it, i) => (
+                                    <Reveal as="li" key={i} delay={i * 90} className="flex items-center gap-6 md:gap-8 py-7 md:py-9 border-b border-sand">
+                                        <span className="shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-full border border-sand flex items-center justify-center font-serif text-xl text-sand-deep bg-white" aria-hidden="true">{pad(i)}</span>
+                                        <span className="font-serif text-2xl md:text-3xl text-ink leading-tight">{it}</span>
+                                    </Reveal>
+                                ))}
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+            );
+        };
+
+        const Pilates = () => {
+            const { content } = useContent();
+            const p = content.pilates;
+            const ig = (p.instagram || '').replace(/^@/, '');
+            return (
+                <section id="pilates" className="py-20 md:py-28 lg:py-36 bg-sand-light overflow-hidden">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+                        <div className="lg:col-span-5">
+                            <Reveal>
+                                <div className="relative">
+                                    <div aria-hidden="true" className="absolute inset-0 -m-6 border border-ink/15 rounded-4xl"></div>
+                                    <Img src={p.logo} alt="Nuevo Palmar Pilates. Control, precisión, bienestar" className="relative w-full max-w-md mx-auto object-contain rounded-3xl" />
+                                </div>
+                            </Reveal>
+                            <Reveal delay={120}>
+                                <dl className="mt-14 max-w-md mx-auto space-y-3 text-ink">
+                                    <dt className="text-[11px] uppercase tracking-label text-sand-deep">{p.centerLabel}</dt>
+                                    <dd className="flex items-center gap-3 text-[15px] font-light"><MapPin size={16} className="text-sand-deep shrink-0" /> {p.address}</dd>
+                                    <dd><a href={telHref(p.phone)} className="flex items-center gap-3 text-[15px] font-light hover:text-sand-deep"><Phone size={16} className="text-sand-deep shrink-0" /> {p.phone}</a></dd>
+                                    <dd><a href={`https://www.instagram.com/${ig}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-[15px] font-light hover:text-sand-deep"><Instagram size={16} className="text-sand-deep shrink-0" /> {p.instagram}</a></dd>
+                                </dl>
+                            </Reveal>
+                        </div>
+                        <div className="lg:col-span-7">
+                            <Reveal>
+                                <Eyebrow>{p.label}</Eyebrow>
+                                <Title className="mt-6">{p.title}</Title>
+                                <p className="mt-7 text-ink-soft text-lg font-light leading-relaxed">{p.intro}</p>
+                            </Reveal>
+                            <Reveal delay={100}>
+                                <ul className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {p.programs.map((pr, i) => (
+                                        <li key={i} className="bg-white/80 border border-white rounded-3xl px-6 py-5 flex items-center justify-between gap-4">
+                                            <span className="font-serif text-2xl text-ink">{pr}</span>
+                                            <span className="font-serif text-sand-deep" aria-hidden="true">{pad(i)}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-8 text-ink-soft text-base md:text-lg font-light leading-relaxed">{p.outro}</p>
+                                <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                                    <Btn as="a" href={PILATES_APP_URL} className="w-full sm:w-auto px-9 py-4 text-[13px]">{p.buttonApp} <ArrowUpRight size={17} /></Btn>
+                                    <a href={PILATES_APP_URL} className="inline-flex items-center justify-center gap-2 text-[12px] uppercase tracking-btn font-medium text-ink border-b border-ink/40 hover:border-ink py-1 self-center"><Smartphone size={16} /> {p.buttonBook}</a>
+                                </div>
+                            </Reveal>
+                        </div>
+                    </div>
+                </section>
+            );
+        };
+
+        // Carrusel accesible: flechas, puntos, arrastre con el dedo/ratón, teclado y autoplay suave
+        const Carousel = ({ images, label }) => {
+            const n = images.length;
+            const [index, setIndex] = useState(0);
+            const [paused, setPaused] = useState(false);
+            const [stopped, setStopped] = useState(false);
+            const [offset, setOffset] = useState(0);
+            const drag = useRef({ x: 0, dx: 0, active: false, id: null });
+            const reduced = useMemo(() => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
+
+            const go = useCallback((i) => setIndex(((i % n) + n) % n), [n]);
+            useEffect(() => { if (index >= n) setIndex(0); }, [n, index]);
+            useEffect(() => {
+                if (paused || stopped || reduced || n < 2) return;
+                const t = setInterval(() => setIndex(i => (i + 1) % n), 6000);
+                return () => clearInterval(t);
+            }, [paused, stopped, reduced, n]);
+
+            const onPointerDown = (e) => { drag.current = { x: e.clientX, dx: 0, active: true, id: e.pointerId }; setStopped(true); };
+            const onPointerMove = (e) => { if (!drag.current.active) return; drag.current.dx = e.clientX - drag.current.x; setOffset(drag.current.dx); };
+            const endDrag = () => {
+                if (!drag.current.active) return;
+                const dx = drag.current.dx; drag.current.active = false; setOffset(0);
+                if (Math.abs(dx) > 48) go(index + (dx < 0 ? 1 : -1));
+            };
+            const onKey = (e) => {
+                if (e.key === 'ArrowRight') { e.preventDefault(); setStopped(true); go(index + 1); }
+                if (e.key === 'ArrowLeft') { e.preventDefault(); setStopped(true); go(index - 1); }
+            };
+            if (!n) return null;
+            const current = images[index] || images[0];
+            return (
+                <div className="relative" role="region" aria-roledescription="carrusel" aria-label={label} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
+                    <div className="rounded-4xl overflow-hidden bg-sand-light aspect-[4/3] md:aspect-[16/9] lg:aspect-[21/10] outline-none" tabIndex="0" onKeyDown={onKey}
+                         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onPointerLeave={endDrag}>
+                        <div className="carousel-track flex h-full" style={{ transform: `translateX(calc(${-index * 100}% + ${offset}px))`, transition: offset ? 'none' : 'transform .8s cubic-bezier(.22,.61,.36,1)' }}>
+                            {images.map((im, i) => (
+                                <div key={i} className="w-full h-full shrink-0" role="group" aria-roledescription="diapositiva" aria-label={`${i + 1} de ${n}`} aria-hidden={i !== index}>
+                                    <Img src={im.src} alt={im.caption || `Instalaciones ${i + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {n > 1 && (
+                        <>
+                            <button onClick={() => { setStopped(true); go(index - 1); }} className="absolute left-3 md:-left-7 top-[calc(50%-2rem)] md:top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-white/95 border border-sand-light text-ink shadow-lg flex items-center justify-center hover:bg-ink hover:text-white transition-colors" aria-label="Imagen anterior"><ChevronLeft size={26} strokeWidth={1.5} /></button>
+                            <button onClick={() => { setStopped(true); go(index + 1); }} className="absolute right-3 md:-right-7 top-[calc(50%-2rem)] md:top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-white/95 border border-sand-light text-ink shadow-lg flex items-center justify-center hover:bg-ink hover:text-white transition-colors" aria-label="Imagen siguiente"><ChevronRight size={26} strokeWidth={1.5} /></button>
+                        </>
+                    )}
+
+                    <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <p className="font-serif text-xl md:text-2xl text-ink" aria-live="polite">
+                            <span className="font-sans text-xs tracking-label text-sand-deep mr-4">{pad(index)} / {String(n).padStart(2, '0')}</span>
+                            {current.caption}
+                        </p>
+                        {n > 1 && (
+                            <div className="flex gap-2" role="tablist" aria-label="Elegir imagen">
+                                {images.map((_, i) => (
+                                    <button key={i} role="tab" aria-selected={i === index} aria-label={`Ir a la imagen ${i + 1}`} onClick={() => { setStopped(true); go(i); }} className={`h-2 rounded-full transition-all duration-500 ${i === index ? 'w-9 bg-ink' : 'w-2.5 bg-sand hover:bg-sand-deep'}`}></button>
                                 ))}
                             </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const Facilities = () => {
+            const { content } = useContent();
+            const f = content.facilities;
+            return (
+                <section id="instalaciones" className="py-20 md:py-28 lg:py-36 bg-white">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <Reveal className="max-w-3xl">
+                            <Eyebrow>{f.label}</Eyebrow>
+                            <Title className="mt-6">{f.title}</Title>
+                            <p className="mt-6 text-ink-soft text-lg font-light leading-relaxed">{f.intro}</p>
+                        </Reveal>
+                        <Reveal delay={120} className="mt-12 md:px-8">
+                            <Carousel images={f.images} label={f.label} />
                         </Reveal>
                     </div>
                 </section>
             );
-        }
+        };
+
+        const WhyUs = () => {
+            const { content } = useContent();
+            const w = content.whyUs;
+            return (
+                <section id="por-que-elegirnos" className="py-20 md:py-28 lg:py-36 bg-sand-ivory">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <Reveal className="max-w-3xl">
+                            <Eyebrow>{w.label}</Eyebrow>
+                            <Title className="mt-6">{w.title}</Title>
+                        </Reveal>
+                        <Reveal delay={100}>
+                            <ul className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-sand border border-sand rounded-4xl overflow-hidden">
+                                {w.items.map((it, i) => (
+                                    <li key={i} className="bg-sand-ivory p-8 md:p-10 flex flex-col gap-6 transition-colors hover:bg-white">
+                                        <div className="flex items-center justify-between">
+                                            <span className="w-12 h-12 rounded-full border border-sand text-sand-deep flex items-center justify-center" aria-hidden="true"><Icon name={it.icon} size={22} strokeWidth={1.6} /></span>
+                                            <span className="font-serif text-sand-deep" aria-hidden="true">{pad(i)}</span>
+                                        </div>
+                                        <h3 className="font-serif text-2xl md:text-[1.7rem] leading-tight text-ink">{it.title}</h3>
+                                    </li>
+                                ))}
+                            </ul>
+                        </Reveal>
+                    </div>
+                </section>
+            );
+        };
+
+        const Commitment = () => {
+            const { content } = useContent();
+            const c = content.commitment;
+            return (
+                <section id="compromiso" className="relative pt-36 pb-24 md:pt-56 md:pb-32 lg:pb-40 bg-white overflow-hidden">
+                    <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 -top-2 md:-top-6 font-serif outline-text text-[4.5rem] md:text-[12rem] leading-none select-none whitespace-nowrap">Compromiso</span>
+                    <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                        <Reveal>
+                            <Eyebrow className="justify-center">{c.label}</Eyebrow>
+                            <p className="mt-10 font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[2.75rem] leading-[1.4] text-ink">{c.text}</p>
+                            <p className="mt-8 font-serif italic text-3xl md:text-4xl lg:text-5xl text-sand-deep">{c.highlight}</p>
+                            <span aria-hidden="true" className="block mx-auto mt-10 h-px w-16 bg-sand"></span>
+                        </Reveal>
+                    </div>
+                </section>
+            );
+        };
+
+        const Contact = () => {
+            const { content } = useContent();
+            const c = content.contact, s = content.schedule;
+            return (
+                <section id="contacto" className="py-20 md:py-28 lg:py-36 bg-sand-ivory">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <Reveal className="max-w-3xl">
+                            <Eyebrow>{c.label}</Eyebrow>
+                            <Title className="mt-6">{c.title}</Title>
+                            <p className="mt-6 text-ink-soft text-lg font-light leading-relaxed">{c.intro}</p>
+                        </Reveal>
+                        <div className="mt-12 grid lg:grid-cols-12 gap-6 lg:gap-8">
+                            <Reveal className="lg:col-span-5">
+                                <div className="on-dark h-full bg-ink-deep text-white rounded-4xl p-8 md:p-10 flex flex-col">
+                                    <dl className="space-y-7">
+                                        <div className="flex gap-4">
+                                            <MapPin className="text-sand shrink-0 mt-1" size={20} strokeWidth={1.6} />
+                                            <div><dt className="text-[11px] uppercase tracking-label text-sand">Dirección</dt><dd className="mt-1.5 font-serif text-xl leading-snug">{c.address}<br />{c.city}</dd></div>
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <Phone className="text-sand shrink-0 mt-1" size={20} strokeWidth={1.6} />
+                                            <div><dt className="text-[11px] uppercase tracking-label text-sand">Teléfono</dt><dd className="mt-1.5 font-serif text-xl"><a href={telHref(c.phone)} className="hover:text-sand-light">{c.phone}</a></dd></div>
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <Mail className="text-sand shrink-0 mt-1" size={20} strokeWidth={1.6} />
+                                            <div><dt className="text-[11px] uppercase tracking-label text-sand">Correo electrónico</dt><dd className="mt-1.5 font-serif text-lg sm:text-xl [overflow-wrap:anywhere]"><a href={`mailto:${c.email}`} className="hover:text-sand-light">{c.email}</a></dd></div>
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <Clock className="text-sand shrink-0 mt-1" size={20} strokeWidth={1.6} />
+                                            <div>
+                                                <dt className="text-[11px] uppercase tracking-label text-sand">{s.title}</dt>
+                                                <dd className="mt-1.5 space-y-1 font-light text-sand-light/90">{s.lines.map((l, i) => <p key={i}>{l}</p>)}{s.note && <p className="text-sand text-sm italic pt-1">{s.note}</p>}</dd>
+                                            </div>
+                                        </div>
+                                    </dl>
+                                    <div className="mt-10 pt-8 border-t border-white/15 flex flex-col sm:flex-row gap-3">
+                                        <Btn as="a" href={waHref(c.whatsappPhone, c.whatsappMessage)} target="_blank" rel="noreferrer" variant="sand" className="flex-1"><MessageCircle size={16} /> {c.buttonWhatsapp}</Btn>
+                                        <Btn as="a" href={telHref(c.phone)} variant="ghostDark" className="flex-1"><Phone size={16} /> {c.buttonCall}</Btn>
+                                    </div>
+                                </div>
+                            </Reveal>
+                            <Reveal delay={120} className="lg:col-span-7">
+                                <div className="h-full min-h-[380px] lg:min-h-[520px] rounded-4xl overflow-hidden border border-sand-light relative bg-sand-light">
+                                    <iframe src={MAP_URL} className="map-frame absolute inset-0 w-full h-full border-0" allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" title="Mapa de la Clínica de Fisioterapia Nuevo Palmar"></iframe>
+                                    <a href={DIRECTIONS_URL} target="_blank" rel="noreferrer" className="absolute bottom-5 right-5 inline-flex items-center gap-2 bg-white text-ink border border-sand-light rounded-full px-5 py-3 text-[12px] uppercase tracking-btn font-medium shadow-lg hover:bg-ink hover:text-white transition-colors"><ExternalLink size={15} /> {c.buttonDirections}</a>
+                                </div>
+                            </Reveal>
+                        </div>
+                    </div>
+                </section>
+            );
+        };
+
+        const Footer = ({ onAdmin }) => {
+            const { content } = useContent();
+            const g = content.general, c = content.contact;
+            return (
+                <footer className="on-dark bg-ink-deep text-sand-light/80 pt-16 pb-8">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="grid md:grid-cols-12 gap-10 md:gap-8">
+                            <div className="md:col-span-5">
+                                <img src="assets/logo-clinica-claro.png" alt="Clínica de Fisioterapia Nuevo Palmar" className="h-14 md:h-16 w-auto object-contain" />
+                                <p className="mt-6 max-w-sm font-light leading-relaxed text-sm">{g.footerTagline}</p>
+                            </div>
+                            <nav className="md:col-span-4" aria-label="Pie de página">
+                                <p className="text-[11px] uppercase tracking-label text-sand mb-5">Secciones</p>
+                                <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm font-light">
+                                    {NAV.map(n => <li key={n.key}><a href={n.href} className="hover:text-white transition-colors">{g[n.key]}</a></li>)}
+                                </ul>
+                            </nav>
+                            <div className="md:col-span-3">
+                                <p className="text-[11px] uppercase tracking-label text-sand mb-5">{c.label}</p>
+                                <ul className="space-y-3 text-sm font-light">
+                                    <li>{c.address}<br />{c.city}</li>
+                                    <li><a href={telHref(c.phone)} className="hover:text-white transition-colors">{c.phone}</a></li>
+                                    <li><a href={`mailto:${c.email}`} className="hover:text-white transition-colors break-all">{c.email}</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="mt-14 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-light">
+                            <p>&copy; {new Date().getFullYear()} {g.footerRights}</p>
+                            <div className="flex items-center gap-5">
+                                <a href={PRIVACY_URL} className="underline underline-offset-4 decoration-sand/60 hover:text-white transition-colors">{g.footerPrivacy}</a>
+                                <button onClick={onAdmin} className="p-2 rounded-full text-sand-light/30 hover:text-sand-light hover:bg-white/5 transition-colors" aria-label="Editar contenido de la web" title="Editar contenido"><Settings size={16} /></button>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+            );
+        };
+
+        // ------------------------------------------------------------------
+        // PANEL DE EDICIÓN
+        // ------------------------------------------------------------------
+        const ADMIN_TABS = [
+            { id: 'general', label: 'General', fields: [
+                { k: 'navInicio', l: 'Menú · Inicio' }, { k: 'navQuienes', l: 'Menú · Quiénes somos' }, { k: 'navEspecialidades', l: 'Menú · Especialidades' }, { k: 'navColumna', l: 'Menú · Columna' },
+                { k: 'navAccidentes', l: 'Menú · Accidentes de tráfico' }, { k: 'navPilates', l: 'Menú · Pilates' }, { k: 'navInstalaciones', l: 'Menú · Instalaciones' }, { k: 'navContacto', l: 'Menú · Contacto' },
+                { k: 'ctaCita', l: 'Botón "Pedir cita"' }, { k: 'ctaPilates', l: 'Enlace "Área Pilates"' }, { k: 'citaTitle', l: 'Ventana de cita · título' }, { k: 'citaText', l: 'Ventana de cita · texto', t: 'textarea' },
+                { k: 'footerTagline', l: 'Pie · frase', t: 'textarea' }, { k: 'footerPrivacy', l: 'Pie · enlace privacidad' }, { k: 'footerRights', l: 'Pie · titular del ©' }
+            ] },
+            { id: 'hero', label: 'Portada', fields: [
+                { k: 'label', l: 'Etiqueta superior' }, { k: 'title', l: 'Titular', t: 'textarea' }, { k: 'subtitle', l: 'Subtítulo', t: 'textarea' },
+                { k: 'buttonPrimary', l: 'Botón principal' }, { k: 'buttonSecondary', l: 'Botón secundario' },
+                { k: 'image', l: 'Imagen de portada', t: 'image' }, { k: 'imageAlt', l: 'Descripción de la imagen (alt)' },
+                { k: 'statNumber', l: 'Cifra destacada' }, { k: 'statLabel', l: 'Texto de la cifra' }
+            ] },
+            { id: 'about', label: 'Quiénes somos', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'text', l: 'Texto (deja una línea en blanco entre párrafos)', t: 'textarea', rows: 8 },
+                { k: 'image', l: 'Imagen', t: 'image' }, { k: 'imageAlt', l: 'Descripción de la imagen (alt)' }
+            ] },
+            { id: 'philosophy', label: 'Filosofía', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'text', l: 'Texto', t: 'textarea', rows: 6 }, { k: 'pillars', l: 'Pilares (uno por línea)', t: 'lines' }
+            ] },
+            { id: 'specialties', label: 'Especialidades', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'items', l: 'Tarjetas', t: 'cards' }
+            ] },
+            { id: 'spine', label: 'Columna', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'items', l: 'Lesiones (una por línea)', t: 'lines' }, { k: 'outro', l: 'Frase de cierre', t: 'textarea' }, { k: 'button', l: 'Botón' }
+            ] },
+            { id: 'accidents', label: 'Accidentes', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'items', l: 'Puntos (uno por línea)', t: 'lines' }, { k: 'outro', l: 'Frase de cierre', t: 'textarea' }, { k: 'button', l: 'Botón' }
+            ] },
+            { id: 'pilates', label: 'Pilates', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'programs', l: 'Programas (uno por línea)', t: 'lines' }, { k: 'outro', l: 'Texto de cierre', t: 'textarea' },
+                { k: 'buttonApp', l: 'Botón grande (Área Pilates)' }, { k: 'buttonBook', l: 'Enlace "Reservar clases desde el móvil"' },
+                { k: 'centerLabel', l: 'Rótulo de datos del centro' }, { k: 'address', l: 'Dirección del centro de Pilates' }, { k: 'phone', l: 'Teléfono del centro de Pilates' }, { k: 'instagram', l: 'Instagram' }, { k: 'logo', l: 'Logotipo de Pilates', t: 'image' }
+            ] },
+            { id: 'facilities', label: 'Instalaciones', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'images', l: 'Fotos del carrusel', t: 'images' }
+            ] },
+            { id: 'whyUs', label: 'Por qué elegirnos', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'items', l: 'Razones', t: 'iconlist' }
+            ] },
+            { id: 'commitment', label: 'Compromiso', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'text', l: 'Texto', t: 'textarea', rows: 6 }, { k: 'highlight', l: 'Frase destacada' }
+            ] },
+            { id: 'contact', label: 'Contacto', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' },
+                { k: 'address', l: 'Dirección' }, { k: 'city', l: 'Código postal y localidad' }, { k: 'phone', l: 'Teléfono' }, { k: 'email', l: 'Correo electrónico' },
+                { k: 'whatsappPhone', l: 'Número de WhatsApp (con prefijo, sin espacios: 34...)' }, { k: 'whatsappMessage', l: 'Mensaje inicial de WhatsApp', t: 'textarea' },
+                { k: 'buttonWhatsapp', l: 'Botón WhatsApp' }, { k: 'buttonCall', l: 'Botón llamar' }, { k: 'buttonDirections', l: 'Botón "Cómo llegar"' }
+            ] },
+            { id: 'schedule', label: 'Horario', fields: [
+                { k: 'title', l: 'Título' }, { k: 'lines', l: 'Horario (una línea por entrada)', t: 'lines' }, { k: 'note', l: 'Nota (opcional)' }
+            ] }
+        ];
+
+        const inputCls = "w-full px-3.5 py-2.5 border border-sand-light rounded-xl text-sm bg-white focus:border-sand outline-none focus:ring-2 focus:ring-sand/30 transition";
+        const Label = ({ children }) => <label className="block text-[11px] font-medium uppercase tracking-label text-sand-deep mb-1.5">{children}</label>;
+        const SmallBtn = ({ children, className = "", ...p }) => <button type="button" className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border border-sand-light text-ink hover:bg-sand-light disabled:opacity-30 transition ${className}`} {...p}>{children}</button>;
+
+        const ImagePreview = ({ src }) => (
+            <div className="w-full sm:w-28 aspect-[4/3] rounded-xl overflow-hidden bg-sand-light border border-sand-light shrink-0">
+                <Img src={src} alt="" className="w-full h-full object-cover" />
+            </div>
+        );
+
+        const ImageField = ({ value, onChange }) => (
+            <div className="flex flex-col sm:flex-row gap-3">
+                <ImagePreview src={value} />
+                <div className="flex-1">
+                    <input type="url" value={value} onChange={e => onChange(e.target.value)} placeholder="https://… o assets/imagen.jpg" className={inputCls} />
+                    <p className="text-xs text-ink-soft mt-1.5 font-light">Pega la URL de la imagen (por ejemplo, una foto subida a Google Drive, Imgur o la carpeta <code>assets/</code>).</p>
+                </div>
+            </div>
+        );
+
+        const normalizeLines = (t) => t.split('\n').map(s => s.trim()).filter(Boolean);
+        const LinesField = ({ value, onChange, rows = 5 }) => {
+            const [text, setText] = useState((value || []).join('\n'));
+            // Solo se sincroniza desde fuera (p. ej. al restaurar) si el contenido real difiere de lo escrito
+            useEffect(() => { const incoming = (value || []).join('\n'); if (incoming !== normalizeLines(text).join('\n')) setText(incoming); }, [value]);
+            return <textarea value={text} rows={rows} onChange={e => { setText(e.target.value); onChange(normalizeLines(e.target.value)); }} className={inputCls} />;
+        };
+
+        const IconSelect = ({ value, onChange }) => (
+            <div className="flex items-center gap-2">
+                <span className="w-9 h-9 rounded-full border border-sand-light flex items-center justify-center text-sand-deep shrink-0"><Icon name={value} size={18} /></span>
+                <select value={value} onChange={e => onChange(e.target.value)} className={inputCls} aria-label="Icono">
+                    {Object.keys(ICONS).map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+            </div>
+        );
+
+        const listHelpers = (items, onChange) => ({
+            move: (i, d) => { const j = i + d; if (j < 0 || j >= items.length) return; const n = [...items]; [n[i], n[j]] = [n[j], n[i]]; onChange(n); },
+            remove: (i) => { if (!confirm("¿Eliminar este elemento?")) return; onChange(items.filter((_, k) => k !== i)); },
+            update: (i, patch) => onChange(items.map((it, k) => k === i ? { ...it, ...patch } : it)),
+            add: (item) => onChange([...items, item])
+        });
+
+        const ListControls = ({ i, total, h }) => (
+            <div className="flex gap-1 shrink-0">
+                <SmallBtn onClick={() => h.move(i, -1)} disabled={i === 0} aria-label="Subir"><ChevronUp size={14} /></SmallBtn>
+                <SmallBtn onClick={() => h.move(i, 1)} disabled={i === total - 1} aria-label="Bajar"><ChevronDown size={14} /></SmallBtn>
+                <SmallBtn onClick={() => h.remove(i)} className="text-red-700 hover:bg-red-50 border-red-100" aria-label="Eliminar"><Trash2 size={14} /></SmallBtn>
+            </div>
+        );
+
+        const CardsField = ({ value, onChange }) => {
+            const h = listHelpers(value, onChange);
+            return (
+                <div className="space-y-4">
+                    {value.map((card, i) => (
+                        <div key={i} className="border border-sand-light rounded-2xl p-4 bg-sand-ivory/60 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="font-serif text-lg text-ink">Tarjeta {pad(i)}</span>
+                                <ListControls i={i} total={value.length} h={h} />
+                            </div>
+                            <div><Label>Título</Label><input value={card.title} onChange={e => h.update(i, { title: e.target.value })} className={inputCls} /></div>
+                            <div><Label>Icono</Label><IconSelect value={card.icon} onChange={v => h.update(i, { icon: v })} /></div>
+                            <div><Label>Puntos (uno por línea)</Label><LinesField value={card.points} onChange={v => h.update(i, { points: v })} rows={4} /></div>
+                        </div>
+                    ))}
+                    <SmallBtn onClick={() => h.add({ icon: 'Sparkles', title: 'Nueva especialidad', points: ['Punto 1'] })}><Plus size={14} /> Añadir tarjeta</SmallBtn>
+                </div>
+            );
+        };
+
+        const ImagesField = ({ value, onChange }) => {
+            const h = listHelpers(value, onChange);
+            return (
+                <div className="space-y-4">
+                    {value.map((im, i) => (
+                        <div key={i} className="border border-sand-light rounded-2xl p-4 bg-sand-ivory/60">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                <span className="font-serif text-lg text-ink">Foto {pad(i)}</span>
+                                <ListControls i={i} total={value.length} h={h} />
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <ImagePreview src={im.src} />
+                                <div className="flex-1 space-y-2">
+                                    <div><Label>URL de la imagen</Label><input type="url" value={im.src} onChange={e => h.update(i, { src: e.target.value })} className={inputCls} placeholder="https://…" /></div>
+                                    <div><Label>Pie de foto</Label><input value={im.caption} onChange={e => h.update(i, { caption: e.target.value })} className={inputCls} /></div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    <SmallBtn onClick={() => h.add({ src: '', caption: 'Nueva foto' })}><Plus size={14} /> Añadir foto</SmallBtn>
+                </div>
+            );
+        };
+
+        const IconListField = ({ value, onChange }) => {
+            const h = listHelpers(value, onChange);
+            return (
+                <div className="space-y-3">
+                    {value.map((it, i) => (
+                        <div key={i} className="border border-sand-light rounded-2xl p-3 bg-sand-ivory/60 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="sm:w-44"><IconSelect value={it.icon} onChange={v => h.update(i, { icon: v })} /></div>
+                            <input value={it.title} onChange={e => h.update(i, { title: e.target.value })} className={inputCls} aria-label={`Razón ${i + 1}`} />
+                            <ListControls i={i} total={value.length} h={h} />
+                        </div>
+                    ))}
+                    <SmallBtn onClick={() => h.add({ icon: 'Sparkles', title: 'Nueva razón' })}><Plus size={14} /> Añadir razón</SmallBtn>
+                </div>
+            );
+        };
+
+        const Field = ({ section, field }) => {
+            const { content, updateField } = useContent();
+            const value = content[section][field.k];
+            const set = (v) => updateField(section, field.k, v);
+            let control;
+            switch (field.t) {
+                case 'textarea': control = <textarea value={value} rows={field.rows || 3} onChange={e => set(e.target.value)} className={inputCls} />; break;
+                case 'image': control = <ImageField value={value} onChange={set} />; break;
+                case 'lines': control = <LinesField value={value} onChange={set} />; break;
+                case 'cards': control = <CardsField value={value} onChange={set} />; break;
+                case 'images': control = <ImagesField value={value} onChange={set} />; break;
+                case 'iconlist': control = <IconListField value={value} onChange={set} />; break;
+                default: control = <input value={value} onChange={e => set(e.target.value)} className={inputCls} />;
+            }
+            return <div><Label>{field.l}</Label>{control}</div>;
+        };
 
         const AdminPanel = ({ isOpen, onClose }) => {
-            const { content, updateContent, isAdmin, login, logout, resetToDefaults, isFirebaseReady, setIsAdmin } = useContent();
+            const { isAdmin, login, logout, resetToDefaults, isFirebaseReady, setIsAdmin, saveState } = useContent();
             const [pass, setPass] = useState("");
             const [tab, setTab] = useState('hero');
             const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
             const [biometricEnabled, setBiometricEnabled] = useState(false);
 
             useEffect(() => {
-                const checkBio = async () => {
-                    if (window.PublicKeyCredential && (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) {
-                        setIsBiometricAvailable(true);
-                    }
-                    if (localStorage.getItem('bio_id')) {
-                        setBiometricEnabled(true);
-                    }
-                };
-                if(isOpen) checkBio();
-            }, [isOpen]);
+                if (!isOpen) return;
+                (async () => {
+                    try { if (window.PublicKeyCredential && (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) setIsBiometricAvailable(true); } catch (e) {}
+                    if (localStorage.getItem('bio_id')) setBiometricEnabled(true);
+                })();
+                const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+                document.addEventListener('keydown', onKey);
+                document.body.style.overflow = 'hidden';
+                return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+            }, [isOpen, onClose]);
 
             if (!isOpen) return null;
-            
-            // Tabs config
-            const tabs = [
-                { id: 'hero', label: 'Portada' },
-                { id: 'gallery', label: 'Galería' },
-                { id: 'config', label: 'Configuración' },
-                { id: 'blog', label: 'Blog' },
-                { id: 'contact', label: 'Contacto' },
-                { id: 'pilates', label: 'Pilates' }
-            ];
 
             const registerBiometric = async () => {
                 try {
-                    const challenge = new Uint8Array(32);
-                    window.crypto.getRandomValues(challenge);
-                    const userId = new Uint8Array(16);
-                    window.crypto.getRandomValues(userId);
-                    
-                    const credential = await navigator.credentials.create({
-                        publicKey: {
-                            challenge,
-                            rp: { name: "Clínica Nuevo Palmar", id: window.location.hostname },
-                            user: { id: userId, name: "admin", displayName: "Admin" },
-                            pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
-                            timeout: 60000,
-                            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
-                        }
-                    });
-                    
+                    const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                    const userId = new Uint8Array(16); window.crypto.getRandomValues(userId);
+                    const credential = await navigator.credentials.create({ publicKey: {
+                        challenge, rp: { name: "Clínica de Fisioterapia Nuevo Palmar", id: window.location.hostname },
+                        user: { id: userId, name: "admin", displayName: "Admin" },
+                        pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+                        timeout: 60000, authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+                    } });
                     if (credential) {
-                        const rawId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-                        localStorage.setItem('bio_id', rawId);
+                        localStorage.setItem('bio_id', btoa(String.fromCharCode(...new Uint8Array(credential.rawId))));
                         setBiometricEnabled(true);
-                        alert("¡Biometría activada con éxito!");
+                        alert("Acceso biométrico activado.");
                     }
-                } catch (e) {
-                    console.error("Bio registration failed", e);
-                    alert("No se pudo activar. Usa localhost o HTTPS.");
-                }
+                } catch (e) { console.error(e); alert("No se pudo activar. Necesita HTTPS o localhost."); }
             };
-
             const loginBiometric = async () => {
                 try {
-                    const savedId = localStorage.getItem('bio_id');
-                    if (!savedId) return;
-                    
-                    const challenge = new Uint8Array(32);
-                    window.crypto.getRandomValues(challenge);
-                    
-                    await navigator.credentials.get({
-                        publicKey: {
-                            challenge,
-                            allowCredentials: [{
-                                id: Uint8Array.from(atob(savedId), c => c.charCodeAt(0)),
-                                type: 'public-key',
-                            }],
-                            userVerification: "required"
-                        }
-                    });
-                    setIsAdmin(true); // Direct login via context
-                } catch (e) {
-                    console.error("Bio login failed", e);
-                }
+                    const savedId = localStorage.getItem('bio_id'); if (!savedId) return;
+                    const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                    await navigator.credentials.get({ publicKey: { challenge, allowCredentials: [{ id: Uint8Array.from(atob(savedId), c => c.charCodeAt(0)), type: 'public-key' }], userVerification: "required" } });
+                    setIsAdmin(true);
+                } catch (e) { console.error(e); }
             };
 
+            const current = ADMIN_TABS.find(t => t.id === tab) || ADMIN_TABS[0];
+            const saveLabel = { idle: '', saving: 'Guardando…', saved: 'Guardado', error: 'Error al guardar (copia local)' }[saveState];
+
             return (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                        <div className="bg-brand-dark p-6 flex justify-between items-center text-white">
-                            <h2 className="text-xl font-bold flex items-center gap-2">{isAdmin ? '⚙️ Editor' : '🔒 Acceso Privado'}</h2>
-                            <button onClick={onClose} aria-label="Cerrar panel admin"><X /></button>
+                <div className="fixed inset-0 z-[100] bg-ink-deep/70 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4" onClick={onClose}>
+                    <div role="dialog" aria-modal="true" aria-label="Editor de contenido" className="bg-white sm:rounded-4xl shadow-2xl w-full max-w-3xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
+                        <div className="bg-ink-deep px-6 py-4 flex justify-between items-center text-white">
+                            <div className="flex items-center gap-3">
+                                {isAdmin ? <Settings size={18} className="text-sand" /> : <Lock size={18} className="text-sand" />}
+                                <h2 className="font-serif text-xl">{isAdmin ? 'Editor de la web' : 'Acceso privado'}</h2>
+                                {isAdmin && (
+                                    <span className={`ml-2 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-full ${isFirebaseReady ? 'bg-white/10 text-sand-light' : 'bg-sand/20 text-sand'}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseReady ? 'bg-sand-light' : 'bg-sand'}`}></span>{isFirebaseReady ? 'Nube conectada' : 'Modo local'}
+                                    </span>
+                                )}
+                            </div>
+                            <button onClick={onClose} aria-label="Cerrar editor" className="p-1.5 rounded-full hover:bg-white/10"><X size={22} /></button>
                         </div>
-                        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-                            {!isAdmin ? (
-                                <div className="text-center py-8">
-                                    <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4"><Lock /></div>
-                                    <div className="flex gap-2 justify-center max-w-xs mx-auto mb-4">
-                                        <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Contraseña" className="flex-1 px-4 py-3 border rounded-lg text-center" />
-                                        {biometricEnabled && (
-                                            <button onClick={loginBiometric} className="px-3 bg-brand-green/10 text-brand-green rounded-lg hover:bg-brand-green/20" title="Usar Huella/Cara">
-                                                <Fingerprint size={24} />
-                                            </button>
-                                        )}
-                                    </div>
-                                    <Button onClick={() => login(pass) || alert("Contraseña incorrecta")}>Entrar</Button>
+
+                        {!isAdmin ? (
+                            <form className="p-8 sm:p-12 text-center" onSubmit={(e) => { e.preventDefault(); if (!login(pass)) alert("Contraseña incorrecta"); }}>
+                                <div className="w-14 h-14 rounded-full border border-sand text-sand-deep flex items-center justify-center mx-auto mb-6"><Lock size={22} /></div>
+                                <p className="text-ink-soft font-light text-sm mb-6">Introduce la contraseña para editar los textos e imágenes de la web.</p>
+                                <div className="flex gap-2 justify-center max-w-xs mx-auto mb-5">
+                                    <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Contraseña" className={`${inputCls} text-center`} autoFocus />
+                                    {biometricEnabled && <button type="button" onClick={loginBiometric} className="px-3 rounded-xl border border-sand-light text-sand-deep hover:bg-sand-light" title="Usar huella o cara" aria-label="Acceso biométrico"><Fingerprint size={22} /></button>}
                                 </div>
-                            ) : (
-                                <div>
-                                    <div className="mb-4 text-xs text-center font-bold px-2 py-2 rounded bg-yellow-100 text-yellow-800 flex items-center justify-center gap-2">
-                                        {isFirebaseReady ? <span className="w-2 h-2 rounded-full bg-green-500"></span> : <span className="w-2 h-2 rounded-full bg-orange-500"></span>}
-                                        {isFirebaseReady ? "Nube Conectada" : "Modo Local"}
-                                    </div>
-                                    <div className="flex gap-2 overflow-x-auto mb-6 pb-2 border-b custom-scrollbar">
-                                        {tabs.map(t => (
-                                            <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-full text-sm font-bold capitalize transition-colors whitespace-nowrap ${tab === t.id ? 'bg-brand-green text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>{t.label}</button>
+                                <Btn type="submit">Entrar</Btn>
+                            </form>
+                        ) : (
+                            <>
+                                <div className="px-6 pt-4 border-b border-sand-light">
+                                    <div className="flex gap-2 overflow-x-auto pb-3 custom-scrollbar" role="tablist" aria-label="Secciones">
+                                        {ADMIN_TABS.map(t => (
+                                            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={`px-3.5 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors ${tab === t.id ? 'bg-ink text-white' : 'bg-sand-ivory text-ink hover:bg-sand-light'}`}>{t.label}</button>
                                         ))}
                                     </div>
-                                    
-                                    {tab === 'config' && (
-                                        <div className="space-y-4 mb-6">
-                                            <div className="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
-                                                <h4 className="font-bold mb-1">Variables para WhatsApp:</h4>
-                                                <p className="mb-2">Usa <code>{`{name}`}</code>, <code>{`{date}`}</code>, <code>{`{time}`}</code> y <code>{`{comments}`}</code> en la plantilla.</p>
-                                            </div>
-                                            {!biometricEnabled && isBiometricAvailable && (
-                                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                                    <div className="flex items-center gap-3">
-                                                        <Fingerprint className="text-gray-500" />
-                                                        <div className="text-sm">
-                                                            <p className="font-bold text-gray-700">Acceso Biométrico</p>
-                                                            <p className="text-gray-500">Activa FaceID/TouchID para entrar sin contraseña.</p>
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={registerBiometric} className="px-3 py-1.5 text-xs font-bold bg-brand-green text-white rounded-lg">Activar</button>
-                                                </div>
-                                            )}
+                                </div>
+                                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-5">
+                                    {tab === 'general' && !biometricEnabled && isBiometricAvailable && (
+                                        <div className="flex items-center justify-between gap-4 p-4 bg-sand-ivory rounded-2xl border border-sand-light">
+                                            <div className="flex items-center gap-3 text-sm"><Fingerprint className="text-sand-deep shrink-0" /><div><p className="font-medium text-ink">Acceso biométrico</p><p className="text-ink-soft font-light">Activa FaceID / TouchID para entrar sin contraseña en este dispositivo.</p></div></div>
+                                            <SmallBtn onClick={registerBiometric}>Activar</SmallBtn>
                                         </div>
                                     )}
-
-                                    <div className="space-y-4">
-                                        {content[tab] && Object.entries(content[tab]).map(([key, val]) => (
-                                            <div key={key}>
-                                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{key.replace(/_/g, ' ')}</label>
-                                                <textarea value={val} onChange={(e) => updateContent(tab, key, e.target.value)} className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-brand-green outline-none bg-gray-50" rows={val.length > 60 || key === 'holidays' ? 4 : 1} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="mt-8 pt-4 border-t flex justify-end gap-2">
-                                        <button onClick={resetToDefaults} className="px-3 py-2 bg-red-50 text-red-600 rounded-lg flex gap-1 items-center text-sm hover:bg-red-100"><RotateCcw size={14}/> Reset</button>
-                                        <button onClick={logout} className="px-3 py-2 bg-gray-800 text-white rounded-lg flex gap-1 items-center text-sm hover:bg-black"><LogOut size={14}/> Salir</button>
+                                    {current.fields.map(f => <Field key={f.k} section={current.id} field={f} />)}
+                                </div>
+                                <div className="px-6 py-4 border-t border-sand-light flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-sand-ivory/50">
+                                    <span className={`text-xs ${saveState === 'error' ? 'text-red-700' : 'text-ink-soft'}`} aria-live="polite">{saveLabel}</span>
+                                    <div className="flex gap-2">
+                                        <SmallBtn onClick={resetToDefaults} className="text-red-700 border-red-100 hover:bg-red-50"><RotateCcw size={14} /> Restaurar textos por defecto</SmallBtn>
+                                        <SmallBtn onClick={logout} className="bg-ink text-white border-ink hover:bg-ink-deep"><LogOut size={14} /> Salir</SmallBtn>
                                     </div>
                                 </div>
-                            )}
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
             );
         };
 
-        const Navbar = () => {
-            const [scrolled, setScrolled] = useState(false);
-            const [mobileOpen, setMobileOpen] = useState(false);
+        // ------------------------------------------------------------------
+        // APLICACIÓN
+        // ------------------------------------------------------------------
+        const App = () => {
+            const [citaOpen, setCitaOpen] = useState(false);
             const [adminOpen, setAdminOpen] = useState(false);
-            const { content } = useContent();
+            const openCita = useCallback(() => setCitaOpen(true), []);
+            const closeCita = useCallback(() => setCitaOpen(false), []);
+            const closeAdmin = useCallback(() => setAdminOpen(false), []);
 
             useEffect(() => {
-                const fn = () => setScrolled(window.scrollY > 20);
-                window.addEventListener('scroll', fn);
-                return () => window.removeEventListener('scroll', fn);
+                if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+                if (!location.hash) window.scrollTo(0, 0);
             }, []);
-
-            const scrollToTop = (e) => {
-                e.preventDefault();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
 
             return (
                 <>
-                    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur shadow-sm py-4' : 'bg-transparent py-6'}`}>
-                        <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <a href="#" onClick={scrollToTop} className="flex items-center gap-3 cursor-pointer">
-                                    <img src="assets/logo.png" alt="Logotipo" className="h-12 w-auto object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
-                                    <span className="text-2xl font-serif font-bold text-brand-green hidden">Nuevo Palmar</span>
-                                </a>
-                            </div>
-                            <div className="hidden md:flex items-center space-x-8">
-                                {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map((item, i) => (
-                                    <a key={i} href={`#${item.toLowerCase() === 'inicio' ? 'home' : item === 'Nosotros' ? 'about' : item.toLowerCase()}`} className={`text-sm font-medium hover:text-brand-green transition-colors ${scrolled ? 'text-gray-700' : 'text-gray-800'}`}>{item}</a>
-                                ))}
-                                <a href="app/" className={`text-sm font-semibold px-4 py-2 rounded-full border transition-colors ${scrolled ? 'border-brand-green text-brand-green hover:bg-brand-green hover:text-white' : 'border-gray-800 text-gray-800 hover:bg-gray-800 hover:text-white'}`}>Área Pilates</a>
-                                <a href={`tel:${content.contact.phone.replace(/\s/g, '')}`} className="flex items-center gap-2 bg-brand-green text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-0.5"><Phone size={16} /> {content.contact.phone}</a>
-                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark transition-colors" aria-label="Abrir panel admin"><Settings size={20}/></button>
-                            </div>
-                            <div className="md:hidden flex items-center gap-4">
-                                <button onClick={() => setAdminOpen(true)} className="text-gray-400 hover:text-brand-dark" aria-label="Abrir panel admin"><Settings size={20}/></button>
-                                <button onClick={() => setMobileOpen(!mobileOpen)} className="text-brand-dark" aria-label="Menú móvil">{mobileOpen ? <X /> : <Menu />}</button>
-                            </div>
-                        </div>
-                        {mobileOpen && (
-                            <div className="md:hidden bg-white border-t p-4 flex flex-col gap-4 shadow-xl animate-fade-in">
-                                {['Inicio', 'Nosotros', 'Servicios', 'Pilates', 'Blog', 'Contacto'].map(item => (
-                                    <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileOpen(false)} className="text-gray-700 font-medium py-2 border-b border-gray-50">{item}</a>
-                                ))}
-                                <a href="app/" className="mt-2 text-center bg-brand-green text-white font-semibold py-3 rounded-full">Área Pilates · Reservas</a>
-                            </div>
-                        )}
-                    </nav>
-                    <AdminPanel isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+                    <a href="#inicio" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[200] focus:bg-ink focus:text-white focus:px-4 focus:py-2 focus:rounded-full">Saltar al contenido</a>
+                    <Header onCita={openCita} />
+                    <main>
+                        <Hero onCita={openCita} />
+                        <About />
+                        <Specialties />
+                        <Spine onCita={openCita} />
+                        <Accidents onCita={openCita} />
+                        <Pilates />
+                        <Facilities />
+                        <WhyUs />
+                        <Commitment />
+                        <Contact />
+                    </main>
+                    <Footer onAdmin={() => setAdminOpen(true)} />
+                    <CitaModal isOpen={citaOpen} onClose={closeCita} />
+                    <AdminPanel isOpen={adminOpen} onClose={closeAdmin} />
                 </>
             );
         };
 
-        const App = () => {
-            const { content } = useContent();
-            const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-            const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-
-            // Scroll to top on mount
-            useEffect(() => {
-                if ('scrollRestoration' in history) {
-                    history.scrollRestoration = 'manual';
-                }
-                window.scrollTo(0, 0);
-            }, []);
-
-            return (
-                <div className="min-h-screen">
-                    <Navbar />
-                    <BookingModal isOpen={isBookingModalOpen} onClose={() => setIsBookingModalOpen(false)} />
-
-                    {/* HERO */}
-                    <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-brand-beige">
-                        <div className="absolute inset-0">
-                            <img src="assets/Portada Clinica.png" alt="Fachada" className="w-full h-full object-cover opacity-90 animate-[pulse_10s_infinite]" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent"></div>
-                        </div>
-                        <div className="max-w-7xl mx-auto px-4 relative z-10 w-full">
-                            <Reveal className="max-w-2xl">
-                                <span className="inline-block px-4 py-1 rounded-full bg-brand-green/10 text-brand-green text-sm font-semibold mb-6">{content.hero.badge}</span>
-                                <h1 className="font-serif text-5xl md:text-7xl text-brand-dark leading-tight mb-6">{content.hero.titleLine1} <br/> <span className="text-brand-green">{content.hero.titleLine2}</span></h1>
-                                <p className="text-xl text-gray-600 mb-8 leading-relaxed max-w-lg">{content.hero.description}</p>
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <a href="#contact"><Button>{content.hero.buttonPrimary} <ArrowRight className="ml-2 w-4 h-4" /></Button></a>
-                                    <a href="#services"><Button variant="outline">{content.hero.buttonSecondary}</Button></a>
-                                </div>
-                                <div className="mt-12 flex gap-8 opacity-60 grayscale hover:grayscale-0 transition-all">{['ASISA', 'MAPFRE', 'DKV', 'CASER'].map(s => <span key={s} className="font-bold text-gray-400">{s}</span>)}</div>
-                            </Reveal>
-                        </div>
-                    </section>
-
-                    {/* ABOUT */}
-                    <section id="about" className="py-24 bg-white">
-                        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-2 gap-16 items-center">
-                            <div className="order-2 lg:order-1 relative">
-                                <Reveal delay={200}>
-                                    <div className="absolute -top-4 -left-4 w-2/3 h-2/3 bg-brand-beige rounded-3xl -z-10" />
-                                    <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/5] group">
-                                        <img src="assets/Jose Diego.png" alt="Director" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-8 text-white"><p className="font-serif text-2xl">José Diego Frutos Bernal</p><p className="text-white/80">Director & Fisioterapeuta</p></div>
-                                    </div>
-                                </Reveal>
-                            </div>
-                            <div className="order-1 lg:order-2">
-                                <Reveal>
-                                    <h2 className="text-brand-green font-bold tracking-wider uppercase mb-2">Sobre Nosotros</h2>
-                                    <h3 className="font-serif text-4xl text-brand-dark mb-6">Excelencia Terapéutica</h3>
-                                    <p className="text-gray-600 text-lg mb-8 leading-relaxed">Fisioterapeuta diplomado por la Universidad de Murcia (1999) y especialista en Terapia Manual Osteopática. José Diego lidera un equipo comprometido con la fisioterapia basada en la evidencia.</p>
-                                    <div className="space-y-4 mb-8">{["Terapia Manual Osteopática", "Fisioterapia Traumatológica", "Fisioterapia Geriátrica"].map(s => (<div key={s} className="flex items-center gap-4"><div className="w-8 h-8 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green"><CheckCircle2 size={16}/></div><span className="text-gray-700 font-medium">{s}</span></div>))}</div>
-                                    <div className="p-6 bg-brand-beige rounded-xl border-l-4 border-brand-green italic text-gray-600">"Rechazamos los tratamientos estandarizados en favor de una atención personalizada."</div>
-                                </Reveal>
-                            </div>
-                        </div>
-                    </section>
-                    
-                    <Team />
-
-                    <Services />
-
-                    {/* PARALLAX */}
-                    <section className="relative h-[60vh] bg-fixed bg-center bg-cover flex items-center justify-center" style={{ backgroundImage: "url('assets/interior.png')" }} aria-label="Instalaciones">
-                        <div className="absolute inset-0 bg-black/40"></div>
-                        <div className="relative text-center text-white p-4">
-                            <Reveal><h2 className="font-serif text-4xl md:text-5xl mb-4">Instalaciones de Vanguardia</h2><p className="text-xl opacity-90">Un espacio diseñado para tu recuperación.</p></Reveal>
-                        </div>
-                    </section>
-
-                    {/* PILATES */}
-                    <section id="pilates" className="py-24 relative overflow-hidden bg-brand-dark">
-                        <div className="absolute inset-0 opacity-10 mix-blend-overlay"><img src="assets/Cara abstracta.jpeg" alt="Decoración" className="w-full h-full object-cover grayscale" /></div>
-                        <div className="max-w-7xl mx-auto px-4 relative z-10 grid lg:grid-cols-12 gap-12">
-                            <div className="lg:col-span-5 text-white">
-                                <Reveal>
-                                    <h2 className="text-brand-green font-bold uppercase mb-2">Escuela de Salud</h2>
-                                    <h3 className="font-serif text-4xl mb-6">{content.pilates.title}</h3>
-                                    <p className="text-gray-300 text-lg mb-8">{content.pilates.description}</p>
-                                    <div className="bg-white/10 backdrop-blur rounded-2xl p-6 mb-8 border border-white/10">
-                                        <div className="flex items-center gap-3 mb-2 font-bold text-lg"><Star className="text-brand-green fill-current"/> Evaluación Inicial</div>
-                                        <p className="text-gray-400 text-sm">Valoración funcional completa antes de comenzar.</p>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row gap-4">
-                                        <a href={`mailto:${content.contact.email}?subject=Reserva Clase`}><Button variant="accent">Clase de Prueba</Button></a>
-                                        <Button variant="primary" onClick={() => setIsBookingModalOpen(true)}>Reservar Online</Button>
-                                    </div>
-                                </Reveal>
-                            </div>
-                            <div className="lg:col-span-7 grid md:grid-cols-3 gap-6">
-                                {[
-                                    { t: "Individual", p: content.pilates.priceIndividual, f: ["100% Personalizado", "Máquinas y Suelo"] },
-                                    { t: "Pareja", p: content.pilates.pricePair, f: ["Semi-privado", "Motivación conjunta"], rec: true },
-                                    { t: "Grupos", p: content.pilates.priceGroup, f: ["Máximo 4 personas", "Ambiente dinámico"] }
-                                ].map((plan, i) => (
-                                    <Reveal key={i} delay={i*150} className="h-full">
-                                        <div className={`rounded-2xl p-6 h-full flex flex-col ${plan.rec ? 'bg-white text-brand-dark shadow-2xl scale-105 z-10' : 'bg-white/5 border border-white/10 text-white'}`}>
-                                            {plan.rec && <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-green text-white px-3 py-1 text-xs font-bold rounded-full uppercase">Recomendado</span>}
-                                            <h4 className="font-bold text-lg mb-2">{plan.t}</h4>
-                                            <div className="text-2xl font-serif font-bold mb-6">{plan.p}</div>
-                                            <ul className="space-y-3 mb-8 flex-1">
-                                                {plan.f.map(f => <li key={f} className="flex gap-2 text-sm opacity-80"><Check size={16} className={plan.rec ? 'text-brand-green' : ''}/> {f}</li>)}
-                                            </ul>
-                                            <a href={`https://wa.me/34${content.contact.phone.replace(/\s/g, '')}`} className={`w-full py-2 rounded-lg text-center text-sm font-bold ${plan.rec ? 'bg-brand-dark text-white' : 'bg-white/10 hover:bg-white/20'}`}>Más Info</a>
-                                        </div>
-                                    </Reveal>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* BLOG */}
-                    <section id="blog" className="py-24 bg-white">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <Reveal><h2 className="text-center font-serif text-4xl text-brand-dark mb-12">Blog y Consejos</h2></Reveal>
-                            <div className="grid md:grid-cols-3 gap-8">
-                                {[1,2,3].map(i => (
-                                    <Reveal key={i} delay={i*100}>
-                                        <article className="group cursor-pointer">
-                                            <div className="aspect-video rounded-2xl bg-gray-100 overflow-hidden mb-4"><img src={`https://picsum.photos/400/300?random=${i}`} alt={`Articulo ${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/></div>
-                                            <h4 className="font-bold text-lg mb-2 group-hover:text-brand-green transition-colors">{content.blog[`post${i}_title`]}</h4>
-                                            <p className="text-gray-600 text-sm">{content.blog[`post${i}_excerpt`]}</p>
-                                        </article>
-                                    </Reveal>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    <Testimonials />
-                    <FAQ />
-
-                    {/* CONTACT */}
-                    <section id="contact" className="py-24 bg-brand-light">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <Reveal>
-                                <div className="bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col lg:flex-row">
-                                    <div className="lg:w-1/3 p-10 bg-brand-dark text-white">
-                                        <h3 className="font-serif text-3xl mb-8">Contacto</h3>
-                                        <div className="space-y-6">
-                                            <div className="flex gap-4"><MapPin className="text-brand-green shrink-0"/> <div><p className="font-bold">Ubicación</p><p className="text-gray-400 text-sm">{content.contact.address}<br/>{content.contact.city}</p></div></div>
-                                            <div className="flex gap-4"><Phone className="text-brand-green shrink-0"/> <div><p className="font-bold">Llámanos</p><p className="text-gray-400 text-sm">{content.contact.phone}</p></div></div>
-                                            <div className="flex gap-4"><Mail className="text-brand-green shrink-0"/> <div><p className="font-bold">Escríbenos</p><p className="text-gray-400 text-sm break-all">{content.contact.email}</p></div></div>
-                                        </div>
-                                    </div>
-                                    <div className="lg:w-2/3 min-h-[400px] relative group">
-                                        <iframe src={MAP_URL} className="absolute inset-0 w-full h-full border-0 grayscale group-hover:grayscale-0 transition-all duration-700" allowFullScreen loading="lazy"></iframe>
-                                        <div className="absolute bottom-6 right-6 flex flex-col sm:flex-row gap-3 z-10">
-                                            <button onClick={() => setIsMapModalOpen(true)} className="bg-white text-brand-dark px-5 py-2.5 rounded-xl shadow-lg font-bold text-sm flex items-center gap-2 hover:bg-brand-green hover:text-white transition-all transform hover:scale-105 border border-gray-100"><Maximize2 size={18} /> Ampliar Mapa</button>
-                                            <a href={DIRECTIONS_URL} target="_blank" rel="noreferrer" className="bg-brand-green text-white px-5 py-2.5 rounded-xl shadow-lg font-bold text-sm flex items-center gap-2 hover:bg-green-700 transition-all transform hover:scale-105"><ExternalLink size={18} /> Cómo llegar</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Reveal>
-                        </div>
-                    </section>
-                    
-                    <footer className="bg-brand-dark text-white py-8 text-center text-sm border-t border-white/10"><p>&copy; 2026 Clínica Nuevo Palmar. Diseño Estrategia Digital.</p><p className="mt-2"><a href="app/#/privacidad" className="underline underline-offset-4 opacity-80 hover:opacity-100">Privacidad · Área Pilates</a></p></footer>
-                    <MapModal isOpen={isMapModalOpen} onClose={() => setIsMapModalOpen(false)} />
-                </div>
-            );
-        };
-
-        const root = createRoot(document.getElementById('root'));
-        root.render(<ContentProvider><App /></ContentProvider>);
+        createRoot(document.getElementById('root')).render(<ContentProvider><App /></ContentProvider>);
     </script>
 </body>
 </html>
