@@ -25,3 +25,13 @@ npm run dev        # servidor local en http://localhost:5173/app/
 npm test           # pruebas de las reglas de negocio
 npm run build      # compilación de producción en app/dist
 ```
+
+## Manuales de uso
+
+Hay tres manuales en PDF, uno por perfil, que la app abre desde el icono de ayuda de la cabecera (cada persona ve el suyo):
+
+- `app/public/manuales/cliente.pdf`: alumnos.
+- `app/public/manuales/monitor.pdf`: monitores sin rol de administrador.
+- `app/public/manuales/administrador.pdf`: administración de la app y del editor de la web.
+
+Se redactan en `docs/manuales/*.html` y se regeneran con `cd app && npm run manuales`.

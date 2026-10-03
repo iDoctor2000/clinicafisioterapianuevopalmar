@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual de administración · Nuevo Palmar</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<div class="portada">
+  <div>
+    <img class="logo" src="../../app/public/logo-marca.png" alt="Nuevo Palmar Pilates">
+    <div class="eyebrow">Manual de administración</div>
+    <h1>La app de gestión<br>y la web de la clínica,<br>mando a mando</h1>
+    <p class="sub">Para quien lleva el centro: clientes, tarifas, horarios, equipo, ajustes y el editor de la página web. Escrito para personas, no para informáticos.</p>
+  </div>
+  <div class="pie">Clínica de Fisioterapia Nuevo Palmar · Centro de Pilates · C/ Artemisa 6, El Palmar (Murcia)<br>Este manual contiene la contraseña del editor de la web: no lo dejes a la vista ni lo reenvíes a alumnos.</div>
+</div>
+
+<div class="indice">
+  <h2>Qué vas a encontrar aquí</h2>
+  <ol>
+    <li><span class="n">1</span> Cómo está montado todo (mapa en una página)</li>
+    <li><span class="n">2</span> Entrar y tener la app en el móvil</li>
+    <li><span class="n">3</span> El día a día: calendario y ficha de clase</li>
+    <li><span class="n">4</span> Clientes: alta, tarifa, foto y consentimiento</li>
+    <li><span class="n">5</span> Tarifas y actividades</li>
+    <li><span class="n">6</span> Horarios: las franjas semanales</li>
+    <li><span class="n">7</span> Avisos a los clientes</li>
+    <li><span class="n">8</span> Estadísticas</li>
+    <li><span class="n">9</span> Equipo: trabajadores, permisos y ámbito</li>
+    <li><span class="n">10</span> Ajustes: las reglas del centro y las fotos de la portada</li>
+    <li><span class="n">11</span> La web de la clínica: editar textos y fotos</li>
+    <li><span class="n">12</span> La "fontanería": dónde viven los datos y qué no tocar</li>
+    <li><span class="n">13</span> Problemas típicos y cómo salir de ellos</li>
+    <li><span class="n">14</span> Pequeño glosario</li>
+  </ol>
+</div>
+
+<section class="cap">
+  <div class="capnum">Capítulo 1</div>
+  <h2>Cómo está montado todo (mapa en una página)</h2>
+  <p>Hay dos cosas distintas, y conviene no mezclarlas:</p>
+  <table>
+    <tr><th style="width:30%"></th><th>La web de la clínica</th><th>La app de Pilates</th></tr>
+    <tr><td><strong>Para qué</strong></td><td>Escaparate público: quiénes somos, especialidades, instalaciones, contacto.</td><td>Reservas, clases, clientes, avisos. Cada persona entra con su correo.</td></tr>
+    <tr><td><strong>Dirección</strong></td><td><code>idoctor2000.github.io/clinicafisioterapianuevopalmar/</code></td><td>La misma, añadiendo <code>app/</code> al final (o el botón "Área Pilates" de la web).</td></tr>
+    <tr><td><strong>Quién la cambia</strong></td><td>Tú, con el editor que hay en el pie de la web (capítulo 11).</td><td>Tú y el equipo, desde dentro de la app, según permisos.</td></tr>
+  </table>
+
+  <h3>Quién puede hacer qué en la app</h3>
+  <ul>
+    <li><strong>Cliente:</strong> reserva, cancela, ve sus avisos y su tarifa. Nada más.</li>
+    <li><strong>Monitor/a</strong> y <strong>Recepción:</strong> lo que les des en permisos (pasar lista, reservas, clientes, avisos…) y dentro de su ámbito.</li>
+    <li><strong>Administrador:</strong> todo, sin excepción. Es el único que toca Tarifas, Equipo y Ajustes.</li>
+  </ul>
+  <div class="caja">
+    <div class="t">La idea clave: el correo electrónico</div>
+    <p>La app reconoce a cada persona por su correo. Un cliente o un trabajador entra con su correo y la app lo enlaza con su ficha <strong>si el correo de la ficha es exactamente el mismo</strong>. El 90 % de los "no me deja entrar" son un correo mal escrito en la ficha.</p>
+  </div>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 2</div>
+  <h2>Entrar y tener la app en el móvil</h2>
+  <ol class="pasos">
+    <li>Abre <code>https://idoctor2000.github.io/clinicafisioterapianuevopalmar/app/</code>.</li>
+    <li>Con correo de Gmail: <span class="btn claro">Entrar con Google</span>. Con otro correo: <span class="btn claro">¿Es tu primera vez? Crear mi contraseña</span>, abre el enlace que te llega y elige contraseña.</li>
+    <li>La app detecta que eres administrador y te lleva a la zona de gestión.</li>
+  </ol>
+  <p><strong>Instalarla:</strong> en Android, menú de tres puntos de Chrome → Instalar aplicación. En iPhone, Compartir → Añadir a pantalla de inicio. Es lo mismo que les explicamos a los clientes en su manual.</p>
+  <p>En la cabecera tienes el menú <span class="ico">≡</span> con todas las secciones y el botón <span class="ico">?</span> que abre este manual. Cada tipo de usuario ve su propio manual: el cliente el suyo, el monitor el suyo y tú este.</p>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 3</div>
+  <h2>El día a día: calendario y ficha de clase</h2>
+  <p>El <strong>Calendario</strong> (vista Día, Semana o Mes) es la pantalla principal. Cada clase muestra actividad, hora, monitor y plazas ocupadas. Al tocar una clase se abre su ficha, desde donde se hace casi todo el trabajo diario:</p>
+  <ul>
+    <li><strong>Pasar lista:</strong> botones <em>Asiste</em> / <em>No asiste</em> junto a cada alumno. Solo desde el día de la clase. Se guarda al instante.</li>
+    <li><strong>Añadir alumno:</strong> busca a la persona y elige <em>Con su tarifa</em> (aplica sus reglas), <em>Manual</em> (sin descontar nada) o <em>Clase suelta</em> (paga en recepción).</li>
+    <li><strong>Quitar alumno:</strong> sin penalizar; se le devuelve la clase como recuperación.</li>
+    <li><strong>Cancelar clase:</strong> con motivo y alternativa opcional. Avisa a todos los apuntados y les genera una recuperación.</li>
+    <li><strong>Cancelaciones:</strong> desplegable con quién canceló y si fue a tiempo o tarde.</li>
+  </ul>
+  <h3>Crear una clase extraordinaria</h3>
+  <p>Si un día quieres abrir una clase fuera del horario fijo (un taller, una clase extra en un puente), en el calendario toca <span class="btn">Nueva clase extraordinaria</span>, elige el día, la actividad, la hora, la duración, las plazas y el monitor. Aparece marcada como "Extraordinaria" y los clientes pueden reservarla como cualquier otra.</p>
+  <div class="caja truco">
+    <div class="t">Las clases se crean solas</div>
+    <p>No hace falta crear las clases de cada semana: cada noche, a las 3:15, el sistema genera las clases de las próximas semanas a partir de los horarios (capítulo 6), respetando los días de cierre (capítulo 10). También caduca las recuperaciones vencidas.</p>
+  </div>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 4</div>
+  <h2>Clientes: alta, tarifa, foto y consentimiento</h2>
+  <h3>Dar de alta a un cliente</h3>
+  <ol class="pasos">
+    <li><strong>Clientes</strong> → <span class="btn">Nuevo cliente</span>.</li>
+    <li>Rellena nombre, apellidos, teléfono y DNI.</li>
+    <li>Escribe su <strong>correo electrónico con mucho cuidado</strong>: es el que usará para entrar. Si tiene Gmail, mejor ese, porque podrá entrar con Google sin contraseña.</li>
+    <li>Guarda. Dile al cliente que entre en la app con ese correo (manual del alumno, capítulo 2).</li>
+  </ol>
+  <h3>Asignarle una tarifa</h3>
+  <ol class="pasos">
+    <li>Abre su ficha → pestaña <strong>Tarifa</strong> → <span class="btn">Nueva contratación</span>.</li>
+    <li>Elige la tarifa y la fecha de inicio. La fecha de fin se calcula sola (bonos: según su validez; tarifas mensuales: 3 meses, que puedes cambiar).</li>
+    <li>Elige la <strong>modalidad</strong>: <em>Horario fijo</em> (siempre las mismas clases, por ejemplo lunes y miércoles a las 10:00; marca las franjas y la app le reserva esas clases automáticamente cada semana) o <em>Turno libre</em> (el cliente reserva cada vez la clase que quiera).</li>
+    <li>Toca <span class="btn">Crear contratación</span>. Si ya tenía una tarifa, la anterior se finaliza sola y queda en el historial.</li>
+  </ol>
+  <h3>Lo demás que hay en la ficha</h3>
+  <ul>
+    <li><strong>Foto:</strong> <em>Poner foto</em> / <em>Cambiar foto</em>. El propio cliente también puede ponerla desde su perfil.</li>
+    <li><strong>Consentimiento:</strong> si el cliente acepta la política de privacidad en la app, queda registrado solo. Si firmó en papel, usa <em>Registrar consentimiento firmado en papel</em> y guarda el papel.</li>
+    <li><strong>Reservas:</strong> todo su historial, con asistencias.</li>
+    <li><strong>Recuperaciones:</strong> las suyas, y el botón <em>Autorizar recuperación excepcional</em> para casos especiales (una baja médica, por ejemplo).</li>
+    <li><strong>Clínica:</strong> notas de salud. Solo las ven quienes tengan el permiso "Consultar información clínica".</li>
+    <li><strong>Editar datos:</strong> para corregir el correo, el teléfono, etc.</li>
+  </ul>
+  <div class="caja ojo">
+    <div class="t">Si un cliente dice "no me deja entrar"</div>
+    <p>Abre su ficha y compara letra a letra el correo con el que intenta entrar. Corrígelo y que vuelva a probar. No hace falta borrar ni crear nada.</p>
+  </div>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 5</div>
+  <h2>Tarifas y actividades</h2>
+  <p>En <strong>Tarifas</strong> hay dos pestañas.</p>
+  <h3>Actividades</h3>
+  <p>Lo que se imparte: Pilates Suelo, Reformer, Yoga… Cada actividad tiene nombre, <strong>categoría</strong> (sirve para agrupar: las tarifas y las recuperaciones funcionan por categoría), descripción, color (para el calendario) y si está activa. Las actividades inactivas no se pueden programar.</p>
+  <h3>Tarifas</h3>
+  <p>Lo que se contrata. Campos:</p>
+  <table>
+    <tr><th style="width:30%">Campo</th><th>Qué es</th></tr>
+    <tr><td><strong>Tipo</strong></td><td><em>Recurrente</em>: X clases por semana (por ejemplo, 2 de Pilates). <em>Bono</em>: N sesiones a gastar en un plazo.</td></tr>
+    <tr><td><strong>Precio (€)</strong></td><td>Informativo: se muestra a los clientes en "Tarifas del centro".</td></tr>
+    <tr><td><strong>Sesiones / Validez (meses)</strong></td><td>Solo bonos: cuántas sesiones y cuánto duran.</td></tr>
+    <tr><td><strong>Permite recuperar clases</strong></td><td>Si una cancelación a tiempo genera recuperación.</td></tr>
+    <tr><td><strong>Máximo de recuperaciones pendientes</strong></td><td>Tope de recuperaciones sin usar que puede acumular un cliente con esta tarifa.</td></tr>
+    <tr><td><strong>Orden</strong></td><td>Posición en la lista que ven los clientes.</td></tr>
+    <tr><td><strong>Tarifa activa</strong></td><td>Las inactivas no se pueden asignar a nuevos clientes, pero los que la tienen siguen igual.</td></tr>
+  </table>
+  <div class="caja truco">
+    <div class="t">Cambiar precios en enero</div>
+    <p>No edites la tarifa vieja: desactívala y crea la nueva. Así los contratos antiguos conservan sus condiciones y el historial queda limpio.</p>
+  </div>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 6</div>
+  <h2>Horarios: las franjas semanales</h2>
+  <p>Una <strong>franja</strong> es "los lunes a las 10:00 hay Reformer, 50 minutos, 6 plazas, con Irene". A partir de las franjas, el sistema crea las clases de cada semana por la noche.</p>
+  <ol class="pasos">
+    <li><strong>Horarios</strong> → <span class="btn">Nueva franja</span>.</li>
+    <li>Elige actividad, día de la semana, hora, minutos de duración, plazas y monitor/a.</li>
+    <li><strong>Vigente desde / hasta:</strong> opcional. Útil para un horario de verano o una franja temporal.</li>
+    <li>Guarda. Las clases de las próximas 10 semanas se generan automáticamente a partir del horario; los cambios solo afectan a las clases que aún no existen.</li>
+  </ol>
+  <ul>
+    <li>Para quitar una franja sin perder el historial, desmarca <strong>Franja activa</strong>.</li>
+    <li>Cambiar una franja no toca las clases ya creadas con reservas; afecta a las futuras.</li>
+    <li>Un cambio puntual (hoy la clase es a las 11 en vez de a las 10) se hace en la clase concreta desde el calendario, no en la franja.</li>
+  </ul>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 7</div>
+  <h2>Avisos a los clientes</h2>
+  <ol class="pasos">
+    <li><strong>Avisos</strong> → <span class="btn">Nuevo aviso</span>.</li>
+    <li>Título corto, texto claro.</li>
+    <li><strong>Destinatarios:</strong> todos los clientes, los de una actividad, los de una clase concreta o personas sueltas (búscalas con "Añadir cliente…").</li>
+    <li>Marca <strong>Importante</strong> para que destaque en su app.</li>
+    <li><span class="btn">Publicar</span>. Aparece en la app de los clientes y les llega una notificación al móvil si la tienen activada.</li>
+  </ul>
+  <p>Los avisos de cancelación de clase se envían solos al cancelar. No hace falta duplicarlos.</p>
+  <div class="caja">
+    <div class="t">Sobre las notificaciones al móvil</div>
+    <p>Cada cliente decide si las quiere (Perfil → Avisos en el móvil). Si alguien no las recibe, lo primero es comprobar ese interruptor y, en iPhone, que tenga la app instalada en la pantalla de inicio.</p>
+  </div>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 8</div>
+  <h2>Estadísticas</h2>
+  <p>En <strong>Estadísticas</strong> eliges el periodo (<em>Desde</em> / <em>Hasta</em>) y, si quieres, una actividad, y ves: clases impartidas, ocupación media, asistencias, cancelaciones, recuperaciones usadas, sesiones de bono consumidas y tasa de faltas, además de la ocupación por actividad y por hora y la evolución mensual de asistencias. Todo sale de lo que el equipo registra: si no se pasa lista, las asistencias y faltas no cuadran. Por eso insistimos tanto en pasar lista.</p>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 9</div>
+  <h2>Equipo: trabajadores, permisos y ámbito</h2>
+  <p>Solo el administrador ve esta sección.</p>
+  <h3>Dar de alta a un trabajador</h3>
+  <ol class="pasos">
+    <li><strong>Equipo</strong> → <span class="btn">Nuevo trabajador</span>.</li>
+    <li>Nombre, apellidos, teléfono y <strong>correo electrónico</strong> (el que usará para entrar; si es Gmail podrá entrar con Google).</li>
+    <li><strong>Rol:</strong> Administrador (todo), Monitor/a o Recepción.</li>
+    <li><strong>Imparte clases:</strong> márcalo si va a aparecer como monitor en los horarios.</li>
+    <li><strong>Ámbito:</strong> <em>Todo el centro</em> o <em>Solo sus clases</em> (ve y gestiona únicamente las clases que imparte y a sus alumnos).</li>
+    <li><strong>Permisos:</strong> marca lo que necesite. Para un monitor típico: Registrar asistencia, Gestionar reservas y recuperaciones, Consultar fichas de clientes y Crear y enviar avisos.</li>
+    <li>Guarda y dile que entre en la app con ese correo.</li>
+  </ol>
+  <h3>Los permisos, uno a uno</h3>
+  <table>
+    <tr><th style="width:36%">Permiso</th><th>Qué le deja hacer</th></tr>
+    <tr><td>Registrar asistencia</td><td>Pasar lista en sus clases (o en todas, según ámbito).</td></tr>
+    <tr><td>Gestionar reservas y recuperaciones</td><td>Añadir y quitar alumnos de una clase, autorizar recuperaciones excepcionales.</td></tr>
+    <tr><td>Consultar fichas de clientes</td><td>Ver la sección Clientes y las fichas.</td></tr>
+    <tr><td>Crear y modificar fichas de clientes</td><td>Dar de alta clientes y editar sus datos.</td></tr>
+    <tr><td>Consultar información clínica</td><td>Ver la pestaña Clínica de las fichas.</td></tr>
+    <tr><td>Crear y enviar avisos</td><td>Publicar avisos.</td></tr>
+    <tr><td>Crear y cancelar clases</td><td>Cancelar clases y crear extraordinarias.</td></tr>
+    <tr><td>Introducir clases sueltas</td><td>Apuntar a alguien como clase suelta (pago en recepción).</td></tr>
+    <tr><td>Gestionar horarios semanales</td><td>Crear y editar franjas.</td></tr>
+    <tr><td>Gestionar actividades y tarifas</td><td>La sección Tarifas.</td></tr>
+    <tr><td>Consultar estadísticas</td><td>La sección Estadísticas.</td></tr>
+    <tr><td>Gestionar trabajadores y permisos</td><td>Reservado en la práctica a administradores.</td></tr>
+  </table>
+  <p>Para que alguien deje de tener acceso, desmarca <strong>Activo</strong> en su ficha. No borres: se conserva el historial de sus clases.</p>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 10</div>
+  <h2>Ajustes: las reglas del centro y las fotos de la portada</h2>
+  <p>Solo el administrador puede cambiar esto. Lo que pongas aquí lo aplica la app a todos.</p>
+  <h3>Reglas de reserva y cancelación</h3>
+  <table>
+    <tr><th style="width:38%">Ajuste</th><th>Qué hace</th></tr>
+    <tr><td><strong>Antelación mínima de cancelación (minutos)</strong></td><td>Si un cliente cancela con al menos estos minutos de antelación, la clase se le devuelve como recuperación. Si cancela más tarde, la pierde. Ejemplo: 720 minutos son 12 horas.</td></tr>
+    <tr><td><strong>Ventana de reserva (días)</strong></td><td>Con cuántos días de antelación puede reservar un cliente de turno libre. Evita que alguien acapare plazas con meses de antelación.</td></tr>
+    <tr><td><strong>Caducidad de las recuperaciones</strong></td><td>O bien caducan al terminar la tarifa del cliente, o bien a los <em>Días de validez</em> que indiques desde que se generan.</td></tr>
+  </table>
+  <p>Toca <span class="btn">Guardar</span> al terminar. Si aparece "solo el administrador puede cambiarla", es que has entrado con un usuario que no es administrador.</p>
+
+  <h3>Días de cierre y festivos</h3>
+  <p>Añade los días (o rangos) en que el centro cierra, con un motivo. Esos días no se generan clases. Si ya había clases creadas con reservas, al guardar la app te pide confirmación con <span class="btn">Guardar y cancelar clases</span>: las cancela, avisa a los clientes y les devuelve la clase como recuperación.</p>
+
+  <h3>Fotos de la portada</h3>
+  <p>Son las fotos del carrusel que ven los clientes al entrar en la app. Toca <span class="btn">Subir una foto</span> (horizontales quedan mejor), ponles un pie de foto si quieres, ordénalas con <em>Subir</em> y <em>Bajar</em> y quita las que sobren con <em>Borrar</em>. Sin fotos, la portada no muestra carrusel.</p>
+
+  <h3>Registro de cambios</h3>
+  <p>Al final de Ajustes hay una lista con quién hizo qué y cuándo (reservas, cancelaciones, cambios de configuración…). Útil cuando alguien dice "yo no fui".</p>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 11</div>
+  <h2>La web de la clínica: editar textos y fotos</h2>
+  <p>La web pública tiene un editor escondido para cambiar textos, fotos y datos de contacto sin tocar nada técnico.</p>
+  <ol class="pasos">
+    <li>Abre la web y baja hasta el <strong>pie de página</strong>.</li>
+    <li>Abajo a la derecha hay un botón pequeño y discreto con una <strong>rueda dentada</strong>. Tócalo.</li>
+    <li>Escribe la contraseña: <code>JoseDiego2026</code>. En el móvil, tras la primera vez, puedes activar la huella o el reconocimiento facial para no volver a escribirla.</li>
+    <li>Se abre el panel con una pestaña por sección de la web: <em>Inicio, Quiénes somos, Filosofía, Especialidades, Columna, Accidentes, Pilates, Instalaciones, Por qué elegirnos, Compromiso, Horario, Contacto</em>.</li>
+    <li>Cambia lo que quieras y toca <span class="btn">Guardar</span>. Se publica al momento para todo el mundo.</li>
+  </ol>
+  <h3>Las fotos</h3>
+  <ul>
+    <li>En cada pestaña con imagen puedes <strong>subir una foto desde el móvil u ordenador</strong> o pegar la dirección de una imagen que ya esté en internet.</li>
+    <li>El carrusel <strong>Nuestras instalaciones</strong> se gestiona en la pestaña Instalaciones: añadir, quitar y ordenar fotos, cada una con su pie.</li>
+    <li>Fotos horizontales, bien iluminadas y sin texto encima funcionan mejor. No hace falta que sean enormes: las de un móvil actual sobran.</li>
+  </ul>
+  <h3>Qué no cambia el editor</h3>
+  <p>Los colores, el logotipo, la estructura de la página y los servicios que aparecen están fijados a propósito. Si hay que cambiar algo de eso, se pide a quien mantiene la web.</p>
+  <div class="caja ojo">
+    <div class="t">Sobre la contraseña del editor</div>
+    <p>Es la misma para todos los que editan la web. No la compartas con alumnos ni la escribas en sitios públicos. Si crees que alguien la tiene sin deberlo, pide que la cambien.</p>
+  </div>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 12</div>
+  <h2>La "fontanería": dónde viven los datos y qué no tocar</h2>
+  <p>No necesitas tocar nada de esto en el día a día, pero conviene saber que existe.</p>
+  <table>
+    <tr><th style="width:26%">Pieza</th><th>Qué es</th><th style="width:30%">Quién la cuida</th></tr>
+    <tr><td><strong>Supabase</strong></td><td>La base de datos donde están los clientes, las clases, las reservas y los usuarios. Está en servidores de la Unión Europea (Fráncfort). La cuenta es la del correo del centro.</td><td>Juan Antonio. No toques nada ahí sin preguntar: un cambio equivocado puede borrar datos.</td></tr>
+    <tr><td><strong>GitHub</strong></td><td>Donde está guardado el "código" de la web y de la app, y desde donde se publican.</td><td>Juan Antonio.</td></tr>
+    <tr><td><strong>Firebase</strong></td><td>Donde se guardan los textos y fotos que cambias con el editor de la web.</td><td>Se gestiona solo desde el editor.</td></tr>
+    <tr><td><strong>Google Cloud</strong></td><td>Lo que permite el botón "Entrar con Google".</td><td>Juan Antonio.</td></tr>
+  </table>
+  <ul>
+    <li><strong>Copias de seguridad:</strong> antes de un cambio grande (por ejemplo, borrar clientes antiguos en bloque), pide a Juan Antonio que haga una copia de la base de datos.</li>
+    <li><strong>Contraseñas de clientes:</strong> nadie las ve, ni siquiera tú. Si un cliente la olvida, la recupera él mismo con "Crear mi contraseña".</li>
+    <li><strong>Dominio propio:</strong> está previsto pasar todo a <code>www.fisioterapianuevopalmar.com</code> cuando la web esté probada. Cuando se haga, cambiarán las direcciones de este manual.</li>
+  </ul>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 13</div>
+  <h2>Problemas típicos y cómo salir de ellos</h2>
+  <dl class="faq">
+    <dt>Un cliente entra y le sale "Tu usuario aún no está dado de alta en el centro".</dt>
+    <dd>El correo con el que entra no coincide con el de su ficha. Corrige el correo en Clientes → su ficha → Editar datos, y que vuelva a entrar.</dd>
+
+    <dt>Un trabajador entra y le sale la app de cliente.</dt>
+    <dd>Lo mismo: su correo en Equipo no coincide. Corrígelo.</dd>
+
+    <dt>"No se ha podido guardar la configuración: solo el administrador puede cambiarla".</dt>
+    <dd>Has entrado con un usuario que no tiene rol de Administrador. Revisa en Equipo el rol de ese trabajador.</dd>
+
+    <dt>No aparecen las clases de la semana que viene.</dt>
+    <dd>Comprueba que la franja está activa en Horarios y que esos días no están en Días de cierre. Las clases se generan por la noche; si acabas de crear la franja, espera a mañana.</dd>
+
+    <dt>Un cliente no puede reservar.</dt>
+    <dd>Mira el mensaje que le sale: sin tarifa activa, tarifa caducada, actividad no incluida, bono agotado, sin plazas o fuera de la ventana de reserva. Cada caso se arregla en su ficha o en Ajustes.</dd>
+
+    <dt>No llegan las notificaciones al móvil.</dt>
+    <dd>El cliente debe activarlas en Perfil → Avisos en el móvil y permitirlas en el móvil. En iPhone, con la app instalada en la pantalla de inicio. Que pruebe "Enviar notificación de prueba".</dd>
+
+    <dt>He borrado algo sin querer.</dt>
+    <dd>Mira el Registro de cambios en Ajustes para ver qué pasó exactamente y avisa a Juan Antonio cuanto antes.</dd>
+
+    <dt>La web no muestra los cambios que acabo de guardar en el editor.</dt>
+    <dd>Recarga la página. Si guardaste con el móvil sin cobertura, vuelve a entrar al editor y guarda de nuevo.</dd>
+
+    <dt>Algo va mal y no está en esta lista.</dt>
+    <dd>Haz una captura de pantalla del mensaje y mándasela a Juan Antonio con lo que estabas haciendo. Con eso se resuelve casi todo a la primera.</dd>
+  </dl>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 14</div>
+  <h2>Pequeño glosario</h2>
+  <dl class="glosario">
+    <dt>Actividad</dt><dd>Lo que se imparte (Reformer, Pilates Suelo, Yoga…).</dd>
+    <dt>Categoría</dt><dd>Familia de actividades. Las tarifas y las recuperaciones funcionan por categoría.</dd>
+    <dt>Franja</dt><dd>Una clase fija de la semana en el horario (día, hora, actividad, monitor, plazas).</dd>
+    <dt>Clase</dt><dd>Una sesión concreta de un día concreto, creada a partir de una franja o a mano (extraordinaria).</dd>
+    <dt>Tarifa</dt><dd>Lo que contrata un cliente: recurrente (X clases por semana) o bono (N sesiones).</dd>
+    <dt>Contrato</dt><dd>La tarifa asignada a un cliente con sus fechas. Es lo que ves en la pestaña Tarifa de su ficha.</dd>
+    <dt>Turno fijo</dt><dd>Reservas automáticas semanales de un cliente en las mismas clases.</dd>
+    <dt>Recuperación</dt><dd>Clase devuelta al cliente por cancelar a tiempo o porque el centro canceló. Caduca.</dd>
+    <dt>Clase suelta (CS)</dt><dd>Sesión individual pagada en recepción, sin tarifa.</dd>
+    <dt>Ámbito</dt><dd>Hasta dónde llega un trabajador: todo el centro o solo sus clases.</dd>
+    <dt>Permiso</dt><dd>Cada cosa concreta que un trabajador puede hacer.</dd>
+    <dt>PWA / app web</dt><dd>Una página que se instala y se comporta como una app, sin pasar por las tiendas.</dd>
+  </dl>
+  <p class="fin">Fin del manual. Si algo de lo que pone aquí ya no coincide con la app, es que la app ha mejorado: pide la versión nueva del manual.</p>
+</section>
+
+</body>
+</html>

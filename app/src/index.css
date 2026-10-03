@@ -34,3 +34,10 @@
   /* Etiqueta de marca: mayúsculas con tracking amplio en beige oscuro ("CONTROL · PRECISIÓN · BIENESTAR"). */
   .lema { @apply uppercase tracking-lema text-beige-600 font-semibold text-[11px]; }
 }
+
+/* Logotipo de la pantalla de arranque: entra en fundido con un ligero zoom y sale desvaneciéndose. */
+.splash-logo { opacity: 0; transform: scale(0.94); animation: splash-in 1.1s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+.splash-logo-out { animation: splash-out 0.8s ease-in forwards; }
+@keyframes splash-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes splash-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .splash-logo, .splash-logo-out { animation: none; opacity: 1; transform: none; } }

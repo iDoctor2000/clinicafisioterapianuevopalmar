@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, ClipboardList, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { tienePermiso, type Permiso, type Sesion } from '@/domain/types';
-import { CabeceraCapa, MenuLateral, type ItemMenu } from '@/ui';
+import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
 import { Avatar } from '@/ui/Avatar';
 import { cn } from '@/lib/cn';
 
@@ -44,9 +44,11 @@ export function CapaTrabajador() {
   const trabajador = sesion?.tipo === 'TRABAJADOR' ? db.trabajadores.find((t) => t.id === sesion.trabajadorId) : undefined;
   const rol = sesion?.tipo === 'TRABAJADOR' ? ROL[sesion.rol] : '';
 
+  const manual = manualAyuda(sesion?.tipo === 'TRABAJADOR' && sesion.rol === 'ADMIN' ? 'administrador' : 'monitor');
   const itemsMenu: ItemMenu[] = [
     ...visibles.map((i): ItemMenu => ({ to: i.to, etiqueta: i.etiqueta, icono: i.icono, end: i.to === '/' })),
-    { to: '/privacidad', etiqueta: 'Política de privacidad', icono: ShieldCheck, separador: true },
+    { etiqueta: 'Manual de ayuda', icono: CircleHelp, separador: true, onClick: () => { window.open(manual, '_blank', 'noopener'); } },
+    { to: '/privacidad', etiqueta: 'Política de privacidad', icono: ShieldCheck },
     { etiqueta: 'Cerrar sesión', icono: LogOut, onClick: () => void cerrar() },
   ];
 
@@ -70,7 +72,7 @@ export function CapaTrabajador() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         <CabeceraCapa
-          zona="Gestión" onMenu={() => setMenu(true)} menuAbierto={menu}
+          zona="Gestión" onMenu={() => setMenu(true)} menuAbierto={menu} ayuda={manual}
           derecha={sesion && (
             <div className="flex items-center gap-2">
               <div className="hidden sm:block text-right leading-tight"><div className="text-sm font-semibold">{sesion.nombre}</div><div className="text-xs text-ink-muted">{rol}</div></div>
