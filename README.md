@@ -4,7 +4,7 @@ Repositorio de la web pública de la clínica y de la aplicación de reservas de
 
 | Carpeta | Contenido |
 |---|---|
-| `index.html`, `assets/` | Web pública (React + Tailwind, contenido editable vía Firebase) |
+| `index.html`, `assets/` | Web pública (React + Tailwind; textos y fotos editables, guardados en Supabase) |
 | `app/` | **Nuevo Palmar Pilates**: PWA de reservas y gestión del centro (Vite + React + TypeScript) |
 | `supabase/` | Esquema de base de datos, seguridad (RLS) y funciones para producción |
 | `docs/PLANTEAMIENTO.md` | Planteamiento del proyecto: decisiones, fases, costes |

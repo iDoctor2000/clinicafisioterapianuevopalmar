@@ -14,7 +14,7 @@
     <h1>La app de gestión<br>y la web de la clínica,<br>mando a mando</h1>
     <p class="sub">Para quien lleva el centro: clientes, tarifas, horarios, equipo, ajustes y el editor de la página web. Escrito para personas, no para informáticos.</p>
   </div>
-  <div class="pie">Clínica de Fisioterapia Nuevo Palmar · Centro de Pilates · C/ Artemisa 6, El Palmar (Murcia)<br>Este manual contiene la contraseña del editor de la web: no lo dejes a la vista ni lo reenvíes a alumnos.</div>
+  <div class="pie">Clínica de Fisioterapia Nuevo Palmar · Centro de Pilates · C/ Artemisa 6, El Palmar (Murcia)<br>Este manual es para la administración del centro: no lo reenvíes a alumnos.</div>
 </div>
 
 <div class="indice">
@@ -318,7 +318,8 @@
   <ol class="pasos">
     <li>Abre la web y baja hasta el <strong>pie de página</strong>.</li>
     <li>Abajo a la derecha hay un botón pequeño y discreto con una <strong>rueda dentada</strong>. Tócalo.</li>
-    <li>Escribe la contraseña: <code>JoseDiego2026</code>. En el móvil, tras la primera vez, puedes activar la huella o el reconocimiento facial para no volver a escribirla.</li>
+    <li>Entra con <strong>el mismo correo y contraseña que usas en la app de Pilates</strong>. Solo los administradores pueden editar la web. Si en la app entras con Google y nunca has puesto contraseña, créala una vez en la app con <em>"Crear mi contraseña"</em> y vuelve.</li>
+    <li>Si ya tienes la app abierta en ese mismo navegador, el editor te reconoce y no te pide nada.</li>
     <li>Se abre el panel con una pestaña por sección de la web: <em>Inicio, Quiénes somos, Filosofía, Especialidades, Columna, Accidentes, Pilates, Instalaciones, Por qué elegirnos, Compromiso, Horario, Contacto</em>.</li>
     <li>Cambia lo que quieras y toca <span class="btn">Guardar</span>. Se publica al momento para todo el mundo.</li>
   </ol>
@@ -331,9 +332,11 @@
   </ul>
   <h3>Qué no cambia el editor</h3>
   <p>Los colores, el logotipo, la estructura de la página y los servicios que aparecen están fijados a propósito. Si hay que cambiar algo de eso, se pide a quien mantiene la web.</p>
+  <h3>La primera vez: importar los textos de la versión anterior</h3>
+  <p>Si en la web antigua habíais cambiado textos o fotos, al abrir el editor por primera vez verás un aviso con el botón <span class="btn claro">Importar de la versión anterior</span>. Púlsalo una sola vez: trae lo que había guardado y lo deja en la nube nueva. Si nunca cambiasteis nada, no hace falta.</p>
   <div class="caja ojo">
-    <div class="t">Sobre la contraseña del editor</div>
-    <p>Es la misma para todos los que editan la web. No la compartas con alumnos ni la escribas en sitios públicos. Si crees que alguien la tiene sin deberlo, pide que la cambien.</p>
+    <div class="t">Sobre la sesión</div>
+    <p>La web y la app comparten la sesión en el mismo navegador: si pulsas <em>Cerrar sesión</em> en el editor, también sales de la app en ese dispositivo. Para dejar de editar sin salir, usa <em>Cerrar</em>.</p>
   </div>
 </section>
 
@@ -343,9 +346,8 @@
   <p>No necesitas tocar nada de esto en el día a día, pero conviene saber que existe.</p>
   <table>
     <tr><th style="width:26%">Pieza</th><th>Qué es</th><th style="width:30%">Quién la cuida</th></tr>
-    <tr><td><strong>Supabase</strong></td><td>La base de datos donde están los clientes, las clases, las reservas y los usuarios. Está en servidores de la Unión Europea (Fráncfort). La cuenta es la del correo del centro.</td><td>Juan Antonio. No toques nada ahí sin preguntar: un cambio equivocado puede borrar datos.</td></tr>
+    <tr><td><strong>Supabase</strong></td><td>La base de datos donde están los clientes, las clases, las reservas y los usuarios, y también los textos y las fotos de la web pública. Está en servidores de la Unión Europea (Fráncfort). La cuenta es la del correo del centro.</td><td>Juan Antonio. No toques nada ahí sin preguntar: un cambio equivocado puede borrar datos.</td></tr>
     <tr><td><strong>GitHub</strong></td><td>Donde está guardado el "código" de la web y de la app, y desde donde se publican.</td><td>Juan Antonio.</td></tr>
-    <tr><td><strong>Firebase</strong></td><td>Donde se guardan los textos y fotos que cambias con el editor de la web.</td><td>Se gestiona solo desde el editor.</td></tr>
     <tr><td><strong>Google Cloud</strong></td><td>Lo que permite el botón "Entrar con Google".</td><td>Juan Antonio.</td></tr>
   </table>
   <ul>
@@ -384,7 +386,10 @@
     <dd>Recarga la página. Si guardaste con el móvil sin cobertura, vuelve a entrar al editor y guarda de nuevo.</dd>
 
     <dt>El botón "Subir foto" del editor de la web da error.</dt>
-    <dd>Si el mensaje habla de permisos o de "activar el almacenamiento", falta configurar las reglas de Storage en Firebase. Es un paso de una sola vez que hace quien mantiene la web.</dd>
+    <dd>Si el mensaje habla de permisos, es que el usuario con el que has entrado no es administrador, o falta aplicar la migración de la web en Supabase (lo hace quien mantiene la web, una sola vez).</dd>
+
+    <dt>El editor de la web dice que mi usuario no es administrador.</dt>
+    <dd>Comprueba en la app, en Equipo, que tu ficha tiene rol Administrador y que el correo es exactamente el que usas para entrar.</dd>
 
     <dt>Algo va mal y no está en esta lista.</dt>
     <dd>Genera el informe de diagnóstico (Ajustes → Diagnóstico → Compartir informe) y mándaselo a Juan Antonio junto con una captura del mensaje y una frase sobre lo que estabas haciendo. Con eso se resuelve casi todo a la primera.</dd>
