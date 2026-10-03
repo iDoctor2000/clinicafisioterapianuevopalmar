@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Menu, X, type LucideIcon } from 'lucide-react';
+import { CircleHelp, Menu, X, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export interface ItemMenu {
@@ -139,7 +139,23 @@ export function BotonMenu({ onClick, abierto }: { onClick: () => void; abierto: 
  * Cabecera común de las dos zonas: hamburguesa a la izquierda (móvil y escritorio),
  * monograma y nombre del centro; a la derecha lo que pase cada zona.
  */
-export function CabeceraCapa({ zona, onMenu, menuAbierto, derecha }: { zona: string; onMenu: () => void; menuAbierto: boolean; derecha?: ReactNode }) {
+/** Enlace al manual de ayuda (PDF) correspondiente al perfil de quien entra. */
+export function manualAyuda(perfil: 'cliente' | 'monitor' | 'administrador'): string {
+  return `${import.meta.env.BASE_URL}manuales/${perfil}.pdf`;
+}
+
+export function BotonAyuda({ href, className }: { href: string; className?: string }) {
+  return (
+    <a
+      href={href} target="_blank" rel="noopener" aria-label="Abrir el manual de ayuda" title="Manual de ayuda"
+      className={cn('h-10 w-10 rounded-full flex items-center justify-center text-ink-soft hover:bg-beige-100 hover:text-ink tap', className)}
+    >
+      <CircleHelp className="h-6 w-6" />
+    </a>
+  );
+}
+
+export function CabeceraCapa({ zona, onMenu, menuAbierto, derecha, ayuda }: { zona: string; onMenu: () => void; menuAbierto: boolean; derecha?: ReactNode; ayuda?: string }) {
   return (
     <header className="sticky top-0 z-30 bg-sand/90 backdrop-blur border-b border-beige-200 pt-safe">
       <div className="max-w-6xl mx-auto w-full px-4 h-14 flex items-center gap-2">
@@ -149,7 +165,10 @@ export function CabeceraCapa({ zona, onMenu, menuAbierto, derecha }: { zona: str
           <div className="font-serif text-[17px] text-ink truncate">Nuevo Palmar</div>
           <div className="lema text-[10px] mt-0.5">{zona}</div>
         </div>
-        <div className="ml-auto flex items-center gap-2">{derecha}</div>
+        <div className="ml-auto flex items-center gap-2">
+          {derecha}
+          {ayuda && <BotonAyuda href={ayuda} />}
+        </div>
       </div>
     </header>
   );

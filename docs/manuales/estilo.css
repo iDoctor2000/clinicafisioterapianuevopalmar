@@ -1,0 +1,65 @@
+/* Estilo común de los manuales (se imprimen a PDF en A4). Paleta: antracita + beige. */
+@page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+:root { --ink: #2B2B2B; --ink-soft: #5C5C5C; --muted: #8A8A8A; --beige: #B9A795; --beige-deep: #86735F; --beige-light: #EDE4DB; --ivory: #F7F3EE; --rose: #B8505F; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif; font-size: 11pt; line-height: 1.55; color: var(--ink); }
+h1, h2, h3, .serif { font-family: "Bitstream Charter", "Liberation Serif", Georgia, serif; font-weight: 400; letter-spacing: -0.01em; }
+h1 { font-size: 30pt; line-height: 1.1; margin: 0 0 6pt; }
+h2 { font-size: 20pt; margin: 0 0 10pt; padding-bottom: 6pt; border-bottom: 1.5pt solid var(--beige); page-break-after: avoid; }
+h3 { font-size: 14pt; margin: 16pt 0 6pt; color: var(--ink); page-break-after: avoid; }
+p { margin: 0 0 8pt; }
+ul, ol { margin: 0 0 10pt; padding-left: 20pt; }
+li { margin-bottom: 4pt; }
+li::marker { color: var(--beige-deep); font-weight: 700; }
+strong { font-weight: 700; color: var(--ink); }
+em { color: var(--ink-soft); }
+a { color: var(--beige-deep); text-decoration: none; }
+code, .ruta { font-family: "Liberation Mono", "DejaVu Sans Mono", monospace; font-size: 9.5pt; background: var(--ivory); border: 0.6pt solid var(--beige-light); border-radius: 3pt; padding: 0.5pt 4pt; }
+
+/* Portada */
+.portada { page-break-after: always; min-height: 250mm; display: flex; flex-direction: column; justify-content: space-between; }
+.portada .logo { width: 180pt; margin-bottom: 40pt; border-radius: 8pt; }
+.portada .eyebrow { font-size: 9pt; letter-spacing: 0.25em; text-transform: uppercase; color: var(--beige-deep); margin-bottom: 14pt; }
+.portada h1 { font-size: 36pt; }
+.portada .sub { font-size: 14pt; color: var(--ink-soft); max-width: 120mm; }
+.portada .pie { font-size: 9pt; color: var(--muted); border-top: 0.6pt solid var(--beige-light); padding-top: 10pt; }
+
+/* Índice */
+.indice { page-break-after: always; }
+.indice ol { list-style: none; padding: 0; column-count: 1; }
+.indice li { display: flex; gap: 10pt; align-items: baseline; border-bottom: 0.4pt dotted var(--beige); padding: 4pt 0; }
+.indice .n { font-family: "Bitstream Charter", serif; color: var(--beige-deep); min-width: 22pt; font-size: 13pt; }
+
+/* Capítulos */
+section.cap { page-break-before: always; }
+.capnum { font-size: 9pt; letter-spacing: 0.25em; text-transform: uppercase; color: var(--beige-deep); margin-bottom: 4pt; }
+
+/* Cajas */
+.caja { border-left: 3pt solid var(--beige); background: var(--ivory); padding: 8pt 12pt; margin: 10pt 0 12pt; border-radius: 0 6pt 6pt 0; page-break-inside: avoid; }
+.caja .t { font-weight: 700; font-size: 9.5pt; letter-spacing: 0.12em; text-transform: uppercase; color: var(--beige-deep); margin-bottom: 2pt; }
+.caja.ojo { border-left-color: var(--rose); } .caja.ojo .t { color: var(--rose); }
+.caja.truco { border-left-color: var(--ink); } .caja.truco .t { color: var(--ink); }
+.caja p:last-child { margin-bottom: 0; }
+
+/* Pasos */
+ol.pasos { counter-reset: paso; list-style: none; padding-left: 0; }
+ol.pasos > li { counter-increment: paso; position: relative; padding-left: 30pt; margin-bottom: 7pt; page-break-inside: avoid; }
+ol.pasos > li::before { content: counter(paso); position: absolute; left: 0; top: 0; width: 20pt; height: 20pt; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; font-size: 10pt; display: flex; align-items: center; justify-content: center; }
+
+/* Tablas */
+table { width: 100%; border-collapse: collapse; margin: 6pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+th, td { text-align: left; vertical-align: top; padding: 5pt 7pt; border-bottom: 0.6pt solid var(--beige-light); }
+th { background: var(--beige-light); font-weight: 700; font-size: 9.5pt; letter-spacing: 0.04em; }
+tr:nth-child(even) td { background: #FBF9F6; }
+
+/* Botones "como en la app" */
+.btn { display: inline-block; padding: 1pt 7pt; border-radius: 999pt; background: var(--ink); color: #fff; font-size: 9pt; font-weight: 700; white-space: nowrap; }
+.btn.claro { background: var(--beige-light); color: var(--ink); }
+.ico { display: inline-block; width: 14pt; height: 14pt; border-radius: 50%; border: 1.2pt solid var(--ink); text-align: center; line-height: 12pt; font-size: 9pt; font-weight: 700; vertical-align: -2pt; }
+
+/* Preguntas frecuentes */
+.faq dt { font-weight: 700; margin-top: 10pt; page-break-after: avoid; }
+.faq dd { margin: 2pt 0 0 0; color: var(--ink-soft); }
+.glosario dt { font-weight: 700; margin-top: 8pt; } .glosario dd { margin: 0 0 4pt; color: var(--ink-soft); }
+.fin { text-align: center; color: var(--muted); font-size: 9.5pt; margin-top: 30pt; }

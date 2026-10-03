@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { useStore } from '@/data/store';
@@ -23,8 +23,26 @@ export function App() {
     void arrancar();
   }, [arrancar]);
 
-  if (cargando) return <PantallaCarga />;
-  if (errorCarga) return <PantallaError mensaje={errorCarga} reintentar={() => void arrancar()} />;
+  // Pantalla de arranque: aparece en fundido, se mantiene un mínimo de 1,3 s y se desvanece al tener los datos.
+  const [minimoSplash, setMinimoSplash] = useState(true);
+  const [splashMontado, setSplashMontado] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setMinimoSplash(false), 1300);
+    return () => clearTimeout(t);
+  }, []);
+  const splashSaliendo = !cargando && !minimoSplash;
+  useEffect(() => {
+    if (!splashSaliendo) {
+      setSplashMontado(true);
+      return;
+    }
+    const t = setTimeout(() => setSplashMontado(false), 800);
+    return () => clearTimeout(t);
+  }, [splashSaliendo]);
+
+  const splash = splashMontado ? <PantallaCarga saliendo={splashSaliendo} /> : null;
+  if (cargando) return splash;
+  if (errorCarga) return <><PantallaError mensaje={errorCarga} reintentar={() => void arrancar()} />{splash}</>;
   const mostrarAcceso = !sesion || recuperandoContrasena;
   // En producción, un cliente que aún no ha aceptado la política de privacidad (por cualquier vía de
   // acceso: contraseña, Google, sesión guardada) pasa antes por la pantalla de consentimiento.
@@ -33,6 +51,7 @@ export function App() {
 
   return (
     <HashRouter>
+      {splash}
       <Toasts />
       <Routes>
         {/* Política de privacidad: legible sin sesión y con cualquier sesión. */}
@@ -56,12 +75,16 @@ export function App() {
   );
 }
 
-function PantallaCarga() {
+/** Pantalla de arranque a pantalla completa: logotipo con fundido de entrada y de salida. */
+function PantallaCarga({ saliendo }: { saliendo: boolean }) {
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center px-6 text-center" aria-busy="true">
-      <img src={`${import.meta.env.BASE_URL}icons/mark.png`} alt="" className="h-20 w-20 mb-4" />
-      <h1 className="text-2xl leading-tight">Nuevo Palmar <span className="text-beige-600">Pilates</span></h1>
-      <p className="text-ink-muted mt-4 flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> Cargando…</p>
+    <div
+      className={`fixed inset-0 z-[100] bg-sand flex flex-col items-center justify-center px-6 text-center transition-opacity duration-[800ms] ease-out ${saliendo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      aria-busy={!saliendo}
+      aria-label="Cargando"
+    >
+      <img src={`${import.meta.env.BASE_URL}logo-marca.png`} alt="Nuevo Palmar Pilates" className={`w-60 sm:w-72 max-w-full splash-logo ${saliendo ? 'splash-logo-out' : ''}`} />
+      {!saliendo && <p className="text-ink-muted mt-8 flex items-center gap-2 text-sm animate-[aparecer_.6s_ease-out_1s_both]"><Loader2 className="h-4 w-4 animate-spin" /> Cargando…</p>}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, CalendarDays, Home, LogOut, ShieldCheck, Ticket, UserCircle2 } from 'lucide-react';
+import { Bell, CalendarDays, CircleHelp, Home, LogOut, ShieldCheck, Ticket, UserCircle2 } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { avisosNoLeidos } from '@/data/selectores';
-import { CabeceraCapa, MenuLateral, type ItemMenu } from '@/ui';
+import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
 import { AvatarCliente } from '@/features/comun/AvatarCliente';
 import { cn } from '@/lib/cn';
 
@@ -31,7 +31,8 @@ export function CapaCliente() {
 
   const itemsMenu: ItemMenu[] = [
     ...items.map((i): ItemMenu => ({ to: i.to, etiqueta: i.etiqueta, icono: i.icono, end: i.to === '/', contador: i.to === '/avisos' ? noLeidos : undefined })),
-    { to: '/privacidad', etiqueta: 'Política de privacidad', icono: ShieldCheck, separador: true },
+    { etiqueta: 'Manual de ayuda', icono: CircleHelp, separador: true, onClick: () => { window.open(manualAyuda('cliente'), '_blank', 'noopener'); } },
+    { to: '/privacidad', etiqueta: 'Política de privacidad', icono: ShieldCheck },
     { etiqueta: 'Cerrar sesión', icono: LogOut, onClick: () => void cerrar() },
   ];
 
@@ -54,7 +55,7 @@ export function CapaCliente() {
       </nav>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <CabeceraCapa zona="Pilates" onMenu={() => setMenu(true)} menuAbierto={menu} />
+        <CabeceraCapa zona="Pilates" onMenu={() => setMenu(true)} menuAbierto={menu} ayuda={manualAyuda('cliente')} />
         <main key={loc.pathname} className="flex-1 min-w-0 pb-24 md:pb-8 animate-[aparecer_.2s_ease-out]">
           <div className="max-w-3xl mx-auto w-full px-4">
             <Outlet />

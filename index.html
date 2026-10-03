@@ -109,6 +109,13 @@
             html { scroll-behavior: auto; }
         }
 
+        /* Logotipo de la pantalla de arranque: entra en fundido con un ligero zoom y sale desvaneciéndose */
+        .splash-logo { opacity: 0; transform: scale(.94); animation: splashIn 1.1s cubic-bezier(.22,.61,.36,1) forwards; }
+        .splash-logo-out { animation: splashOut .9s ease-in forwards; }
+        @keyframes splashIn { 0% { opacity: 0; transform: scale(.94); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes splashOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.04); } }
+        @media (prefers-reduced-motion: reduce) { .splash-logo, .splash-logo-out { animation: none; opacity: 1; transform: none; } }
+
         /* Palabras decorativas de fondo: beige muy suave, sin contorno */
         .outline-text { color: #E9E0D6; -webkit-text-stroke: 0; text-shadow: none; }
         .outline-text-dark { color: rgba(185,167,149,.16); -webkit-text-stroke: 0; }
@@ -419,15 +426,28 @@
                 setIsAdmin
             }), [content, updateField, resetToDefaults, isAdmin, isFirebaseReady, saveState]);
 
-            if (isLoading) {
-                return (
-                    <div className="fixed inset-0 bg-white z-[9999] flex items-center justify-center" aria-busy="true" aria-label="Cargando">
-                        <img src="assets/logo-clinica.png" alt="Clínica de Fisioterapia Nuevo Palmar" className="w-56 md:w-72 object-contain animate-breath" />
-                    </div>
-                );
-            }
+            // Pantalla de arranque: el logotipo aparece en fundido, se mantiene un instante y se desvanece
+            // cuando el contenido está listo (mínimo 1,4 s para que la entrada luzca).
+            const [splashMin, setSplashMin] = useState(true);
+            const [splashMounted, setSplashMounted] = useState(true);
+            useEffect(() => { const t = setTimeout(() => setSplashMin(false), 1400); return () => clearTimeout(t); }, []);
+            const splashOut = !isLoading && !splashMin;
+            useEffect(() => {
+                if (!splashOut) return;
+                const t = setTimeout(() => setSplashMounted(false), 900);
+                return () => clearTimeout(t);
+            }, [splashOut]);
 
-            return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;
+            return (
+                <ContentContext.Provider value={value}>
+                    {!isLoading && children}
+                    {splashMounted && (
+                        <div className={`fixed inset-0 bg-white z-[9999] flex items-center justify-center transition-opacity duration-[900ms] ease-out ${splashOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} aria-busy={isLoading} aria-label="Cargando">
+                            <img src="assets/logo-clinica.png" alt="Clínica de Fisioterapia Nuevo Palmar" className={`w-56 md:w-80 object-contain splash-logo ${splashOut ? 'splash-logo-out' : ''}`} />
+                        </div>
+                    )}
+                </ContentContext.Provider>
+            );
         };
 
         // ------------------------------------------------------------------
@@ -664,7 +684,7 @@
                                         <div className="relative rounded-4xl overflow-hidden aspect-[4/5] bg-sand-light">
                                             <Img src={a.image} alt={a.imageAlt} className="w-full h-full object-cover" />
                                         </div>
-                                        <span aria-hidden="true" className="absolute -bottom-8 -right-2 sm:right-0 font-serif outline-text text-[6rem] md:text-[7.5rem] leading-none select-none">NP</span>
+                                        <span aria-hidden="true" className="absolute -bottom-6 right-2 font-serif outline-text text-[5rem] md:text-[6.5rem] leading-none select-none">NP</span>
                                     </div>
                                 </Reveal>
                             </div>
@@ -681,7 +701,7 @@
                     </section>
 
                     <section id="filosofia" className="pt-36 pb-20 md:pt-52 md:pb-28 bg-sand-ivory relative overflow-hidden">
-                        <span aria-hidden="true" className="absolute -top-4 md:-top-8 left-1/2 -translate-x-1/2 font-serif outline-text text-[5rem] md:text-[12rem] leading-none select-none whitespace-nowrap">Filosofía</span>
+                        <span aria-hidden="true" className="absolute top-3 md:top-5 left-1/2 -translate-x-1/2 font-serif outline-text text-[4.5rem] md:text-[11rem] leading-none select-none whitespace-nowrap">Filosofía</span>
                         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                             <Reveal>
                                 <Eyebrow className="justify-center">{f.label}</Eyebrow>
@@ -987,7 +1007,7 @@
             const c = content.commitment;
             return (
                 <section id="compromiso" className="relative pt-36 pb-24 md:pt-56 md:pb-32 lg:pb-40 bg-white overflow-hidden">
-                    <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 -top-2 md:-top-6 font-serif outline-text text-[4.5rem] md:text-[12rem] leading-none select-none whitespace-nowrap">Compromiso</span>
+                    <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 top-3 md:top-5 font-serif outline-text text-[4rem] md:text-[11rem] leading-none select-none whitespace-nowrap">Compromiso</span>
                     <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                         <Reveal>
                             <Eyebrow className="justify-center">{c.label}</Eyebrow>
