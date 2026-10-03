@@ -109,9 +109,9 @@
             html { scroll-behavior: auto; }
         }
 
-        /* Rótulos decorativos en beige claro con contorno fino antracita */
-        .outline-text { color: #EDE4DB; -webkit-text-stroke: 1px rgba(58,58,58,.55); text-shadow: 0 1px 0 rgba(255,255,255,.6); }
-        .outline-text-dark { color: transparent; -webkit-text-stroke: 1px rgba(185,167,149,.45); }
+        /* Palabras decorativas de fondo: beige muy suave, sin contorno */
+        .outline-text { color: #E9E0D6; -webkit-text-stroke: 0; text-shadow: none; }
+        .outline-text-dark { color: rgba(185,167,149,.16); -webkit-text-stroke: 0; }
 
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #F7F3EE; }
@@ -681,7 +681,7 @@
                     </section>
 
                     <section id="filosofia" className="pt-36 pb-20 md:pt-52 md:pb-28 bg-sand-ivory relative overflow-hidden">
-                        <span aria-hidden="true" className="absolute -top-4 md:-top-8 left-1/2 -translate-x-1/2 font-serif outline-text text-[5rem] md:text-[12rem] leading-none select-none whitespace-nowrap opacity-80">Filosofía</span>
+                        <span aria-hidden="true" className="absolute -top-4 md:-top-8 left-1/2 -translate-x-1/2 font-serif outline-text text-[5rem] md:text-[12rem] leading-none select-none whitespace-nowrap">Filosofía</span>
                         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                             <Reveal>
                                 <Eyebrow className="justify-center">{f.label}</Eyebrow>
