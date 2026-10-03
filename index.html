@@ -139,6 +139,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyAxfEaTZqJhAn9lx3kvT4EJNEG3ay2nd5Q",
@@ -156,6 +157,13 @@
             window.doc = doc;
             window.onSnapshot = onSnapshot;
             window.setDoc = setDoc;
+            // Subida de fotos desde el editor (Firebase Storage, carpeta "web/").
+            const storage = getStorage(app);
+            window.subirImagenWeb = async (blob, nombre) => {
+                const r = ref(storage, `web/${Date.now()}-${nombre}`);
+                await uploadBytes(r, blob, { contentType: blob.type || 'image/jpeg', cacheControl: 'public, max-age=31536000' });
+                return getDownloadURL(r);
+            };
         }
     </script>
 
@@ -684,7 +692,6 @@
                                         <div className="relative rounded-4xl overflow-hidden aspect-[4/5] bg-sand-light">
                                             <Img src={a.image} alt={a.imageAlt} className="w-full h-full object-cover" />
                                         </div>
-                                        <span aria-hidden="true" className="absolute -bottom-6 right-2 font-serif outline-text text-[5rem] md:text-[6.5rem] leading-none select-none">NP</span>
                                     </div>
                                 </Reveal>
                             </div>
@@ -1178,15 +1185,65 @@
             </div>
         );
 
-        const ImageField = ({ value, onChange }) => (
-            <div className="flex flex-col sm:flex-row gap-3">
-                <ImagePreview src={value} />
-                <div className="flex-1">
-                    <input type="url" value={value} onChange={e => onChange(e.target.value)} placeholder="https://… o assets/imagen.jpg" className={inputCls} />
-                    <p className="text-xs text-ink-soft mt-1.5 font-light">Pega la URL de la imagen (por ejemplo, una foto subida a Google Drive, Imgur o la carpeta <code>assets/</code>).</p>
+        // Reduce una foto en el propio navegador (máx. 1600 px de ancho, JPEG) antes de subirla.
+        const reducirFoto = (file) => new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const MAX = 1600;
+                const k = Math.min(1, MAX / Math.max(img.width, img.height));
+                const c = document.createElement('canvas');
+                c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                c.toBlob(b => b ? resolve(b) : reject(new Error('No se ha podido procesar la imagen')), 'image/jpeg', 0.84);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('El archivo no es una imagen válida')); };
+            img.src = url;
+        });
+
+        const ImageField = ({ value, onChange }) => {
+            const inputRef = useRef(null);
+            const [subiendo, setSubiendo] = useState(false);
+            const [error, setError] = useState('');
+            const elegir = async (e) => {
+                const file = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!file) return;
+                if (!window.subirImagenWeb) { setError('La subida de fotos no está disponible (sin conexión con la nube).'); return; }
+                setSubiendo(true); setError('');
+                try {
+                    const blob = await reducirFoto(file);
+                    const base = (file.name || 'foto').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase().slice(0, 40) || 'foto';
+                    const url = await window.subirImagenWeb(blob, `${base}.jpg`);
+                    onChange(url);
+                } catch (err) {
+                    console.error('Error subiendo la foto:', err);
+                    const code = err && err.code ? String(err.code) : '';
+                    setError(code.includes('unauthorized') || code.includes('permission')
+                        ? 'La nube ha rechazado la subida: hay que activar el almacenamiento de fotos (reglas de Storage). Avisa a quien mantiene la web.'
+                        : `No se ha podido subir la foto. ${err && err.message ? err.message : ''}`);
+                } finally { setSubiendo(false); }
+            };
+            return (
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <ImagePreview src={value} />
+                    <div className="flex-1">
+                        <div className="flex flex-wrap gap-2 mb-2">
+                            <button type="button" onClick={() => inputRef.current && inputRef.current.click()} disabled={subiendo}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ink text-white text-xs font-semibold tracking-wide uppercase hover:bg-ink-deep disabled:opacity-60 transition">
+                                {subiendo ? <RotateCcw size={14} className="animate-spin" /> : <Plus size={14} />} {subiendo ? 'Subiendo…' : 'Subir foto'}
+                            </button>
+                            {value && <button type="button" onClick={() => onChange('')} className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-sand text-ink-soft text-xs font-semibold tracking-wide uppercase hover:bg-sand-light transition"><Trash2 size={14} /> Quitar</button>}
+                            <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={elegir} />
+                        </div>
+                        <input type="url" value={value} onChange={e => onChange(e.target.value)} placeholder="https://… (o sube una foto con el botón)" className={inputCls} />
+                        <p className="text-xs text-ink-soft mt-1.5 font-light">Toca <strong>Subir foto</strong> y elige una imagen del móvil o del ordenador: se reduce y se sube sola. Si ya tienes la foto en internet, también puedes pegar su dirección.</p>
+                        {error && <p className="text-xs text-red-700 mt-1.5">{error}</p>}
+                    </div>
                 </div>
-            </div>
-        );
+            );
+        };
 
         const normalizeLines = (t) => t.split('\n').map(s => s.trim()).filter(Boolean);
         const LinesField = ({ value, onChange, rows = 5 }) => {
@@ -1250,12 +1307,9 @@
                                 <span className="font-serif text-lg text-ink">Foto {pad(i)}</span>
                                 <ListControls i={i} total={value.length} h={h} />
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <ImagePreview src={im.src} />
-                                <div className="flex-1 space-y-2">
-                                    <div><Label>URL de la imagen</Label><input type="url" value={im.src} onChange={e => h.update(i, { src: e.target.value })} className={inputCls} placeholder="https://…" /></div>
-                                    <div><Label>Pie de foto</Label><input value={im.caption} onChange={e => h.update(i, { caption: e.target.value })} className={inputCls} /></div>
-                                </div>
+                            <div className="space-y-2">
+                                <div><Label>Imagen</Label><ImageField value={im.src} onChange={src => h.update(i, { src })} /></div>
+                                <div><Label>Pie de foto</Label><input value={im.caption} onChange={e => h.update(i, { caption: e.target.value })} className={inputCls} /></div>
                             </div>
                         </div>
                     ))}

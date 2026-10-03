@@ -304,6 +304,9 @@
   <h3>Fotos de la portada</h3>
   <p>Son las fotos del carrusel que ven los clientes al entrar en la app. Toca <span class="btn">Subir una foto</span> (horizontales quedan mejor), ponles un pie de foto si quieres, ordénalas con <em>Subir</em> y <em>Bajar</em> y quita las que sobren con <em>Borrar</em>. Sin fotos, la portada no muestra carrusel.</p>
 
+  <h3>Diagnóstico (al final de Ajustes)</h3>
+  <p>Cuando algo falle, antes de describirlo por teléfono genera el <strong>informe de diagnóstico</strong>: toca <span class="btn">Compartir informe</span> y envíalo por WhatsApp o correo a quien mantiene la app (en el ordenador se descarga un archivo de texto; adjúntalo). El informe recoge, de este dispositivo, todo lo que se ha hecho en la app (pantallas, acciones, errores, mensajes de error en pantalla), el estado del navegador y de las notificaciones, la sesión y un resumen de los datos. No lleva contraseñas ni fotos. Con <em>Ver</em> lo lees antes de enviarlo y con <em>Borrar registro</em> empiezas de cero, útil para reproducir un fallo paso a paso y enviar solo eso.</p>
+
   <h3>Registro de cambios</h3>
   <p>Al final de Ajustes hay una lista con quién hizo qué y cuándo (reservas, cancelaciones, cambios de configuración…). Útil cuando alguien dice "yo no fui".</p>
 </section>
@@ -321,7 +324,8 @@
   </ol>
   <h3>Las fotos</h3>
   <ul>
-    <li>En cada pestaña con imagen puedes <strong>subir una foto desde el móvil u ordenador</strong> o pegar la dirección de una imagen que ya esté en internet.</li>
+    <li>En cada pestaña con imagen hay un botón <span class="btn">Subir foto</span>: toca, elige una foto del carrete del móvil (o del ordenador) y espera unos segundos. La foto se reduce sola a un tamaño adecuado y aparece en la vista previa. Si ya tienes la imagen en internet, también puedes pegar su dirección en la casilla.</li>
+    <li>Con <em>Quitar</em> vacías la casilla; con <strong>Guardar</strong> publicas el cambio.</li>
     <li>El carrusel <strong>Nuestras instalaciones</strong> se gestiona en la pestaña Instalaciones: añadir, quitar y ordenar fotos, cada una con su pie.</li>
     <li>Fotos horizontales, bien iluminadas y sin texto encima funcionan mejor. No hace falta que sean enormes: las de un móvil actual sobran.</li>
   </ul>
@@ -379,8 +383,11 @@
     <dt>La web no muestra los cambios que acabo de guardar en el editor.</dt>
     <dd>Recarga la página. Si guardaste con el móvil sin cobertura, vuelve a entrar al editor y guarda de nuevo.</dd>
 
+    <dt>El botón "Subir foto" del editor de la web da error.</dt>
+    <dd>Si el mensaje habla de permisos o de "activar el almacenamiento", falta configurar las reglas de Storage en Firebase. Es un paso de una sola vez que hace quien mantiene la web.</dd>
+
     <dt>Algo va mal y no está en esta lista.</dt>
-    <dd>Haz una captura de pantalla del mensaje y mándasela a Juan Antonio con lo que estabas haciendo. Con eso se resuelve casi todo a la primera.</dd>
+    <dd>Genera el informe de diagnóstico (Ajustes → Diagnóstico → Compartir informe) y mándaselo a Juan Antonio junto con una captura del mensaje y una frase sobre lo que estabas haciendo. Con eso se resuelve casi todo a la primera.</dd>
   </dl>
 </section>
 
