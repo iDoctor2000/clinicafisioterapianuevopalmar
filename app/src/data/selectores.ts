@@ -1,5 +1,5 @@
 /** Consultas de solo lectura sobre la instantánea de datos. */
-import type { Actividad, Clase, Cliente, Contrato, Id, ISODate, Recuperacion, Reserva, Tarifa, Trabajador } from '@/domain/types';
+import type { Actividad, Clase, Cliente, Contrato, Id, ISODate, PortadaImagen, Recuperacion, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import { plazasLibres } from '@/domain/rules';
 import { aISODate, estaEntre } from '@/domain/fechas';
 import type { Db } from './db';
@@ -100,4 +100,18 @@ export function clientePorId(db: Db, id: Id): Cliente | undefined {
 
 export function iniciales(nombre: string): string {
   return nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Portada
+// ---------------------------------------------------------------------------
+
+/** Fotos de la portada ordenadas por `orden` (y por fecha de creación a igualdad). */
+export function portadaOrdenada(lista: PortadaImagen[]): PortadaImagen[] {
+  return [...lista].sort((a, b) => a.orden - b.orden || a.creadoEl.localeCompare(b.creadoEl));
+}
+
+/** Fotos que ven los clientes en el carrusel: solo las activas, en orden. */
+export function portadaVisible(db: Db): PortadaImagen[] {
+  return portadaOrdenada(db.portada.filter((p) => p.activa));
 }

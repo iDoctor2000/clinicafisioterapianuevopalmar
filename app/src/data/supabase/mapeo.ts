@@ -8,7 +8,7 @@
 import type {
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, DiaSemana, EstadoClase,
   EstadoContrato, EstadoRecuperacion, EstadoReserva, Id, InformacionClinica, LecturaAviso, Modalidad, MotivoRecuperacion,
-  Ambito, OrigenReserva, Permiso, PlantillaClase, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
+  Ambito, OrigenReserva, Permiso, PlantillaClase, PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
 } from '@/domain/types';
 import type { Usuario } from '../db';
 
@@ -99,6 +99,8 @@ export interface FilaAviso {
 }
 export interface FilaAvisoDestinatario { aviso_id: string; cliente_id: string }
 export interface FilaAvisoLectura { aviso_id: string; cliente_id: string; leido_el: string }
+
+export interface FilaPortadaImagen { id: string; url: string; pie: string; orden: number; activa: boolean; creado_el: string }
 
 export interface FilaAuditoria {
   id: string; instante: string; actor_id: string | null; actor_nombre: string; accion: string; entidad: string; entidad_id: string; detalle: string;
@@ -380,6 +382,13 @@ export function aLectura(f: FilaAvisoLectura): LecturaAviso {
 // ---------------------------------------------------------------------------
 // Auditoría y usuarios
 // ---------------------------------------------------------------------------
+
+export function aPortadaImagen(f: FilaPortadaImagen): PortadaImagen {
+  return { id: f.id, url: f.url, pie: f.pie ?? '', orden: f.orden, activa: f.activa, creadoEl: aInstante(f.creado_el) };
+}
+export function dePortadaImagen(p: PortadaImagen): Omit<FilaPortadaImagen, 'creado_el'> {
+  return { id: p.id, url: p.url, pie: p.pie, orden: p.orden, activa: p.activa };
+}
 
 export function aAuditoria(f: FilaAuditoria): RegistroAuditoria {
   return {

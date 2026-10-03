@@ -95,7 +95,7 @@ export function MisClases() {
                   <button
                     key={d} type="button" onClick={() => setDiaSel(activo ? null : d)} aria-label={fechaLarga(d)} aria-pressed={activo}
                     className={cn('h-12 sm:h-14 rounded-xl flex flex-col items-center justify-center gap-1 tap text-[15px]',
-                      !enMes && 'opacity-30', activo ? 'bg-brand-500 text-white shadow-lift' : esHoy ? 'bg-brand-50 text-brand-800 font-bold' : enPeriodo ? 'hover:bg-sand' : 'text-ink-muted',
+                      !enMes && 'opacity-30', activo ? 'bg-brand-500 text-sand shadow-lift' : esHoy ? 'bg-beige-100 text-ink font-bold' : enPeriodo ? 'hover:bg-sand' : 'text-ink-muted',
                       cierre && !activo && 'bg-sand-deep text-ink-muted')}
                   >
                     <span className={cn('leading-none', esHoy && 'font-bold')}>{format(parseISO(d), 'd')}</span>
@@ -181,7 +181,7 @@ export function MisClases() {
                     <ul className="space-y-3">
                       {recDisponibles.map((r) => (
                         <li key={r.id}>
-                          <Tarjeta className="p-4 border-brand-200">
+                          <Tarjeta className="p-4 border-beige-200">
                             <div className="flex items-center gap-2 mb-1">
                               <RefreshCw className="h-5 w-5 text-sky shrink-0" />
                               <p className="font-semibold text-lg">Recuperación disponible</p>

@@ -6,7 +6,7 @@
  */
 import type {
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, Id, ISODate,
-  PlantillaClase, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
+  PlantillaClase, PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
 } from '@/domain/types';
 import { tienePermiso } from '@/domain/types';
 import {
@@ -20,6 +20,7 @@ import {
   generarReservasAutomaticas, plazasLibres, puedeCancelarCliente, puedeGenerarRecuperacion, caducarVencidas,
 } from '@/domain/rules';
 import { indexar, nuevoId, type Db } from './db';
+import { portadaOrdenada } from './selectores';
 
 export type Resultado<T = void> = { ok: true; db: Db; valor: T } | { ok: false; error: string };
 
@@ -527,4 +528,60 @@ export function actualizarConfig(ctx: Ctx, args: { config: Partial<ConfigCentro>
   let nuevo: Db = { ...db, config: { ...db.config, ...args.config } };
   if (args.config.diasCierre) nuevo = generarClasesPendientes(nuevo, ahora);
   return ok(auditar(nuevo, sesion, ahora, 'CONFIG', 'config', '-', Object.keys(args.config).join(',')), undefined);
+}
+
+// ---------------------------------------------------------------------------
+// Portada del cliente (carrusel): solo el administrador
+// ---------------------------------------------------------------------------
+
+export const MENSAJE_SOLO_ADMIN_PORTADA = 'Solo el administrador puede cambiar las fotos de la portada.';
+/** Tope razonable de fotos en el carrusel (peso de la portada en el móvil). */
+export const MAX_PORTADA = 12;
+
+function exigirAdmin(sesion: Sesion): string | null {
+  return sesion.tipo === 'TRABAJADOR' && sesion.rol === 'ADMIN' ? null : MENSAJE_SOLO_ADMIN_PORTADA;
+}
+
+/** Crea o actualiza una foto de la portada (url, pie, orden, activa). Sin `orden` al crear, se pone al final. */
+export function guardarPortadaImagen(ctx: Ctx, args: { imagen: Omit<PortadaImagen, 'id' | 'creadoEl' | 'orden'> & { id?: Id; orden?: number } }): Resultado<PortadaImagen> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigirAdmin(sesion);
+  if (e) return fallo(e);
+  const existente = args.imagen.id ? db.portada.find((x) => x.id === args.imagen.id) : undefined;
+  if (args.imagen.id && !existente) return fallo('Foto no encontrada.');
+  const url = (args.imagen.url ?? '').trim();
+  if (!url) return fallo('Falta la imagen.');
+  if (!existente && db.portada.length >= MAX_PORTADA) return fallo(`La portada admite como mucho ${MAX_PORTADA} fotos. Borra alguna antes de añadir otra.`);
+  const siguienteOrden = db.portada.reduce((m, x) => Math.max(m, x.orden), 0) + 1;
+  const img: PortadaImagen = {
+    id: existente?.id ?? nuevoId('por'),
+    url,
+    pie: (args.imagen.pie ?? '').trim(),
+    orden: args.imagen.orden ?? existente?.orden ?? siguienteOrden,
+    activa: args.imagen.activa ?? true,
+    creadoEl: existente?.creadoEl ?? ahora.toISOString(),
+  };
+  const portada = existente ? db.portada.map((x) => (x.id === img.id ? img : x)) : [...db.portada, img];
+  return ok(auditar({ ...db, portada: portadaOrdenada(portada) }, sesion, ahora, existente ? 'EDITAR_PORTADA' : 'CREAR_PORTADA', 'portada', img.id, img.pie || `Foto ${img.orden}`), img);
+}
+
+export function borrarPortadaImagen(ctx: Ctx, args: { id: Id }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigirAdmin(sesion);
+  if (e) return fallo(e);
+  const img = db.portada.find((x) => x.id === args.id);
+  if (!img) return fallo('Foto no encontrada.');
+  return ok(auditar({ ...db, portada: db.portada.filter((x) => x.id !== args.id) }, sesion, ahora, 'BORRAR_PORTADA', 'portada', img.id, img.pie || `Foto ${img.orden}`), undefined);
+}
+
+/** Reordena el carrusel: `ids` en el orden deseado (las que falten conservan su sitio relativo al final). */
+export function ordenarPortada(ctx: Ctx, args: { ids: Id[] }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigirAdmin(sesion);
+  if (e) return fallo(e);
+  const posicion = new Map(args.ids.map((id, i) => [id, i]));
+  if (args.ids.some((id) => !db.portada.some((x) => x.id === id))) return fallo('Foto no encontrada.');
+  const ordenadas = [...db.portada].sort((a, b) => (posicion.get(a.id) ?? Infinity) - (posicion.get(b.id) ?? Infinity) || a.orden - b.orden);
+  const portada = ordenadas.map((x, i) => ({ ...x, orden: i + 1 }));
+  return ok(auditar({ ...db, portada }, sesion, ahora, 'ORDENAR_PORTADA', 'portada', '-', `${portada.length} fotos`), undefined);
 }

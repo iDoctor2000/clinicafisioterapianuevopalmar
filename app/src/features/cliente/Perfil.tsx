@@ -161,7 +161,7 @@ export function Perfil() {
       <Encabezado titulo="Perfil" subtitulo={nombreCompleto(cliente)}>
         <button type="button" onClick={() => setHoja('FOTO')} aria-label={cliente.fotoUrl ? 'Cambiar mi foto' : 'Poner mi foto'} className="relative shrink-0 rounded-full tap mb-1">
           <AvatarCliente cliente={cliente} tamano="lg" />
-          <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-white text-brand-700 shadow-card ring-1 ring-ink/10 flex items-center justify-center"><Camera className="h-4 w-4" /></span>
+          <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-white text-beige-600 shadow-card ring-1 ring-ink/10 flex items-center justify-center"><Camera className="h-4 w-4" /></span>
         </button>
       </Encabezado>
 
@@ -226,7 +226,7 @@ export function Perfil() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <PuntoActividad color={a.color} />
                   <span className="font-semibold text-lg">{a.nombre}</span>
-                  {incluida && <Chip tono="verde"><BadgeCheck className="h-3.5 w-3.5" /> Incluida en tu tarifa</Chip>}
+                  {incluida && <Chip tono="beige"><BadgeCheck className="h-3.5 w-3.5" /> Incluida en tu tarifa</Chip>}
                 </div>
                 <p className="text-ink-soft text-[15px] mt-1">{a.descripcion}</p>
               </div>
@@ -239,9 +239,9 @@ export function Perfil() {
         <Tarjeta className="divide-y divide-ink/5">
           {db.tarifas.filter((t) => t.activa).sort((a, b) => a.orden - b.orden).map((t) => (
             <div key={t.id} className="p-4">
-              <p className="font-semibold text-lg flex items-center gap-2 flex-wrap">{t.nombre}{tarifa?.id === t.id && <Chip tono="verde">Tu tarifa</Chip>}</p>
+              <p className="font-semibold text-lg flex items-center gap-2 flex-wrap">{t.nombre}{tarifa?.id === t.id && <Chip tono="beige">Tu tarifa</Chip>}</p>
               <p className="text-ink-soft text-[15px]">{t.descripcion}</p>
-              <p className="text-sm font-semibold text-brand-700 mt-1">{t.precioCentimos == null ? 'Precio: consultar en recepción' : `Precio: ${(t.precioCentimos / 100).toFixed(2).replace('.', ',')} €`}</p>
+              <p className="text-sm font-semibold text-beige-600 mt-1">{t.precioCentimos == null ? 'Precio: consultar en recepción' : `Precio: ${(t.precioCentimos / 100).toFixed(2).replace('.', ',')} €`}</p>
             </div>
           ))}
         </Tarjeta>
@@ -250,7 +250,7 @@ export function Perfil() {
       <Seccion titulo="La app en tu móvil">
         <Tarjeta className="p-5">
           {estaInstalada() ? (
-            <p className="flex items-center gap-2 text-brand-700 font-semibold"><Smartphone className="h-5 w-5" /> Ya tienes la app instalada en este dispositivo.</p>
+            <p className="flex items-center gap-2 text-beige-600 font-semibold"><Smartphone className="h-5 w-5" /> Ya tienes la app instalada en este dispositivo.</p>
           ) : (
             <>
               <p className="text-ink-soft mb-3">Ponla en la pantalla de inicio para abrirla como cualquier otra app, sin buscarla en el navegador.</p>

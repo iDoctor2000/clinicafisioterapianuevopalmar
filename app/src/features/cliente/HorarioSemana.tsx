@@ -54,9 +54,9 @@ export function HorarioSemana({ fecha, hoy, desde, hasta, cierres, clasesDe, ren
           const esHoy = d === hoy;
           return (
             <section key={d} aria-label={diaConNumero(d)}>
-              <h2 className={cn('text-lg font-sans font-semibold mb-2 flex items-baseline gap-2', esHoy ? 'text-brand-700' : 'text-ink')}>
+              <h2 className={cn('text-lg font-sans font-semibold mb-2 flex items-baseline gap-2', esHoy ? 'text-beige-600' : 'text-ink')}>
                 {diaConNumero(d)}
-                {esHoy && <span className="text-sm font-medium text-brand-600">· hoy</span>}
+                {esHoy && <span className="text-sm font-medium text-beige-600">· hoy</span>}
               </h2>
               {cierre ? (
                 <Tarjeta className="px-4 py-3 flex items-center gap-3 text-ink-soft bg-sand-deep/60">

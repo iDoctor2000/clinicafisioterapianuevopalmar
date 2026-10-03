@@ -281,6 +281,23 @@ export interface LecturaAviso {
 }
 
 // ---------------------------------------------------------------------------
+// Portada del cliente (carrusel de fotos del centro)
+// ---------------------------------------------------------------------------
+
+export interface PortadaImagen {
+  id: Id;
+  /** URL lista para `<img>`: pública del bucket `portada` en Supabase; data URL o ruta local en demo. */
+  url: string;
+  /** Pie de foto opcional (vacío = sin pie). */
+  pie: string;
+  /** Posición en el carrusel (ascendente). */
+  orden: number;
+  /** Solo las activas se muestran a los clientes. */
+  activa: boolean;
+  creadoEl: ISOInstant;
+}
+
+// ---------------------------------------------------------------------------
 // Trabajadores, permisos y auditoría
 // ---------------------------------------------------------------------------
 

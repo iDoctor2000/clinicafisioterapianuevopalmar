@@ -42,7 +42,7 @@ export function Avatar({ nombre, apellidos, color, tamano = 'md', fotoUrl, class
   }
   return (
     <span
-      className={cn(base, 'font-bold flex items-center justify-center', !color && 'bg-brand-100 text-brand-800')}
+      className={cn(base, 'font-bold flex items-center justify-center', !color && 'bg-beige-100 text-ink')}
       style={color ? { backgroundColor: `${color}22`, color } : undefined}
       aria-label={nombreCompleto || undefined} role={nombreCompleto ? 'img' : undefined}
     >

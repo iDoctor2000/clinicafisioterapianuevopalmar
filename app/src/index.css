@@ -18,7 +18,7 @@
   html { font-size: 17px; }
   h1, h2, h3 { @apply font-serif text-ink; letter-spacing: -0.01em; }
   button, [role="button"] { -webkit-tap-highlight-color: transparent; }
-  *:focus-visible { @apply outline-none ring-4 ring-brand-300 ring-offset-2 ring-offset-sand; }
+  *:focus-visible { @apply outline-none ring-4 ring-beige-300 ring-offset-2 ring-offset-sand; }
   input, select, textarea { font-size: 17px; }
 }
 
@@ -28,4 +28,9 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { scrollbar-width: none; }
   .tap { @apply active:scale-[0.98] transition-transform duration-100; }
+}
+
+@layer components {
+  /* Etiqueta de marca: mayúsculas con tracking amplio en beige oscuro ("CONTROL · PRECISIÓN · BIENESTAR"). */
+  .lema { @apply uppercase tracking-lema text-beige-600 font-semibold text-[11px]; }
 }

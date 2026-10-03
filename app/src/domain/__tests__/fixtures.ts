@@ -10,7 +10,7 @@ export const config: ConfigCentro = {
   zonaHoraria: 'Europe/Madrid',
 };
 
-export const actDirigida: Actividad = { id: 'a-dir', nombre: 'Pilates suelo', categoria: 'DIRIGIDA', descripcion: '', color: '#548C2F', activa: true };
+export const actDirigida: Actividad = { id: 'a-dir', nombre: 'Pilates suelo', categoria: 'DIRIGIDA', descripcion: '', color: '#86735F', activa: true };
 export const actReformer: Actividad = { id: 'a-ref', nombre: 'Reformer', categoria: 'REFORMER', descripcion: '', color: '#3B82C4', activa: true };
 export const actividadesPorId = new Map([[actDirigida.id, actDirigida], [actReformer.id, actReformer]]);
 

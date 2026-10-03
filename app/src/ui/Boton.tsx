@@ -13,9 +13,9 @@ export interface BotonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const estilos: Record<Variante, string> = {
-  primario: 'bg-brand-500 text-white hover:bg-brand-600 shadow-lift',
-  secundario: 'bg-white text-ink border border-ink/10 hover:bg-sand-deep',
-  suave: 'bg-brand-50 text-brand-700 hover:bg-brand-100',
+  primario: 'bg-brand-500 text-sand hover:bg-brand-600 shadow-lift',
+  secundario: 'bg-white text-ink border border-beige-300 hover:bg-beige-50',
+  suave: 'bg-beige-100 text-ink hover:bg-beige-100',
   peligro: 'bg-rose/10 text-rose hover:bg-rose/15',
   fantasma: 'bg-transparent text-ink-soft hover:bg-ink/5',
 };

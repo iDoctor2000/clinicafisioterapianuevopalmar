@@ -56,13 +56,13 @@ export function Avisos() {
       <Encabezado titulo="Avisos" subtitulo={limitado ? 'Avisos a los alumnos de tus clases: aparecen en su app y como notificación.' : 'Comunicaciones a los clientes: aparecen en su app y como notificación.'} />
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <Tarjeta className="p-4 sm:p-6 space-y-4">
-          <h2 className="text-lg font-sans font-semibold flex items-center gap-2"><Megaphone className="h-5 w-5 text-brand-600" /> Nuevo aviso</h2>
+          <h2 className="text-lg font-sans font-semibold flex items-center gap-2"><Megaphone className="h-5 w-5 text-beige-600" /> Nuevo aviso</h2>
           <Entrada etiqueta="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej.: Cambio de horario el viernes" maxLength={120} />
           <AreaTexto etiqueta="Texto" value={cuerpo} onChange={(e) => setCuerpo(e.target.value)} placeholder="Escribe el mensaje…" />
           <div>
             <span className="block text-[15px] font-semibold mb-1.5">Destinatarios</span>
             <div className="grid grid-cols-2 gap-2">
-              {tipos.map((t) => <button key={t.valor} type="button" aria-pressed={tipo === t.valor} onClick={() => setTipo(t.valor)} className={cn('h-12 rounded-2xl border font-semibold text-sm tap px-2', tipo === t.valor ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink/10 hover:border-brand-300')}>{t.texto}</button>)}
+              {tipos.map((t) => <button key={t.valor} type="button" aria-pressed={tipo === t.valor} onClick={() => setTipo(t.valor)} className={cn('h-12 rounded-2xl border font-semibold text-sm tap px-2', tipo === t.valor ? 'bg-brand-500 text-sand border-brand-500' : 'bg-white border-ink/10 hover:border-beige-300')}>{t.texto}</button>)}
             </div>
           </div>
           {tipo === 'CLASE' && (
@@ -80,7 +80,7 @@ export function Avisos() {
             <div className="space-y-2">
               {clienteIds.length > 0 && (
                 <div className="flex gap-1.5 flex-wrap">
-                  {clienteIds.map((id) => { const c = db.clientes.find((x) => x.id === id); return <Chip key={id} tono="verde" className="pr-1">{nombreCompleto(c)}<button type="button" aria-label="Quitar" onClick={() => setClienteIds(clienteIds.filter((x) => x !== id))} className="h-6 w-6 rounded-full hover:bg-brand-200 flex items-center justify-center"><X className="h-3.5 w-3.5" /></button></Chip>; })}
+                  {clienteIds.map((id) => { const c = db.clientes.find((x) => x.id === id); return <Chip key={id} tono="beige" className="pr-1">{nombreCompleto(c)}<button type="button" aria-label="Quitar" onClick={() => setClienteIds(clienteIds.filter((x) => x !== id))} className="h-6 w-6 rounded-full hover:bg-beige-200 flex items-center justify-center"><X className="h-3.5 w-3.5" /></button></Chip>; })}
                 </div>
               )}
               <BuscadorClientes clientes={db.clientes.filter((c) => c.activo)} excluirIds={clienteIds} onElegir={(c) => setClienteIds([...clienteIds, c.id])} placeholder="Añadir cliente…" />

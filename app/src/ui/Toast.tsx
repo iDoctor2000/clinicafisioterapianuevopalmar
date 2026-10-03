@@ -35,7 +35,7 @@ export function Toasts() {
           <button
             type="button" key={i.id} onClick={() => quitar(i.id)}
             className={cn('pointer-events-auto flex items-start gap-3 max-w-md w-full rounded-2xl px-4 py-3 shadow-2xl text-left text-[15px] font-medium',
-              i.tipo === 'ok' && 'bg-brand-700 text-white', i.tipo === 'error' && 'bg-rose text-white', i.tipo === 'info' && 'bg-ink text-white')}
+              i.tipo === 'ok' && 'bg-brand-600 text-sand', i.tipo === 'error' && 'bg-rose text-white', i.tipo === 'info' && 'bg-beige-600 text-white')}
           >
             <Icono className="h-5 w-5 mt-0.5 shrink-0" />
             <span>{i.texto}</span>

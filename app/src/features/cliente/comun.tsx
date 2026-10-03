@@ -48,7 +48,7 @@ export function Pestanas<T extends string>({ valor, onCambio, items }: { valor: 
         >
           <span className="truncate">{i.etiqueta}</span>
           {i.contador != null && i.contador > 0 && (
-            <span className={cn('h-6 min-w-6 px-1.5 rounded-full text-xs font-bold flex items-center justify-center shrink-0', valor === i.id ? 'bg-brand-100 text-brand-800' : 'bg-white text-ink-soft')}>{i.contador}</span>
+            <span className={cn('h-6 min-w-6 px-1.5 rounded-full text-xs font-bold flex items-center justify-center shrink-0', valor === i.id ? 'bg-beige-100 text-ink' : 'bg-white text-ink-soft')}>{i.contador}</span>
           )}
         </button>
       ))}
@@ -75,7 +75,7 @@ export function Nota({ tono, children }: { tono: 'ok' | 'aviso' | 'info'; childr
   const Icono = tono === 'ok' ? CheckCircle2 : AlertTriangle;
   return (
     <div className={cn('flex items-start gap-3 rounded-2xl px-4 py-3 text-[16px] leading-snug',
-      tono === 'ok' && 'bg-brand-50 text-brand-800', tono === 'aviso' && 'bg-clay/10 text-cocoa', tono === 'info' && 'bg-sky/10 text-ink')}>
+      tono === 'ok' && 'bg-beige-100 text-ink', tono === 'aviso' && 'bg-clay/10 text-cocoa', tono === 'info' && 'bg-sky/10 text-ink')}>
       <Icono className="h-5 w-5 mt-0.5 shrink-0" />
       <div>{children}</div>
     </div>
@@ -96,7 +96,7 @@ export function TarjetaReserva({ vista, ahora, onCancelar }: { vista: ReservaVis
   return (
     <Tarjeta className={cn('p-4', cancelada && 'bg-white/70')}>
       <div className="flex items-start gap-3">
-        <div className={cn('w-[4.25rem] shrink-0 text-center rounded-xl py-2', cancelada ? 'bg-sand-deep text-ink-muted' : 'bg-brand-50 text-brand-800')}>
+        <div className={cn('w-[4.25rem] shrink-0 text-center rounded-xl py-2', cancelada ? 'bg-sand-deep text-ink-muted' : 'bg-beige-100 text-ink')}>
           <div className="text-xl font-bold leading-none">{clase.horaInicio}</div>
           <div className="text-xs mt-1">{clase.duracionMin} min</div>
         </div>
@@ -160,9 +160,9 @@ export function HojaCancelar({ vista, onCerrar }: { vista: ReservaVista | null; 
     <Hoja abierta onCerrar={onCerrar} titulo="Cancelar mi plaza">
       <div className="flex items-center gap-2 text-ink-soft"><PuntoActividad color={actividad.color} />{actividad.nombre}</div>
       <ul className="mt-2 space-y-1.5 text-[17px]">
-        <li className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-brand-600" /> {cap(fechaLarga(clase.fecha))}</li>
-        <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-brand-600" /> De {clase.horaInicio} a {horaFin(clase.horaInicio, clase.duracionMin)}</li>
-        {monitor && <li className="flex items-center gap-2"><User className="h-5 w-5 text-brand-600" /> Con {monitor.nombre} {monitor.apellidos}</li>}
+        <li className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-beige-600" /> {cap(fechaLarga(clase.fecha))}</li>
+        <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-beige-600" /> De {clase.horaInicio} a {horaFin(clase.horaInicio, clase.duracionMin)}</li>
+        {monitor && <li className="flex items-center gap-2"><User className="h-5 w-5 text-beige-600" /> Con {monitor.nombre} {monitor.apellidos}</li>}
       </ul>
       <div className="mt-4">
         <Nota tono={clasif.recuperable ? 'ok' : 'aviso'}>{explicacion}</Nota>

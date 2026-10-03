@@ -9,7 +9,7 @@ import { Encabezado, Pestanas, PuntoColor, Segmentado, euros } from './comunes';
 
 const TIPO: Record<TipoTarifa, string> = { RECURRENTE: 'Mensual (cupo semanal)', BONO: 'Bono de sesiones', CLASE_SUELTA: 'Clase suelta' };
 const CATS: Categoria[] = ['DIRIGIDA', 'REFORMER'];
-const COLORES = ['#548C2F', '#7FB356', '#A3CB80', '#3B82C4', '#C9713F', '#D95A6A', '#6E2818', '#8A98A6'];
+const COLORES = ['#86735F', '#B9A795', '#A08D79', '#3A3A3A', '#3B82C4', '#6B7A8F', '#C9713F', '#D95A6A'];
 
 export function Tarifas() {
   const { db } = useTrabajador();
@@ -29,14 +29,14 @@ export function Tarifas() {
         {pestana === 'TARIFAS' && (tarifas.length === 0 ? <Vacio icono={Tags} titulo="Sin tarifas" /> : (
           <div className="grid gap-3 md:grid-cols-2">
             {tarifas.map((t) => (
-              <button key={t.id} type="button" onClick={() => setTarifa(t)} className={cn('text-left bg-white rounded-2xl shadow-card border border-ink/5 p-4 tap hover:border-brand-200', !t.activa && 'opacity-60')}>
+              <button key={t.id} type="button" onClick={() => setTarifa(t)} className={cn('text-left bg-white rounded-2xl shadow-card border border-ink/5 p-4 tap hover:border-beige-200', !t.activa && 'opacity-60')}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0"><div className="font-semibold text-lg leading-tight">{t.nombre}</div><div className="text-sm text-ink-muted mt-0.5">{t.descripcion}</div></div>
-                  <span className="font-bold text-brand-700 whitespace-nowrap">{euros(t.precioCentimos)}</span>
+                  <span className="font-bold text-beige-600 whitespace-nowrap">{euros(t.precioCentimos)}</span>
                 </div>
                 <div className="flex gap-1.5 flex-wrap mt-3">
                   <Chip tono="gris">{TIPO[t.tipo]}</Chip>
-                  {t.cupos.map((c) => <Chip key={c.categoria} tono="verde">{c.sesionesSemana}/sem {CATEGORIA_LABEL[c.categoria].toLowerCase()}</Chip>)}
+                  {t.cupos.map((c) => <Chip key={c.categoria} tono="beige">{c.sesionesSemana}/sem {CATEGORIA_LABEL[c.categoria].toLowerCase()}</Chip>)}
                   {t.bono && <Chip tono="cocoa">{t.bono.sesiones} sesiones · {t.bono.validezMeses} meses</Chip>}
                   {t.recuperacion.permitida ? <Chip tono="azul">Recuperable{t.recuperacion.maxPendientes != null ? ` (máx. ${t.recuperacion.maxPendientes})` : ''}</Chip> : <Chip tono="rojo">Sin recuperación</Chip>}
                   {!t.activa && <Chip tono="gris">Inactiva</Chip>}
@@ -48,10 +48,10 @@ export function Tarifas() {
         {pestana === 'ACTIVIDADES' && (
           <div className="grid gap-3 md:grid-cols-2">
             {db.actividades.map((a) => (
-              <button key={a.id} type="button" onClick={() => setActividad(a)} className={cn('text-left bg-white rounded-2xl shadow-card border border-ink/5 p-4 tap hover:border-brand-200 flex gap-3', !a.activa && 'opacity-60')}>
+              <button key={a.id} type="button" onClick={() => setActividad(a)} className={cn('text-left bg-white rounded-2xl shadow-card border border-ink/5 p-4 tap hover:border-beige-200 flex gap-3', !a.activa && 'opacity-60')}>
                 <PuntoColor color={a.color} className="h-5 w-5 mt-0.5" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-lg leading-tight">{a.nombre}</span><Chip tono={a.categoria === 'REFORMER' ? 'azul' : 'verde'}>{CATEGORIA_LABEL[a.categoria]}</Chip>{!a.activa && <Chip tono="gris">Inactiva</Chip>}</div>
+                  <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-lg leading-tight">{a.nombre}</span><Chip tono={a.categoria === 'REFORMER' ? 'azul' : 'beige'}>{CATEGORIA_LABEL[a.categoria]}</Chip>{!a.activa && <Chip tono="gris">Inactiva</Chip>}</div>
                   <div className="text-sm text-ink-muted mt-0.5">{a.descripcion}</div>
                 </div>
               </button>

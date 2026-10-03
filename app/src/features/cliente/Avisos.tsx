@@ -36,9 +36,9 @@ export function Avisos() {
             <li key={aviso.id}>
               <button
                 type="button" onClick={() => abrir(aviso.id)}
-                className={cn('w-full text-left bg-white rounded-2xl shadow-card border tap p-4 flex items-start gap-3 hover:border-brand-200', leido ? 'border-ink/5' : 'border-brand-300')}
+                className={cn('w-full text-left bg-white rounded-2xl shadow-card border tap p-4 flex items-start gap-3 hover:border-beige-200', leido ? 'border-ink/5' : 'border-beige-300')}
               >
-                <span className={cn('h-11 w-11 rounded-full flex items-center justify-center shrink-0', leido ? 'bg-sand-deep text-ink-muted' : 'bg-brand-50 text-brand-600')}>
+                <span className={cn('h-11 w-11 rounded-full flex items-center justify-center shrink-0', leido ? 'bg-sand-deep text-ink-muted' : 'bg-beige-100 text-ink')}>
                   {leido ? <Bell className="h-5 w-5" /> : <BellRing className="h-5 w-5" />}
                 </span>
                 <span className="flex-1 min-w-0">

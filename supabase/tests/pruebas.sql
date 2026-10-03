@@ -711,4 +711,70 @@ do $$ begin
 end $$;
 
 \echo
+\echo '== 22. Portada (0008): cualquier usuario autenticado lee las fotos; solo el administrador las gestiona'
+select pruebas.sistema();
+do $$ begin
+  assert exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'portada_imagenes'), 'existe portada_imagenes';
+  assert (select relrowsecurity from pg_class where oid = 'public.portada_imagenes'::regclass), 'portada_imagenes tiene RLS';
+  assert (select column_default from information_schema.columns where table_schema = 'public' and table_name = 'actividades' and column_name = 'color') like '%#86735F%', 'el color por defecto de las actividades ya no es verde';
+  assert not exists (select 1 from public.actividades where upper(color) in ('#548C2F', '#7FB356', '#A3CB80', '#8FBF6A')), 'ninguna actividad conserva un verde de ejemplo';
+end $$;
+select pruebas.guardar('por_1', 'f0000000-0000-4000-8000-000000000001');
+select pruebas.guardar('por_2', 'f0000000-0000-4000-8000-000000000002');
+-- Administrador: crea, edita, reordena y borra.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+insert into public.portada_imagenes (id, url, pie, orden, activa) values
+  (pruebas.id('por_1'), 'https://ejemplo.test/storage/v1/object/public/portada/1.jpg', 'Sala', 1, true),
+  (pruebas.id('por_2'), 'https://ejemplo.test/storage/v1/object/public/portada/2.jpg', '', 2, false);
+update public.portada_imagenes set pie = 'Sala de Reformer', orden = 2 where id = pruebas.id('por_1');
+update public.portada_imagenes set orden = 1, activa = true where id = pruebas.id('por_2');
+do $$ begin
+  assert (select count(*) from public.portada_imagenes) = 2, 'el admin ve las dos fotos';
+  assert (select pie from public.portada_imagenes where id = pruebas.id('por_1')) = 'Sala de Reformer', 'el admin edita el pie';
+  assert (select orden from public.portada_imagenes where id = pruebas.id('por_2')) = 1, 'el admin reordena';
+end $$;
+commit;
+-- Cliente A: lee todas (también las ocultas: el filtro de activas lo hace la app), no escribe.
+begin;
+set local role authenticated;
+select pruebas.como('a');
+do $$ begin assert (select count(*) from public.portada_imagenes) = 2, 'el cliente lee las fotos de la portada'; end $$;
+select pruebas.espera_error(format('insert into public.portada_imagenes (url) values (%L)', 'https://hack.test/x.jpg'), '%row-level security%');
+select pruebas.espera_sin_efecto(format('update public.portada_imagenes set pie = %L where id = %L', 'Hackeado', pruebas.id('por_1')));
+select pruebas.espera_sin_efecto(format('delete from public.portada_imagenes where id = %L', pruebas.id('por_1')));
+commit;
+-- Recepción (CLIENTES_EDITAR, ámbito CENTRO) y Ana (monitora): leen, pero tampoco escriben.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+do $$ begin assert (select count(*) from public.portada_imagenes) = 2, 'recepción lee las fotos'; end $$;
+select pruebas.espera_error(format('insert into public.portada_imagenes (url) values (%L)', 'https://hack.test/y.jpg'), '%row-level security%');
+select pruebas.espera_sin_efecto(format('update public.portada_imagenes set activa = false where id = %L', pruebas.id('por_1')));
+select pruebas.espera_sin_efecto(format('delete from public.portada_imagenes where id = %L', pruebas.id('por_2')));
+select pruebas.como('ana');
+select pruebas.espera_sin_efecto(format('delete from public.portada_imagenes where id = %L', pruebas.id('por_2')));
+commit;
+-- anon: nada.
+begin;
+set local role anon;
+select pruebas.espera_error('select count(*) from public.portada_imagenes', '%permission denied%');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select pie from public.portada_imagenes where id = pruebas.id('por_1')) = 'Sala de Reformer', 'nadie salvo el admin ha tocado el pie';
+  assert (select count(*) from public.portada_imagenes) = 2, 'siguen las dos fotos';
+end $$;
+-- El admin borra una.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+delete from public.portada_imagenes where id = pruebas.id('por_2');
+do $$ begin assert (select count(*) from public.portada_imagenes) = 1, 'el admin borra una foto'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin raise notice 'OK portada'; end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

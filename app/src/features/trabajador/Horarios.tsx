@@ -24,7 +24,7 @@ export function Horarios() {
         titulo="Horarios" subtitulo={`${db.plantillas.filter((p) => p.activa).length} franjas activas a la semana${limitado ? ' · solo tus franjas (solo lectura)' : ''}`}
         acciones={puedeEditar && <Boton tamano="sm" onClick={() => abrir('NUEVA')}><Plus className="h-5 w-5" /> Nueva franja</Boton>}
       />
-      <div className="mb-4 flex items-start gap-2 rounded-2xl bg-brand-50 text-brand-800 px-4 py-3 text-sm"><Info className="h-5 w-5 shrink-0" /><span>Las clases de las próximas 10 semanas se generan automáticamente a partir de este horario. Los cambios afectan a las clases que aún no existen.</span></div>
+      <div className="mb-4 flex items-start gap-2 rounded-2xl bg-beige-100 text-ink px-4 py-3 text-sm"><Info className="h-5 w-5 shrink-0" /><span>Las clases de las próximas 10 semanas se generan automáticamente a partir de este horario. Los cambios afectan a las clases que aún no existen.</span></div>
 
       {db.plantillas.length === 0 && <Vacio icono={CalendarClock} titulo="Sin horario" texto="Crea la primera franja semanal." />}
 
@@ -62,7 +62,7 @@ function BloquePlantilla({ p, onClick, detallada }: { p: PlantillaClase; onClick
   const m = db.trabajadores.find((x) => x.id === p.monitorId);
   const fijos = ocupacionFijaDePlantilla(db, p.id);
   return (
-    <button type="button" onClick={onClick} className={cn('w-full text-left rounded-xl bg-white shadow-card border-l-4 tap hover:ring-2 hover:ring-brand-200', detallada ? 'p-3' : 'p-2 text-xs', !p.activa && 'opacity-50')} style={{ borderLeftColor: a?.color ?? '#999' }}>
+    <button type="button" onClick={onClick} className={cn('w-full text-left rounded-xl bg-white shadow-card border-l-4 tap hover:ring-2 hover:ring-beige-200', detallada ? 'p-3' : 'p-2 text-xs', !p.activa && 'opacity-50')} style={{ borderLeftColor: a?.color ?? '#999' }}>
       <div className="flex items-center justify-between gap-2">
         <span className={cn('font-bold', detallada && 'text-lg')}>{p.horaInicio}<span className="text-ink-muted font-normal">–{horaFin(p.horaInicio, p.duracionMin)}</span></span>
         {!p.activa && <Chip tono="gris">Inactiva</Chip>}
@@ -95,7 +95,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
         <div>
           <span className="block text-[15px] font-semibold mb-1.5">Día de la semana</span>
           <div className="grid grid-cols-7 gap-1">
-            {DIAS.map((d) => <button key={d} type="button" aria-pressed={f.diaSemana === d} onClick={() => setF({ ...f, diaSemana: d })} className={cn('h-11 rounded-xl font-semibold tap border', f.diaSemana === d ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink/10')}>{DIAS_SEMANA_CORTO[d]}</button>)}
+            {DIAS.map((d) => <button key={d} type="button" aria-pressed={f.diaSemana === d} onClick={() => setF({ ...f, diaSemana: d })} className={cn('h-11 rounded-xl font-semibold tap border', f.diaSemana === d ? 'bg-brand-500 text-sand border-brand-500' : 'bg-white border-ink/10')}>{DIAS_SEMANA_CORTO[d]}</button>)}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">

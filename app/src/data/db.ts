@@ -1,6 +1,6 @@
 import type {
   Actividad, Aviso, Clase, Cliente, ConfigCentro, Contrato, LecturaAviso, PlantillaClase,
-  Recuperacion, RegistroAuditoria, Reserva, Trabajador, Id,
+  PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, Trabajador, Id,
 } from '@/domain/types';
 
 /** Usuario de acceso (en producción lo gestiona Supabase Auth). */
@@ -29,11 +29,14 @@ export interface Db {
   trabajadores: Trabajador[];
   usuarios: Usuario[];
   auditoria: RegistroAuditoria[];
+  /** Fotos del carrusel de la portada del cliente (gestiona el administrador en Ajustes). */
+  portada: PortadaImagen[];
 }
 
 import type { Tarifa } from '@/domain/types';
 
-export const DB_VERSION = 1;
+/** Versión de la instantánea persistida en demo: al cambiar, la demo se regenera desde el seed. */
+export const DB_VERSION = 2;
 
 let contador = 0;
 export function nuevoId(prefijo = 'id'): Id {
@@ -52,6 +55,6 @@ export function dbVacio(): Db {
     version: DB_VERSION,
     config: { nombre: 'Nuevo Palmar Pilates', minutosAntelacionCancelacion: 60, diasVentanaReserva: 14, recuperacionCaducaConContrato: true, diasCaducidadRecuperacion: 30, diasCierre: [], zonaHoraria: 'Europe/Madrid' },
     actividades: [], tarifas: [], clientes: [], contratos: [], plantillas: [], clases: [], reservas: [], recuperaciones: [],
-    avisos: [], lecturas: [], trabajadores: [], usuarios: [], auditoria: [],
+    avisos: [], lecturas: [], trabajadores: [], usuarios: [], auditoria: [], portada: [],
   };
 }

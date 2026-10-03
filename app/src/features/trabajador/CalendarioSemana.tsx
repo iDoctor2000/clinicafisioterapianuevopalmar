@@ -49,7 +49,7 @@ export function CalendarioSemana({ semana, hoy, cierres, limitado }: { semana: D
           const programadas = d.clases.filter((c) => c.clase.estado === 'PROGRAMADA').length;
           return (
             <div key={d.fecha} className={cn('sticky top-0 z-20 bg-white border-b border-l border-ink/10 px-2 py-2 text-center', cierre && 'bg-ink/5')}>
-              <div className={cn('inline-flex items-baseline gap-1 rounded-xl px-2 py-0.5 text-sm font-semibold', esHoy ? 'bg-brand-500 text-white' : 'text-ink-soft')}>
+              <div className={cn('inline-flex items-baseline gap-1 rounded-xl px-2 py-0.5 text-sm font-semibold', esHoy ? 'bg-brand-500 text-sand' : 'text-ink-soft')}>
                 <span className="uppercase">{DIAS_SEMANA_CORTO[diaSemanaDe(d.fecha)]}</span>
                 <span className="text-lg font-bold leading-none">{Number(d.fecha.slice(8))}</span>
               </div>
@@ -102,7 +102,7 @@ function BloqueClase({ vista, top, alto, carril, carriles }: { vista: ClaseVista
     <Link
       to={`/clase/${clase.id}`}
       title={`${actividad.nombre} · ${clase.horaInicio} · ${ocupadas}/${clase.plazas}${clase.extraordinaria ? ' · extraordinaria' : ''}${cancelada ? ' · cancelada' : ''}`}
-      className={cn('absolute rounded-lg border-l-4 px-1.5 py-1 text-xs overflow-hidden tap hover:ring-2 hover:ring-brand-300 focus-visible:ring-2 focus-visible:ring-brand-300 outline-none', cancelada && 'opacity-50')}
+      className={cn('absolute rounded-lg border-l-4 px-1.5 py-1 text-xs overflow-hidden tap hover:ring-2 hover:ring-beige-300 focus-visible:ring-2 focus-visible:ring-beige-300 outline-none', cancelada && 'opacity-50')}
       style={{
         top: top + 1, height: Math.max(alto - 3, 28),
         left: `calc(${carril * ancho}% + 3px)`, width: `calc(${ancho}% - 6px)`,

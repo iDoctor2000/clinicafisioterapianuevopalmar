@@ -1,7 +1,7 @@
 import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
-const base = 'w-full rounded-2xl border border-ink/10 bg-white px-4 text-ink placeholder:text-ink-muted focus:border-brand-400 focus:ring-4 focus:ring-brand-100 outline-none';
+const base = 'w-full rounded-2xl border border-ink/10 bg-white px-4 text-ink placeholder:text-ink-muted focus:border-beige-500 focus:ring-4 focus:ring-beige-100 outline-none';
 
 export function Etiqueta({ children, ayuda }: { children: ReactNode; ayuda?: string }) {
   return (
