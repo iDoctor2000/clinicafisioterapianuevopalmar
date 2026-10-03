@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { ChevronRight, Eye, EyeOff, KeyRound, Lock, LogOut, Mail, RotateCcw, ShieldCheck, User, UserPlus, UserX, Users } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Eye, EyeOff, KeyRound, Lock, LogOut, Mail, RotateCcw, ShieldCheck, User, UserPlus, UserX, Users } from 'lucide-react';
+import { urlWebClinica } from '@/lib/webClinica';
 import { useStore } from '@/data/store';
 import { enviarRecuperacionContrasena, cambiarContrasena, entrarConGoogle } from '@/data/supabase/auth';
 import { Boton, Entrada, Tarjeta, toast } from '@/ui';
@@ -13,10 +14,11 @@ function Marco({ children, subtitulo = 'Reserva tus clases en dos toques.' }: { 
   return (
     <div className="min-h-dvh flex flex-col bg-sand">
       <header className="pt-safe px-6 pt-8 pb-5 text-center">
-        <div className="inline-block rounded-3xl bg-beige-100 px-7 py-6 shadow-card">
+        <div className="tarjeta-marca inline-block px-7 py-6">
           <img src={`${import.meta.env.BASE_URL}logo-marca.png`} alt="Nuevo Palmar Pilates · Control · Precisión · Bienestar" className="w-60 sm:w-72 max-w-full mx-auto" />
         </div>
         <p className="text-ink-soft mt-5">{subtitulo}</p>
+        <a href={urlWebClinica()} className="inline-flex items-center gap-1.5 mt-2 text-sm font-medium text-ink-muted hover:text-ink tap"><ArrowLeft className="h-4 w-4" /> Clínica Nuevo Palmar</a>
       </header>
       <main className="flex-1 px-4 pb-10 max-w-lg w-full mx-auto">
         {children}
