@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { tienePermiso, type Permiso, type Sesion } from '@/domain/types';
 import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
 import { Avatar } from '@/ui/Avatar';
 import { cn } from '@/lib/cn';
+import { abrirWebClinica } from '@/lib/webClinica';
 
 interface Item { to: string; etiqueta: string; icono: LucideIcon; permiso: Permiso | null; principal?: boolean; /** Solo para el rol ADMIN (equipo y ajustes). */ soloAdmin?: boolean }
 
@@ -47,7 +48,8 @@ export function CapaTrabajador() {
   const manual = manualAyuda(sesion?.tipo === 'TRABAJADOR' && sesion.rol === 'ADMIN' ? 'administrador' : 'monitor');
   const itemsMenu: ItemMenu[] = [
     ...visibles.map((i): ItemMenu => ({ to: i.to, etiqueta: i.etiqueta, icono: i.icono, end: i.to === '/' })),
-    { etiqueta: 'Manual de ayuda', icono: CircleHelp, separador: true, onClick: () => { window.open(manual, '_blank', 'noopener'); } },
+    { etiqueta: 'Clínica Nuevo Palmar', icono: Globe, separador: true, onClick: () => abrirWebClinica() },
+    { etiqueta: 'Manual de ayuda', icono: CircleHelp, onClick: () => { window.open(manual, '_blank', 'noopener'); } },
     { to: '/privacidad', etiqueta: 'Política de privacidad', icono: ShieldCheck },
     { etiqueta: 'Cerrar sesión', icono: LogOut, onClick: () => void cerrar() },
   ];

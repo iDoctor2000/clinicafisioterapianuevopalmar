@@ -684,6 +684,7 @@
 
                         <div className="xl:hidden flex items-center gap-2">
                             <button onClick={onCita} className="hidden sm:inline-flex items-center gap-2 rounded-full bg-ink text-white px-5 py-2.5 text-[12px] uppercase tracking-btn font-medium"><Phone size={14} /> {g.ctaCita}</button>
+                            <a href={PILATES_APP_URL} className="sm:hidden w-11 h-11 rounded-full bg-sand-light border border-sand flex items-center justify-center overflow-hidden" aria-label={g.ctaPilates} title={g.ctaPilates}><img src="assets/np-pilates.png" alt="" className="w-11 h-11" /></a>
                             <button onClick={onCita} className="sm:hidden w-11 h-11 rounded-full bg-ink text-white flex items-center justify-center" aria-label={g.ctaCita}><Phone size={17} /></button>
                             <button onClick={() => setOpen(true)} className="p-2.5 rounded-full text-ink hover:bg-sand-light transition-colors" aria-label="Abrir menú" aria-expanded={open}><Menu size={24} /></button>
                         </div>
@@ -724,6 +725,7 @@
         const Hero = ({ onCita }) => {
             const { content } = useContent();
             const h = content.hero;
+            const g = content.general;
             const areas = content.specialties.items.map(i => i.title);
             return (
                 <section id="inicio" className="relative overflow-hidden bg-white">
@@ -737,6 +739,7 @@
                                 <div className="mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4">
                                     <Btn onClick={onCita}>{h.buttonPrimary} <ArrowRight size={16} /></Btn>
                                     <Btn as="a" href="#quienes-somos" variant="secondary">{h.buttonSecondary}</Btn>
+                                    <a href={PILATES_APP_URL} className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-sand-light text-ink text-[12px] uppercase tracking-btn font-medium hover:bg-sand transition-colors">{g.ctaPilates} <ArrowUpRight size={15} /></a>
                                 </div>
                             </Reveal>
                         </div>

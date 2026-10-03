@@ -83,7 +83,9 @@ function PantallaCarga({ saliendo }: { saliendo: boolean }) {
       aria-busy={!saliendo}
       aria-label="Cargando"
     >
-      <img src={`${import.meta.env.BASE_URL}logo-marca.png`} alt="Nuevo Palmar Pilates" className={`w-60 sm:w-72 max-w-full splash-logo ${saliendo ? 'splash-logo-out' : ''}`} />
+      <div className={`tarjeta-marca tarjeta-marca-destacada px-8 py-7 splash-logo ${saliendo ? 'splash-logo-out' : ''}`}>
+        <img src={`${import.meta.env.BASE_URL}logo-marca.png`} alt="Nuevo Palmar Pilates" className="w-60 sm:w-72 max-w-full" />
+      </div>
       {!saliendo && <p className="text-ink-muted mt-8 flex items-center gap-2 text-sm animate-[aparecer_.6s_ease-out_1s_both]"><Loader2 className="h-4 w-4 animate-spin" /> Cargando…</p>}
     </div>
   );
