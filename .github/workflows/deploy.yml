@@ -50,7 +50,7 @@ jobs:
       - name: Montar el sitio (web + app)
         run: |
           mkdir -p _site/app
-          cp -r index.html metadata.json assets .nojekyll _site/
+          cp -r index.html metadata.json manifest.webmanifest assets .nojekyll _site/
           [ -f CNAME ] && cp CNAME _site/ || true
           cp -r app/dist/. _site/app/
       - uses: actions/upload-pages-artifact@v3
