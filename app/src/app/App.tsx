@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { useStore } from '@/data/store';
-import { Boton, Tarjeta, Toasts } from '@/ui';
+import { AvisoInstalacion, Boton, Tarjeta, Toasts } from '@/ui';
 import { PantallaAcceso } from './PantallaAcceso';
 import { Privacidad } from './Privacidad';
 import { Consentimiento } from './Consentimiento';
@@ -53,6 +53,7 @@ export function App() {
     <HashRouter>
       {splash}
       <Toasts />
+      <AvisoInstalacion />
       <Routes>
         {/* Política de privacidad: legible sin sesión y con cualquier sesión. */}
         <Route path="/privacidad" element={<Privacidad />} />
