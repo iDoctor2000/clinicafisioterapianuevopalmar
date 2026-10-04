@@ -314,3 +314,20 @@ en Firebase, y los guarda en `web_contenido`.
 Aplicación: pega `migrations/0009_web.sql` en **SQL Editor → Run**. Es idempotente. Comprobar: en
 **Table Editor** aparece `web_contenido` (vacía hasta el primer guardado) y en **Storage** el bucket `web`
 marcado como *Public* con las políticas `web_leer` y `web_admin_escribir`.
+
+## Actividades, tarifas y contacto de Pilates en la web (0010)
+
+Qué hace `migrations/0010_actividades_web.sql`:
+
+- Amplía `actividades` con `nombre_web`, `duracion_min`, `lema`, `descripcion_larga`, `icono` (clave de icono
+  incluido o URL subida) y `foto_url`, y `config_centro` con `direccion`, `telefono`, `whatsapp`, `instagram` y
+  `email` (contacto del centro de Pilates). El administrador los edita en la app (Tarifas → Actividades y Ajustes).
+- Lectura pública (`anon`) de actividades activas, tarifas activas, cupos y `config_centro`: la web pública
+  muestra actividades, tarifas y contacto directamente de aquí, en tiempo real. La escritura no cambia.
+- Datos 2026 (solo si existe el catálogo real de `datos_reales.sql`): las nueve actividades del cartel con sus
+  textos, duraciones e iconos; precios y ofertas trimestrales de las tarifas; contacto del centro
+  (C/ Artemisa 6, 620 600 591 con WhatsApp, @pilatesnuevopalmar) y, si no había, cinco fotos del centro en la
+  portada de la app (rutas relativas `../assets/pilates-N.jpg`, válidas con y sin dominio propio).
+
+Las imágenes subidas desde la app (icono o foto de una actividad) van al bucket `web` (0009), carpeta
+`actividades/`. Aplicación: pega `migrations/0010_actividades_web.sql` en **SQL Editor → Run**. Idempotente.

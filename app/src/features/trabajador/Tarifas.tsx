@@ -1,11 +1,16 @@
-import { useState } from 'react';
-import { Dumbbell, Plus, Tags } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Dumbbell, ImagePlus, Plus, Tags, Trash2 } from 'lucide-react';
 import type { Actividad, Categoria, Tarifa, TipoTarifa } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import { AreaTexto, Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
+import { useModo } from '@/data/store';
+import { subirImagenActividad } from '@/data/supabase/web';
+import { ANCHO_PORTADA, blobADataUrl, recortarYReducir, reducirAncho } from '@/lib/imagen';
+import { ICONOS_ACTIVIDAD, esClaveIcono, urlIcono } from '@/lib/iconos';
+import { IconoActividad } from '@/features/comun/IconoActividad';
 import { useTrabajador } from './useTrabajador';
-import { Encabezado, Pestanas, PuntoColor, Segmentado, euros } from './comunes';
+import { Encabezado, Pestanas, Segmentado, euros } from './comunes';
 
 const TIPO: Record<TipoTarifa, string> = { RECURRENTE: 'Mensual (cupo semanal)', BONO: 'Bono de sesiones', CLASE_SUELTA: 'Clase suelta' };
 const CATS: Categoria[] = ['DIRIGIDA', 'REFORMER'];
@@ -49,7 +54,7 @@ export function Tarifas() {
           <div className="grid gap-3 md:grid-cols-2">
             {db.actividades.map((a) => (
               <button key={a.id} type="button" onClick={() => setActividad(a)} className={cn('text-left bg-white rounded-2xl shadow-card border border-ink/5 p-4 tap hover:border-beige-200 flex gap-3', !a.activa && 'opacity-60')}>
-                <PuntoColor color={a.color} className="h-5 w-5 mt-0.5" />
+                <IconoActividad actividad={a} tamano="sm" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-lg leading-tight">{a.nombre}</span><Chip tono={a.categoria === 'REFORMER' ? 'azul' : 'beige'}>{CATEGORIA_LABEL[a.categoria]}</Chip>{!a.activa && <Chip tono="gris">Inactiva</Chip>}</div>
                   <div className="text-sm text-ink-muted mt-0.5">{a.descripcion}</div>
@@ -131,30 +136,98 @@ function HojaTarifa({ tarifa, orden, onCerrar }: { tarifa: Tarifa | null; orden:
 
 function HojaActividad({ actividad, onCerrar }: { actividad: Actividad | null; onCerrar: () => void }) {
   const { ejecutar } = useTrabajador();
-  const [f, setF] = useState<Omit<Actividad, 'id'>>(actividad ?? { nombre: '', categoria: 'DIRIGIDA', descripcion: '', color: COLORES[0], activa: true });
+  const modo = useModo();
+  const [f, setF] = useState<Omit<Actividad, 'id'>>(actividad ?? { nombre: '', categoria: 'DIRIGIDA', descripcion: '', color: COLORES[0], activa: true, nombreWeb: '', duracionMin: 55, lema: '', descripcionLarga: '', icono: '', fotoUrl: '' });
+  const [subiendo, setSubiendo] = useState<'icono' | 'foto' | null>(null);
+  const entradaIcono = useRef<HTMLInputElement>(null);
+  const entradaFoto = useRef<HTMLInputElement>(null);
+  const idImagen = actividad?.id ?? 'nueva';
+
   const guardar = async () => {
     if (!f.nombre.trim()) return toast.error('El nombre es obligatorio.');
-    const r = await ejecutar('guardarActividad', { actividad: { ...f, id: actividad?.id, nombre: f.nombre.trim() } });
+    const duracion = Number(f.duracionMin);
+    if (!Number.isFinite(duracion) || duracion < 10 || duracion > 240) return toast.error('La duración debe estar entre 10 y 240 minutos.');
+    const r = await ejecutar('guardarActividad', { actividad: { ...f, id: actividad?.id, nombre: f.nombre.trim(), nombreWeb: (f.nombreWeb ?? '').trim(), duracionMin: duracion, lema: (f.lema ?? '').trim(), descripcionLarga: (f.descripcionLarga ?? '').trim() } });
     if (r.ok) { toast.ok('Actividad guardada.'); onCerrar(); } else toast.error(r.error);
   };
+
+  const subir = async (tipo: 'icono' | 'foto', file: File | undefined) => {
+    if (!file) return;
+    setSubiendo(tipo);
+    try {
+      // Icono: cuadrado 512 px (PNG si viene con transparencia). Foto: 1600 px de ancho.
+      const blob = tipo === 'icono' ? await recortarYReducir(file, 512, 0.9) : await reducirAncho(file, ANCHO_PORTADA);
+      const url = modo === 'SUPABASE' ? await subirImagenActividad(idImagen, tipo, blob) : await blobADataUrl(blob);
+      setF((prev) => (tipo === 'icono' ? { ...prev, icono: url } : { ...prev, fotoUrl: url }));
+      toast.ok(tipo === 'icono' ? 'Icono subido. Recuerda guardar.' : 'Foto subida. Recuerda guardar.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSubiendo(null);
+      if (entradaIcono.current) entradaIcono.current.value = '';
+      if (entradaFoto.current) entradaFoto.current.value = '';
+    }
+  };
+
+  const vista: Actividad = { id: idImagen, ...f };
   return (
     <Hoja abierta onCerrar={onCerrar} titulo={actividad ? 'Editar actividad' : 'Nueva actividad'}>
       <div className="space-y-4">
-        <Entrada etiqueta="Nombre" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+        <div className="flex items-center gap-4">
+          <IconoActividad actividad={vista} tamano="lg" />
+          <div className="flex-1 min-w-0">
+            <Entrada etiqueta="Nombre (corto, para la app)" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} placeholder="Reformer" />
+          </div>
+        </div>
+        <Entrada etiqueta="Nombre completo (para la web)" ayuda="Si lo dejas vacío se usa el nombre corto." value={f.nombreWeb ?? ''} onChange={(e) => setF({ ...f, nombreWeb: e.target.value })} placeholder="Pilates Reformer con Torre" />
         <div>
           <span className="block text-[15px] font-semibold mb-1.5">Categoría</span>
           <Segmentado className="w-full" valor={f.categoria} onCambio={(v) => setF({ ...f, categoria: v })} opciones={CATS.map((c) => ({ valor: c, texto: CATEGORIA_LABEL[c] }))} />
           <p className="text-sm text-ink-muted mt-1">La categoría determina qué tarifas dan derecho a esta actividad.</p>
         </div>
-        <AreaTexto etiqueta="Descripción" value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })} />
+        <Entrada etiqueta="Duración por defecto (minutos)" ayuda="Se propone al crear franjas del horario y se muestra en la web." type="number" min={10} max={240} step={5} value={f.duracionMin ?? 55} onChange={(e) => setF({ ...f, duracionMin: Number(e.target.value) })} />
+        <AreaTexto etiqueta="Descripción corta" ayuda="Una o dos frases: aparece en listas y en la app." value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })} />
+        <AreaTexto etiqueta="Descripción completa" ayuda="Texto largo para la web y la ficha de la actividad." value={f.descripcionLarga ?? ''} onChange={(e) => setF({ ...f, descripcionLarga: e.target.value })} className="min-h-[9rem]" />
+        <Entrada etiqueta="Frase final" ayuda='Se muestra en cursiva al final, como "Siente el ritmo".' value={f.lema ?? ''} onChange={(e) => setF({ ...f, lema: e.target.value })} />
+
         <div>
-          <span className="block text-[15px] font-semibold mb-1.5">Color</span>
+          <span className="block text-[15px] font-semibold mb-1.5">Icono</span>
+          <div className="flex gap-2 flex-wrap items-center">
+            {ICONOS_ACTIVIDAD.map((i) => (
+              <button key={i.clave} type="button" title={i.nombre} aria-label={i.nombre} aria-pressed={f.icono === i.clave} onClick={() => setF({ ...f, icono: i.clave })} className={cn('h-12 w-12 rounded-full tap ring-offset-2', f.icono === i.clave && 'ring-4 ring-ink/30')}>
+                <img src={urlIcono(i.clave) ?? ''} alt="" className="h-12 w-12 rounded-full" />
+              </button>
+            ))}
+            <button type="button" aria-label="Sin icono" aria-pressed={!f.icono} onClick={() => setF({ ...f, icono: '' })} className={cn('h-12 w-12 rounded-full tap ring-offset-2 bg-sand border border-beige-300 text-xs text-ink-muted', !f.icono && 'ring-4 ring-ink/30')}>Ninguno</button>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Boton variante="suave" tamano="sm" cargando={subiendo === 'icono'} onClick={() => entradaIcono.current?.click()}><ImagePlus className="h-4 w-4" /> Subir icono propio</Boton>
+            <input ref={entradaIcono} type="file" accept="image/*" className="hidden" onChange={(e) => void subir('icono', e.target.files?.[0])} />
+            {f.icono && !esClaveIcono(f.icono) && <span className="text-sm text-ink-muted">Icono propio subido</span>}
+          </div>
+        </div>
+
+        <div>
+          <span className="block text-[15px] font-semibold mb-1.5">Foto (opcional)</span>
+          {f.fotoUrl ? (
+            <div className="relative rounded-2xl overflow-hidden aspect-[16/9] bg-sand">
+              <img src={f.fotoUrl} alt="" className="h-full w-full object-cover" />
+              <button type="button" onClick={() => setF({ ...f, fotoUrl: '' })} className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white/90 text-ink flex items-center justify-center tap" aria-label="Quitar foto"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          ) : (
+            <Boton variante="suave" tamano="sm" cargando={subiendo === 'foto'} onClick={() => entradaFoto.current?.click()}><ImagePlus className="h-4 w-4" /> Subir foto</Boton>
+          )}
+          <input ref={entradaFoto} type="file" accept="image/*" className="hidden" onChange={(e) => void subir('foto', e.target.files?.[0])} />
+        </div>
+
+        <div>
+          <span className="block text-[15px] font-semibold mb-1.5">Color en el calendario</span>
           <div className="flex gap-2 flex-wrap items-center">
             {COLORES.map((c) => <button key={c} type="button" aria-label={c} aria-pressed={f.color === c} onClick={() => setF({ ...f, color: c })} className={cn('h-10 w-10 rounded-full tap ring-offset-2', f.color === c && 'ring-4 ring-ink/30')} style={{ backgroundColor: c }} />)}
             <input type="color" aria-label="Color personalizado" value={f.color} onChange={(e) => setF({ ...f, color: e.target.value })} className="h-10 w-12 rounded-xl border border-ink/10 bg-white p-1" />
           </div>
         </div>
-        <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Actividad activa" /></div>
+        <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Actividad activa" descripcion="Solo las activas se programan y aparecen en la web." /></div>
         <Boton ancho onClick={guardar}>{actividad ? 'Guardar cambios' : 'Crear actividad'}</Boton>
       </div>
     </Hoja>

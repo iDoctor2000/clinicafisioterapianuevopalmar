@@ -33,9 +33,10 @@ describe('config_centro', () => {
     expect(c).toEqual<ConfigCentro>({
       nombre: 'Centro', minutosAntelacionCancelacion: 90, diasVentanaReserva: 10, recuperacionCaducaConContrato: false, diasCaducidadRecuperacion: 45,
       zonaHoraria: 'Europe/Madrid', diasCierre: [{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }],
+      direccion: '', telefono: '', whatsapp: '', instagram: '', email: '',
     });
     const { id: _id, dias_generacion_clases: _d, ...esperado } = fila;
-    expect(deConfig(c)).toEqual(esperado);
+    expect(deConfig(c)).toEqual({ ...esperado, direccion: '', telefono: '', whatsapp: '', instagram: '', email: '' });
     expect(deDiasCierre(c.diasCierre)).toEqual([{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }]);
   });
   it('solo incluye las columnas presentes en el parcial', () => {
@@ -51,8 +52,8 @@ describe('actividades y tarifas', () => {
   it('actividad ida y vuelta (orden solo existe en SQL)', () => {
     const fila: FilaActividad = { id: U1, nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Máquina', color: '#3B82C4', activa: true, orden: 2 };
     const a = aActividad(fila);
-    expect(a).toEqual<Actividad>({ id: U1, nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Máquina', color: '#3B82C4', activa: true });
-    expect(deActividad(a)).toEqual({ id: U1, nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Máquina', color: '#3B82C4', activa: true });
+    expect(a).toEqual<Actividad>({ id: U1, nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Máquina', color: '#3B82C4', activa: true, nombreWeb: '', duracionMin: 55, lema: '', descripcionLarga: '', icono: '', fotoUrl: '' });
+    expect(deActividad(a)).toEqual({ id: U1, nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Máquina', color: '#3B82C4', activa: true, nombre_web: '', duracion_min: 55, lema: '', descripcion_larga: '', icono: '', foto_url: '' });
   });
   it('tarifa recurrente con cupos', () => {
     const fila: FilaTarifa = {

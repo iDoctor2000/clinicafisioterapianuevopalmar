@@ -10,7 +10,8 @@ import { toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { alternativasPara, clasesSueltasDe, resumenCliente } from './consultas';
-import { AvatarCliente, BarraOcupacion, BuscadorClientes, ChipEstadoReserva, ChipOrigen, Confirmacion, Encabezado, Plegable, PuntoColor, may } from './comunes';
+import { AvatarCliente, BarraOcupacion, BuscadorClientes, ChipEstadoReserva, ChipOrigen, Confirmacion, Encabezado, Plegable, may } from './comunes';
+import { IconoActividad } from '@/features/comun/IconoActividad';
 
 export function DetalleClase() {
   const { id } = useParams();
@@ -52,7 +53,7 @@ export function DetalleClase() {
     <div>
       <Encabezado
         atras="/"
-        titulo={<span className="flex items-center gap-2"><PuntoColor color={actividad.color} className="h-4 w-4" />{actividad.nombre}{clase.extraordinaria && <Chip tono="cocoa">Extraordinaria</Chip>}</span>}
+        titulo={<span className="flex items-center gap-3"><IconoActividad actividad={actividad} tamano="md" />{actividad.nombre}{clase.extraordinaria && <Chip tono="cocoa">Extraordinaria</Chip>}</span>}
         subtitulo={<span>{may(fechaLarga(clase.fecha))} · {clase.horaInicio}–{horaFin(clase.horaInicio, clase.duracionMin)}</span>}
       />
 

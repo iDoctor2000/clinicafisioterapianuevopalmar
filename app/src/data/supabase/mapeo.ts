@@ -25,11 +25,15 @@ export interface FilaConfigCentro {
   dias_caducidad_recuperacion: number;
   dias_generacion_clases: number;
   zona_horaria: string;
+  /** Columnas añadidas en 0010_actividades_web.sql. */
+  direccion?: string; telefono?: string; whatsapp?: string; instagram?: string; email?: string;
 }
 export interface FilaDiaCierre { fecha: string; motivo: string }
 
 export interface FilaActividad {
   id: string; nombre: string; categoria: Categoria; descripcion: string; color: string; activa: boolean; orden: number;
+  /** Columnas añadidas en 0010_actividades_web.sql. */
+  nombre_web?: string; duracion_min?: number; lema?: string; descripcion_larga?: string; icono?: string; foto_url?: string;
 }
 
 export interface FilaTarifa {
@@ -154,6 +158,7 @@ export function aConfig(fila: FilaConfigCentro | null, cierres: FilaDiaCierre[])
     recuperacionCaducaConContrato: fila.recuperacion_caduca_con_contrato,
     diasCaducidadRecuperacion: fila.dias_caducidad_recuperacion,
     zonaHoraria: fila.zona_horaria,
+    direccion: fila.direccion ?? '', telefono: fila.telefono ?? '', whatsapp: fila.whatsapp ?? '', instagram: fila.instagram ?? '', email: fila.email ?? '',
     diasCierre,
   };
 }
@@ -167,6 +172,11 @@ export function deConfig(c: Partial<ConfigCentro>): Partial<Omit<FilaConfigCentr
   if (c.recuperacionCaducaConContrato !== undefined) fila.recuperacion_caduca_con_contrato = c.recuperacionCaducaConContrato;
   if (c.diasCaducidadRecuperacion !== undefined) fila.dias_caducidad_recuperacion = c.diasCaducidadRecuperacion;
   if (c.zonaHoraria !== undefined) fila.zona_horaria = c.zonaHoraria;
+  if (c.direccion !== undefined) fila.direccion = c.direccion;
+  if (c.telefono !== undefined) fila.telefono = c.telefono;
+  if (c.whatsapp !== undefined) fila.whatsapp = c.whatsapp;
+  if (c.instagram !== undefined) fila.instagram = c.instagram;
+  if (c.email !== undefined) fila.email = c.email;
   return fila;
 }
 
@@ -179,10 +189,16 @@ export function deDiasCierre(dias: ConfigCentro['diasCierre']): FilaDiaCierre[] 
 // ---------------------------------------------------------------------------
 
 export function aActividad(f: FilaActividad): Actividad {
-  return { id: f.id, nombre: f.nombre, categoria: f.categoria, descripcion: f.descripcion, color: f.color, activa: f.activa };
+  return {
+    id: f.id, nombre: f.nombre, categoria: f.categoria, descripcion: f.descripcion, color: f.color, activa: f.activa,
+    nombreWeb: f.nombre_web ?? '', duracionMin: f.duracion_min ?? 55, lema: f.lema ?? '', descripcionLarga: f.descripcion_larga ?? '', icono: f.icono ?? '', fotoUrl: f.foto_url ?? '',
+  };
 }
 export function deActividad(a: Actividad): Omit<FilaActividad, 'orden'> {
-  return { id: a.id, nombre: a.nombre, categoria: a.categoria, descripcion: a.descripcion, color: a.color, activa: a.activa };
+  return {
+    id: a.id, nombre: a.nombre, categoria: a.categoria, descripcion: a.descripcion, color: a.color, activa: a.activa,
+    nombre_web: a.nombreWeb ?? '', duracion_min: a.duracionMin ?? 55, lema: a.lema ?? '', descripcion_larga: a.descripcionLarga ?? '', icono: a.icono ?? '', foto_url: a.fotoUrl ?? '',
+  };
 }
 
 export function aTarifa(f: FilaTarifa, cupos: FilaTarifaCupo[]): Tarifa {

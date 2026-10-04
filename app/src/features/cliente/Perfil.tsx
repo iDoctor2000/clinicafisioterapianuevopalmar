@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { BadgeCheck, BellRing, Camera, Download, LogOut, MoreVertical, Share, ShieldCheck, Smartphone } from 'lucide-react';
+import { BellRing, Camera, Download, LogOut, MoreVertical, Share, ShieldCheck, Smartphone } from 'lucide-react';
 import { useModo, useStore } from '@/data/store';
 import { nombreCompleto } from '@/data/selectores';
 import { borrarSuscripcionPush, guardarSuscripcionPush, invocarEnvioPush } from '@/data/supabase/push';
@@ -13,6 +13,7 @@ import { AvatarCliente } from '@/features/comun/AvatarCliente';
 import { SelectorFoto } from '@/features/comun/SelectorFoto';
 import { EnlacePrivacidad } from '@/app/Privacidad';
 import { format } from 'date-fns';
+import { FichaActividad } from '@/features/comun/FichaActividad';
 
 type EventoInstalacion = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 
@@ -222,14 +223,7 @@ export function Perfil() {
           {db.actividades.filter((a) => a.activa).map((a) => {
             const incluida = actividadIncluida(tarifa, contrato, a);
             return (
-              <div key={a.id} className="p-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <PuntoActividad color={a.color} />
-                  <span className="font-semibold text-lg">{a.nombre}</span>
-                  {incluida && <Chip tono="beige"><BadgeCheck className="h-3.5 w-3.5" /> Incluida en tu tarifa</Chip>}
-                </div>
-                <p className="text-ink-soft text-[15px] mt-1">{a.descripcion}</p>
-              </div>
+              <FichaActividad key={a.id} actividad={a} incluida={incluida} />
             );
           })}
         </Tarjeta>

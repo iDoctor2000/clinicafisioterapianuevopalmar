@@ -7,9 +7,10 @@ import { Boton, Chip, Entrada, Hoja, Seleccion, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { clasesPorDiaDeSemana, clasesPorFechaEntre, clasesSueltasDe, monitores, semanasDelMes, textoRangoSemana } from './consultas';
-import { BarraOcupacion, Encabezado, PuntoColor, Segmentado, may } from './comunes';
+import { BarraOcupacion, Encabezado, Segmentado, may } from './comunes';
 import { CalendarioSemana } from './CalendarioSemana';
 import { CalendarioMes } from './CalendarioMes';
+import { IconoActividad } from '@/features/comun/IconoActividad';
 
 type Vista = 'DIA' | 'SEMANA' | 'MES';
 const CLAVE_VISTA = 'np-cal-vista';
@@ -157,7 +158,7 @@ export function TarjetaClase({ vista }: { vista: ClaseVista }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <PuntoColor color={actividad.color} />
+            <IconoActividad actividad={actividad} tamano="xs" />
             <span className={cn('font-semibold text-lg leading-tight', cancelada && 'line-through')}>{actividad.nombre}</span>
             {clase.extraordinaria && <Chip tono="cocoa">Extraordinaria</Chip>}
             {cancelada && <Chip tono="rojo">Cancelada</Chip>}
