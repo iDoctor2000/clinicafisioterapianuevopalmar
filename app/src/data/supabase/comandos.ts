@@ -111,10 +111,13 @@ const impl: Impl = {
   },
 
   async guardarPlantilla(args) {
+    const existe = !!args.plantilla.id;
     const p = { ...args.plantilla, id: args.plantilla.id ?? nuevoUuid() };
     comprobar(await servidor().from('plantillas_clase').upsert(dePlantilla(p)));
+    // Al editar, el servidor recrea las clases futuras de la franja (0011_horario_cambios.sql).
+    const conservadas = existe ? await rpc<number>('plantilla_aplicar_cambios', { p_plantilla_id: p.id }) : 0;
     await regenerarClases();
-    return (db) => db.plantillas.find((x) => x.id === p.id) ?? p;
+    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: conservadas ?? 0 });
   },
 
   // -------------------------------------------------------------------------

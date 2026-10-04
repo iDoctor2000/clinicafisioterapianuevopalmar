@@ -817,4 +817,39 @@ do $$ begin
 end $$;
 
 \echo
+\echo '== 24. Horario (0011): editar una franja recrea sus clases futuras y conserva las que tienen reservas'
+select pruebas.sistema();
+do $$
+declare
+  v_pl uuid := pruebas.id('pl_jue_1100');
+  v_hoy date := public._hoy();
+  v_antes integer; v_despues integer; v_conservadas integer; v_clase uuid;
+begin
+  select count(*) into v_antes from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy;
+  assert v_antes > 0, 'la franja tiene clases futuras';
+  -- Reserva manual del centro en la primera clase futura: esa clase debe conservarse.
+  select id into v_clase from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy order by fecha limit 1;
+  insert into public.reservas (clase_id, cliente_id, origen, creado_por) values (v_clase, pruebas.id('cliente_a'), 'MANUAL', null)
+    on conflict do nothing;
+  update public.plantillas_clase set hora_inicio = '12:15' where id = v_pl;
+  perform set_config('request.jwt.claim.sub', current_setting('pruebas.u_admin'), false);
+  v_conservadas := public.plantilla_aplicar_cambios(v_pl);
+  perform set_config('request.jwt.claim.sub', '', false);
+  assert v_conservadas = 1, format('se conserva la clase con reserva manual (conservadas = %s)', v_conservadas);
+  select count(*) into v_despues from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy;
+  assert v_despues = v_antes, format('mismo número de clases futuras (%s → %s)', v_antes, v_despues);
+  assert (select hora_inicio from public.clases where id = v_clase) = '11:00'::time, 'la clase con reserva conserva la hora antigua';
+  assert (select count(*) from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy and hora_inicio = '12:15'::time) = v_antes - 1, 'el resto tiene la hora nueva';
+  -- Un monitor con ámbito SUS_CLASES no puede aplicarlo.
+  update public.plantillas_clase set hora_inicio = '11:00' where id = v_pl;
+  raise notice 'OK horario cambios';
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('ana');
+select pruebas.espera_error(format('select public.plantilla_aplicar_cambios(%L)', pruebas.id('pl_jue_1100')), '%');
+commit;
+select pruebas.sistema();
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

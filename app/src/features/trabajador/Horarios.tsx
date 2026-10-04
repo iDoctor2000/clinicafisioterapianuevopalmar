@@ -84,7 +84,12 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
   const guardar = async () => {
     if (!f.actividadId || !f.monitorId || !f.horaInicio) return toast.error('Completa actividad, hora y monitor.');
     const r = await ejecutar('guardarPlantilla', { plantilla: { ...f, id: plantilla?.id, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) } });
-    if (r.ok) { toast.ok(plantilla ? 'Franja actualizada.' : 'Franja creada. Se han generado sus clases.'); onCerrar(); } else toast.error(r.error);
+    if (r.ok) {
+      if (!plantilla) toast.ok('Franja creada. Se han generado sus clases.');
+      else if (r.valor.conservadas > 0) toast.info(`Franja actualizada. Sus clases futuras ya tienen el nuevo horario, salvo ${r.valor.conservadas} con reservas de alumnos, que se conservan como estaban: revísalas en el calendario.`);
+      else toast.ok('Franja actualizada. Sus clases futuras ya tienen el nuevo horario.');
+      onCerrar();
+    } else toast.error(r.error);
   };
   return (
     <Hoja abierta onCerrar={onCerrar} titulo={plantilla ? 'Editar franja' : 'Nueva franja'}>

@@ -299,7 +299,13 @@ export function crearClaseExtraordinaria(ctx: Ctx, args: { actividadId: Id; fech
   return ok(auditar({ ...db, clases: [...db.clases, clase] }, sesion, ahora, 'CREAR_CLASE_EXTRA', 'clase', clase.id, descClase(db, clase)), clase);
 }
 
-export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id } }): Resultado<PlantillaClase> {
+/**
+ * Crea o edita una franja del horario semanal. Al editar, las clases futuras de la franja se
+ * recrean con los datos nuevos: se eliminan las que no tienen reservas o solo tienen reservas
+ * automáticas (horario fijo, que se regeneran) y se conservan las que tienen reservas de
+ * clientes o del centro. Devuelve cuántas se han conservado para avisar al administrador.
+ */
+export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id } }): Resultado<{ plantilla: PlantillaClase; conservadas: number }> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'HORARIOS_GESTIONAR');
   if (e) return fallo(e);
@@ -307,8 +313,18 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
   const p: PlantillaClase = { ...args.plantilla, id: args.plantilla.id ?? nuevoId('pl') };
   const existe = db.plantillas.some((x) => x.id === p.id);
   let nuevo: Db = { ...db, plantillas: existe ? db.plantillas.map((x) => (x.id === p.id ? p : x)) : [...db.plantillas, p] };
+  let conservadas = 0;
+  if (existe) {
+    const hoy = aISODate(ahora);
+    const soloAutomatica = (r: Reserva) => r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA';
+    const futuras = nuevo.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy);
+    const borrables = new Set(futuras.filter((c) => nuevo.reservas.every((r) => r.claseId !== c.id || soloAutomatica(r))).map((c) => c.id));
+    conservadas = futuras.length - borrables.size;
+    nuevo = { ...nuevo, clases: nuevo.clases.filter((c) => !borrables.has(c.id)), reservas: nuevo.reservas.filter((r) => !borrables.has(r.claseId)) };
+  }
   nuevo = generarClasesPendientes(nuevo, ahora);
-  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, `${p.diaSemana} ${p.horaInicio}`), p);
+  const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas` : `${p.diaSemana} ${p.horaInicio}`;
+  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas });
 }
 
 /** Genera las clases (y reservas automáticas) que falten hasta 2 meses vista. Se ejecuta a diario en producción. */
