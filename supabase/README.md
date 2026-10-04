@@ -331,3 +331,11 @@ Qué hace `migrations/0010_actividades_web.sql`:
 
 Las imágenes subidas desde la app (icono o foto de una actividad) van al bucket `web` (0009), carpeta
 `actividades/`. Aplicación: pega `migrations/0010_actividades_web.sql` en **SQL Editor → Run**. Idempotente.
+
+## Cambios del horario aplicados a las clases futuras (0011)
+
+`migrations/0011_horario_cambios.sql` crea `plantilla_aplicar_cambios(p_plantilla_id)`: al editar una franja desde
+la app, las clases futuras de esa franja se recrean con los datos nuevos. Se eliminan las clases PROGRAMADA desde
+hoy sin reservas o solo con reservas automáticas (horario fijo, que se regeneran); las que tienen reservas de
+clientes o del centro se conservan y la función devuelve cuántas son (la app lo avisa). Requiere
+`HORARIOS_GESTIONAR` y ámbito "Todo el centro". Aplicación: pega el archivo en **SQL Editor → Run**.
