@@ -38,10 +38,10 @@ export function crearSeed(ahora: Date = new Date()): Db {
   const finClases = aISODate(addMonths(ahora, 2));
 
   const actividades: Actividad[] = [
-    { id: 'act-suelo', nombre: 'Pilates suelo', categoria: 'DIRIGIDA', descripcion: 'Trabajo de control postural, core y movilidad en colchoneta. Grupo reducido dirigido por fisioterapeuta.', color: '#86735F', activa: true },
+    { id: 'act-suelo', nombre: 'Pilates suelo', categoria: 'DIRIGIDA', descripcion: 'Trabajo de control postural, core y movilidad en colchoneta. Grupo reducido dirigido por fisioterapeuta.', color: '#86735F', activa: true, icono: 'suelo', duracionMin: 55, lema: 'Conecta con tu cuerpo', nombreWeb: 'Pilates Suelo' },
     { id: 'act-espalda', nombre: 'Espalda sana', categoria: 'DIRIGIDA', descripcion: 'Sesión terapéutica centrada en columna: movilidad, estabilidad y prevención del dolor.', color: '#B9A795', activa: true },
-    { id: 'act-hipo', nombre: 'Hipopresivos', categoria: 'DIRIGIDA', descripcion: 'Técnicas hipopresivas para suelo pélvico, postura y respiración.', color: '#A08D79', activa: true },
-    { id: 'act-reformer', nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Pilates en máquina Reformer. Máximo 4 personas por sesión, supervisión individualizada.', color: '#3B82C4', activa: true },
+    { id: 'act-hipo', nombre: 'Hipopresivos', categoria: 'DIRIGIDA', descripcion: 'Técnicas hipopresivas para suelo pélvico, postura y respiración.', color: '#A08D79', activa: true, icono: 'hipopresivos', duracionMin: 20, lema: 'Transforma desde el interior' },
+    { id: 'act-reformer', nombre: 'Reformer', categoria: 'REFORMER', descripcion: 'Pilates en máquina Reformer. Máximo 4 personas por sesión, supervisión individualizada.', color: '#3B82C4', activa: true, icono: 'reformer', duracionMin: 55, lema: 'No te pierdas esta experiencia', nombreWeb: 'Pilates Reformer con Torre' },
   ];
 
   const recupBasica = { permitida: true, categoriasExtra: [] as never[], maxPendientes: null };
@@ -141,6 +141,7 @@ export function crearSeed(ahora: Date = new Date()): Db {
       { fecha: `${ahora.getFullYear()}-12-25`, motivo: 'Navidad' },
     ],
     zonaHoraria: 'Europe/Madrid',
+    direccion: 'C/ Artemisa 6, Bajo · 30120 El Palmar (Murcia)', telefono: '620 600 591', whatsapp: '34620600591', instagram: '@pilatesnuevopalmar', email: 'info@fisioterapianuevopalmar.com',
   };
 
   const clases = generarClases(plantillas, inicioPeriodo, finClases, config, [], () => id('cla'));

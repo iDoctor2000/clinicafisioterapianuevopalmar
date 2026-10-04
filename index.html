@@ -121,6 +121,11 @@
         @keyframes splashOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.04); } }
         @media (prefers-reduced-motion: reduce) { .splash-logo, .splash-logo-out { animation: none; opacity: 1; transform: none; } }
 
+        /* Icono de actividad: círculo beige con relieve */
+        .icono-actividad { width: 4rem; height: 4rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+            background: radial-gradient(circle at 38% 32%, #F7F1EA 0%, #EDE4DB 60%, #D9CCBE 100%); box-shadow: 0 6px 12px -6px rgba(58,58,58,.35), inset 0 1px 0 rgba(255,255,255,.85); border: 1px solid rgba(185,167,149,.6); }
+        .icono-actividad img { width: 100%; height: 100%; object-fit: cover; }
+
         /* Palabras decorativas de fondo: beige muy suave, sin contorno */
         .outline-text { color: #E9E0D6; -webkit-text-stroke: 0; text-shadow: none; }
         .outline-text-dark { color: rgba(185,167,149,.16); -webkit-text-stroke: 0; }
@@ -147,7 +152,7 @@
         import { createClient } from '@supabase/supabase-js';
         import {
             Phone, MapPin, Mail, Clock, Menu, X, Settings, ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight,
-            Lock, LogOut, RotateCcw, Fingerprint, Plus, Trash2, ChevronUp, ChevronDown, MessageCircle, Instagram,
+            Lock, LogOut, RotateCcw, Plus, Trash2, ChevronUp, ChevronDown, MessageCircle, Instagram,
             Activity, Bone, HeartPulse, PersonStanding, Dumbbell, Car, Users, Award, Building2, ShieldCheck,
             Stethoscope, Hand, ExternalLink, Smartphone, Layers, Sparkles, HeartHandshake, ClipboardCheck, Heart, Check
         } from 'lucide-react';
@@ -161,7 +166,7 @@
         // ------------------------------------------------------------------
         // CONTENIDO POR DEFECTO (todo el texto de la web sale de aquí)
         // ------------------------------------------------------------------
-        const SCHEMA_VERSION = 2;
+        const SCHEMA_VERSION = 3;
         const DEFAULT_CONTENT = {
             schema: SCHEMA_VERSION,
             general: {
@@ -176,7 +181,7 @@
                 ctaCita: "Pedir cita",
                 ctaPilates: "Área Pilates",
                 citaTitle: "Pedir cita",
-                citaText: "Elige cómo prefieres contactar con nosotros. Te atendemos en horario de consulta.",
+                citaText: "Llámanos en horario de consulta y te damos cita. Para las clases de Pilates, escribe al WhatsApp del centro de Pilates.",
                 footerTagline: "25 años cuidando la salud y el bienestar de nuestros pacientes en El Palmar (Murcia).",
                 footerPrivacy: "Privacidad · Área Pilates",
                 footerRights: "Clínica de Fisioterapia Nuevo Palmar"
@@ -195,9 +200,11 @@
             about: {
                 label: "Quiénes somos",
                 title: "Un centro de referencia con trato cercano, humano y familiar.",
-                text: "En Clínicas de Fisioterapia Nuevo Palmar llevamos 25 años de experiencia cuidando la salud y el bienestar de nuestros pacientes. Somos un centro de referencia gracias a un trato cercano, humano y familiar, que genera confianza y seguridad desde la primera visita.\n\nNuestro equipo está formado por profesionales altamente cualificados, comprometidos con una atención personalizada y basada en la evidencia, adaptando cada tratamiento a las necesidades reales de cada persona.",
+                text: "En Clínicas de Fisioterapia Nuevo Palmar llevamos 25 años de experiencia cuidando la salud y el bienestar de nuestros pacientes. Somos un centro de referencia gracias a un trato cercano, humano y familiar, que genera confianza y seguridad desde la primera visita.\n\nNuestro equipo está formado por profesionales altamente cualificados, comprometidos con una atención personalizada y basada en la evidencia, adaptando cada tratamiento a las necesidades reales de cada persona.\n\nAl frente de la clínica está José Diego Frutos Bernal, fisioterapeuta diplomado por la Universidad de Murcia desde 1999 y especialista en terapia manual osteopática, lesiones deportivas y patología de la columna vertebral. Además, es profesor colaborador asociado de la Universidad de Murcia.",
                 image: "assets/equipo.jpg",
-                imageAlt: "Equipo de la Clínica de Fisioterapia Nuevo Palmar"
+                imageAlt: "José Diego Frutos Bernal, fisioterapeuta de la Clínica Nuevo Palmar",
+                imageCaption: "José Diego Frutos Bernal",
+                imageCaptionSub: "Fisioterapeuta · Universidad de Murcia, 1999"
             },
             philosophy: {
                 label: "Nuestra filosofía",
@@ -234,28 +241,34 @@
                 button: "Pedir cita"
             },
             pilates: {
-                label: "Escuela de espalda y Pilates terapéutico",
-                title: "Control, precisión y bienestar para tu espalda.",
-                intro: "En nuestros centros encontrarás programas específicos de escuela de espalda, orientados a la prevención y tratamiento de patologías vertebrales:",
-                programs: ["Pilates terapéutico", "Pilates Reformer", "Pilates Torre", "Pilates Senior"],
-                outro: "Estos tratamientos mejoran la postura, la fuerza, la flexibilidad y el control corporal, siempre adaptados a la edad y condición física del paciente.",
+                label: "Nuevo Palmar Pilates",
+                title: "Control, precisión y bienestar.",
+                intro: "Nuestro centro de Pilates, en la calle Artemisa, ofrece clases en grupos reducidos dirigidas por fisioterapeutas: Reformer con torre, suelo, funcional, barre, yoga, core & stretch, hipopresivos y Gerontopilates. Ven y prueba una clase.",
+                activitiesLabel: "Nuestras actividades",
+                activitiesHint: "Toca una actividad para ver en qué consiste.",
+                tariffsLabel: "Tarifas y precios 2026",
+                familyNote: "Pregunta por la oferta familiar.",
                 buttonApp: "Entrar en el Área Pilates",
                 buttonBook: "Reservar clases desde el móvil",
                 centerLabel: "Centro de Pilates",
-                address: "C/ Artemisa 6, Bajo, El Palmar",
-                phone: "686 25 74 56",
-                instagram: "@pilatesnuevopalmar",
-                logo: "assets/logo-pilates-beige.png"
+                buttonDirections: "Cómo llegar",
+                buttonWhatsapp: "WhatsApp",
+                whatsappMessage: "Hola, me gustaría información sobre las clases de Pilates.",
+                logo: "assets/logo-pilates-beige.png",
+                image: "assets/pilates-seccion.jpg"
             },
             facilities: {
                 label: "Nuestras instalaciones",
                 title: "Un espacio pensado para tu recuperación.",
                 intro: "Instalaciones equipadas, en un ambiente profesional y acogedor.",
                 images: [
-                    { src: "assets/instalaciones-1.jpg", caption: "Recepción y sala de espera" },
-                    { src: "assets/instalaciones-2.jpg", caption: "Salas de tratamiento" },
-                    { src: "assets/instalaciones-3.jpg", caption: "Sala de ejercicio terapéutico" },
-                    { src: "assets/instalaciones-4.jpg", caption: "Centro de Pilates" }
+                    { src: "assets/instalaciones-1.jpg", caption: "Sala de tratamiento" },
+                    { src: "assets/instalaciones-2.jpg", caption: "Sala de ejercicio terapéutico" },
+                    { src: "assets/instalaciones-4.jpg", caption: "Sala de rehabilitación" },
+                    { src: "assets/instalaciones-3.jpg", caption: "Recepción y sala de espera" },
+                    { src: "assets/instalaciones-5.jpg", caption: "Centro de Pilates · Sala de Reformer" },
+                    { src: "assets/instalaciones-6.jpg", caption: "Centro de Pilates · Sala de clases dirigidas" },
+                    { src: "assets/instalaciones-7.jpg", caption: "Centro de Pilates · Barra y colchonetas" }
                 ]
             },
             whyUs: {
@@ -278,26 +291,78 @@
             contact: {
                 label: "Contacto",
                 title: "Estamos en El Palmar.",
-                intro: "Llámanos, escríbenos por WhatsApp o ven a vernos. Te atenderemos encantados.",
-                address: "Avenida de Burgos s/n",
+                intro: "Llámanos o ven a vernos. Te atenderemos encantados.",
+                address: "Avenida de Burgos, 66-C",
                 city: "30120 El Palmar (Murcia)",
                 phone: "968 885 931",
                 email: "info@fisioterapianuevopalmar.com",
-                whatsappPhone: "34968885931",
-                whatsappMessage: "Hola, me gustaría pedir cita en la Clínica de Fisioterapia Nuevo Palmar.",
+                whatsappPhone: "",
+                whatsappMessage: "",
                 buttonWhatsapp: "Escribir por WhatsApp",
                 buttonCall: "Llamar",
                 buttonDirections: "Cómo llegar"
             },
             schedule: {
                 title: "Horario",
-                lines: ["Lunes a viernes: 9:00 – 14:00 y 17:00 – 21:00", "Sábados y domingos: cerrado"],
+                lines: ["Lunes a viernes: 9:30 – 14:00 y 16:30 – 21:00", "Sábados y domingos: cerrado"],
                 note: "Atención con cita previa"
             }
         };
 
-        const MAP_URL = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3145.897350785168!2d-1.1627!3d37.9315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd63806295555555%3A0x123456789!2sAv.%20de%20Burgos%2C%2030120%20El%20Palmar%2C%20Murcia!5e0!3m2!1ses!2ses!4v1234567890";
-        const DIRECTIONS_URL = "https://www.google.com/maps/dir//Av.+de+Burgos,+30120+El+Palmar,+Murcia";
+        const MAP_URL = "https://www.google.com/maps?q=" + encodeURIComponent("Avenida de Burgos 66-C, 30120 El Palmar, Murcia") + "&output=embed&z=16";
+        const DIRECTIONS_URL = "https://www.google.com/maps/dir//" + encodeURIComponent("Avenida de Burgos 66-C, 30120 El Palmar, Murcia");
+        const mapsDirUrl = (direccion) => "https://www.google.com/maps/dir//" + encodeURIComponent(direccion || "");
+
+        // ------------------------------------------------------------------
+        // CATÁLOGO DE PILATES (actividades, tarifas y contacto del centro)
+        // Se lee de Supabase (lo gestiona el administrador desde la app). Si la nube no responde,
+        // se muestran estos valores por defecto (cartel 2026).
+        // ------------------------------------------------------------------
+        const CATALOGO_POR_DEFECTO = {
+            centro: { direccion: "C/ Artemisa 6, Bajo · 30120 El Palmar (Murcia)", telefono: "620 600 591", whatsapp: "34620600591", instagram: "@pilatesnuevopalmar", email: "" },
+            actividades: [
+                { id: "reformer", nombre: "Pilates Reformer con Torre", duracion: 55, icono: "reformer", lema: "No te pierdas esta experiencia", descripcion: "En máquina Reformer con torre, en la que se trabaja de forma global la fuerza, la movilidad, la estabilidad, la coordinación y el control corporal. Se utiliza la resistencia de los muelles para combinar el trabajo de fuerza y movilidad, prestando especial atención a la respiración, la alineación y la precisión del movimiento. Una práctica completa." },
+                { id: "suelo", nombre: "Pilates Suelo", duracion: 55, icono: "suelo", lema: "Conecta con tu cuerpo a través del Pilates suelo", descripcion: "Sesión de Pilates realizada sobre colchoneta, utilizando el propio peso corporal y diferentes implementos para trabajar la fuerza, la movilidad, la estabilidad, la coordinación y el control corporal. A través de ejercicios basados en los principios del método Pilates, se presta especial atención a la respiración, la alineación, la precisión del movimiento y el fortalecimiento de la musculatura profunda. Una práctica completa que busca mejorar la postura, el control corporal y la calidad del movimiento." },
+                { id: "funcional", nombre: "Pilates Funcional", duracion: 55, icono: "funcional", lema: "Potencia tu fuerza", descripcion: "Sesión de Pilates de carácter más dinámico e intenso, orientada principalmente al desarrollo de la fuerza, la potencia y la resistencia. Se incorporan ejercicios funcionales, trabajo pliométrico y diferentes métodos de entrenamiento, como el HIIT o el trabajo por estaciones, adaptando la intensidad y los ejercicios a las características de cada grupo. Una propuesta activa y variada que busca mejorar la condición física y la capacidad de respuesta del cuerpo." },
+                { id: "geronto", nombre: "Gerontopilates", duracion: 55, icono: "geronto", lema: "Adapta tu práctica", descripcion: "Sesión de Pilates adaptada especialmente a personas con dificultades o limitaciones de movilidad, utilizando una silla convencional como elemento de apoyo y diferentes implementos propios del método Pilates. Una práctica orientada a mantener y mejorar la autonomía, la seguridad en el movimiento y el bienestar corporal." },
+                { id: "barre", nombre: "Pilates Barre", duracion: 55, icono: "barre", lema: "Siente el ritmo", descripcion: "Sesión que combina los principios y ejercicios del Pilates con técnicas procedentes de la danza y el ballet, utilizando la barra como elemento de apoyo. Se trabaja principalmente la fuerza, la estabilidad, la movilidad, la coordinación y el control corporal, incorporando ejercicios realizados al ritmo de la música para desarrollar la musicalidad y la fluidez del movimiento. Una propuesta dinámica que combina entrenamiento, precisión y expresión corporal." },
+                { id: "yoga-flow", nombre: "Yoga Flow", duracion: 55, icono: "yoga-flow", lema: "El respiro que necesitas", descripcion: "Sesión de yoga de carácter dinámico en la que se enlazan diferentes posturas y movimientos de forma fluida y consciente. La práctica combina pranayamas o técnicas de respiración, asanas, saludos tradicionales, ejercicios de movilidad y estiramientos, adaptando el ritmo y la intensidad a las características de cada sesión. Se finaliza con una vuelta a la calma que puede incluir pequeñas visualizaciones y momentos de meditación, buscando favorecer la conexión entre respiración, movimiento y atención." },
+                { id: "hatha-yoga", nombre: "Hatha Yoga", duracion: 75, icono: "hatha-yoga", lema: "Respira y conecta", descripcion: "Sesión de yoga de ritmo pausado y consciente, centrada en la práctica y mantenimiento de las asanas, la respiración y la atención plena. A través de una práctica progresiva se trabajan la movilidad, la fuerza, el equilibrio, la flexibilidad y la conciencia corporal, respetando el ritmo y las posibilidades de cada persona. La sesión finaliza con un espacio de relajación y calma destinado a favorecer la conexión entre cuerpo, respiración y mente." },
+                { id: "core-stretch", nombre: "Core & Stretch", duracion: 55, icono: "core-stretch", lema: "Fortalece el centro, mejora la movilidad y libera tensiones", descripcion: "Sesión que combina el trabajo del core con ejercicios de movilidad, elongación y stretching, entendiendo el core como el conjunto de estructuras y musculatura que participan en la estabilidad del tronco: musculatura abdominal, musculatura profunda de la espalda, el diafragma y el suelo pélvico. Incorpora ejercicios de fuerza y control abdominal, trabajo respiratorio y diafragmático, activación del suelo pélvico e hipopresivos y estiramientos profundos. Una propuesta completa." },
+                { id: "hipopresivos", nombre: "Hipopresivos", duracion: 20, icono: "hipopresivos", lema: "Transforma desde el interior", descripcion: "Combina trabajo postural, respiratorio y de activación de la musculatura profunda del abdomen y del suelo pélvico, a través de la gestión de las presiones internas, adaptando la práctica a las necesidades y posibilidades de cada persona. Puede realizarse como sesión específica o combinarse con otras actividades, como Pilates Reformer o Core & Stretch." }
+            ],
+            tarifas: [
+                { id: "d1", nombre: "Clases dirigidas · 1 día/semana", tipo: "RECURRENTE", precio: 3500, descripcion: "Una clase semanal de actividades dirigidas. Oferta trimestral: 45 € (mes 1), 45 € (mes 2), 0 € (mes 3)." },
+                { id: "d2", nombre: "Clases dirigidas · 2 días/semana", tipo: "RECURRENTE", precio: 5000, descripcion: "Suelo e implementos, funcional, barre, yoga, stretching. Oferta trimestral: 65 € (mes 1), 65 € (mes 2), 0 € (mes 3)." },
+                { id: "d3", nombre: "Clases dirigidas · 3 días/semana", tipo: "RECURRENTE", precio: 6500, descripcion: "Tres clases semanales de actividades dirigidas. Oferta trimestral: 90 € (mes 1), 90 € (mes 2), 0 € (mes 3)." },
+                { id: "r2", nombre: "Reformer + Torre · 2 días/semana", tipo: "RECURRENTE", precio: 6500, descripcion: "Clases especializadas con máquina y torre. Oferta trimestral: 90 € (mes 1), 90 € (mes 2), 0 € (mes 3)." },
+                { id: "r3", nombre: "Reformer + Torre · 3 días/semana", tipo: "RECURRENTE", precio: 8500, descripcion: "Tres clases semanales de Reformer con torre. Oferta trimestral: 112 € (mes 1), 112 € (mes 2), 0 € (mes 3)." },
+                { id: "mx", nombre: "Pack mixto · 1 dirigida + 1 Reformer", tipo: "RECURRENTE", precio: 5800, descripcion: "Una clase dirigida y una clase de Reformer a la semana. Oferta trimestral: 80 € (mes 1), 30 € (mes 2), 0 € (mes 3)." },
+                { id: "bd", nombre: "Bono 10D · dirigidas", tipo: "BONO", precio: 9500, descripcion: "10 sesiones de clases dirigidas. Validez 6 meses." },
+                { id: "br", nombre: "Bono 10R · Reformer", tipo: "BONO", precio: 12000, descripcion: "10 sesiones de Reformer con torre. Validez 6 meses." },
+                { id: "cd", nombre: "Clase suelta · dirigida", tipo: "CLASE_SUELTA", precio: 1200, descripcion: "Una clase dirigida suelta, sin compromiso." },
+                { id: "cr", nombre: "Clase suelta · Reformer", tipo: "CLASE_SUELTA", precio: 1500, descripcion: "Una clase de Reformer con torre suelta, sin compromiso." }
+            ]
+        };
+        const ICONOS_INCLUIDOS = ["reformer", "suelo", "funcional", "geronto", "barre", "yoga-flow", "hatha-yoga", "core-stretch", "hipopresivos"];
+        const urlIconoActividad = (icono) => {
+            const v = (icono || "").trim();
+            if (!v) return null;
+            if (/^(https?:)?\/\//i.test(v) || v.startsWith("data:")) return v;
+            if (v.startsWith("../")) return v.replace(/^\.\.\//, "");
+            return ICONOS_INCLUIDOS.includes(v) ? `assets/iconos/${v}.png` : null;
+        };
+        const precioTexto = (t) => {
+            if (t.precio == null) return "";
+            const eur = (t.precio / 100).toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            return t.tipo === "RECURRENTE" ? `${eur} €/mes` : `${eur} €`;
+        };
+        // Filas de Supabase → catálogo de la web
+        const catalogoDesdeFilas = (acts, tars, cfg) => ({
+            centro: cfg ? { direccion: cfg.direccion || "", telefono: cfg.telefono || "", whatsapp: cfg.whatsapp || "", instagram: cfg.instagram || "", email: cfg.email || "" } : CATALOGO_POR_DEFECTO.centro,
+            actividades: (acts || []).filter(a => a.activa).map(a => ({ id: a.id, nombre: (a.nombre_web || "").trim() || a.nombre, duracion: a.duracion_min || 55, icono: a.icono || "", lema: a.lema || "", descripcion: (a.descripcion_larga || "").trim() || a.descripcion || "", foto: a.foto_url || "" })),
+            tarifas: (tars || []).filter(t => t.activa).map(t => ({ id: t.id, nombre: t.nombre, tipo: t.tipo, precio: t.precio_centimos, descripcion: t.descripcion || "" })),
+        });
         const PILATES_APP_URL = "app/";
         const PRIVACY_URL = "app/#/privacidad";
         const LOCAL_KEY = "site_content_v2";
@@ -369,6 +434,7 @@
 
         const ContentProvider = ({ children }) => {
             const [content, setContent] = useState(DEFAULT_CONTENT);
+            const [catalogo, setCatalogo] = useState(CATALOGO_POR_DEFECTO);
             const [isAdmin, setIsAdmin] = useState(false);
             const [adminUser, setAdminUser] = useState(null);
             const [isCloudReady, setIsCloudReady] = useState(false);
@@ -404,6 +470,31 @@
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'web_contenido' }, (payload) => {
                         if (payload.new && payload.new.datos) { setContent(mergeContent(payload.new.datos)); setHasCloudContent(true); }
                     })
+                    .subscribe();
+                return () => { activo = false; supabase.removeChannel(canal); };
+            }, []);
+
+            // Catálogo de Pilates (actividades, tarifas, contacto): lo gestiona el administrador desde la app.
+            useEffect(() => {
+                if (!supabase) return;
+                let activo = true;
+                const cargar = async () => {
+                    try {
+                        const [a, t, c] = await Promise.all([
+                            supabase.from('actividades').select('id,nombre,nombre_web,descripcion,descripcion_larga,lema,duracion_min,icono,foto_url,activa,orden').eq('activa', true).order('orden').order('nombre'),
+                            supabase.from('tarifas').select('id,nombre,descripcion,tipo,precio_centimos,activa,orden').eq('activa', true).order('orden').order('nombre'),
+                            supabase.from('config_centro').select('direccion,telefono,whatsapp,instagram,email').eq('id', true).maybeSingle(),
+                        ]);
+                        if (!activo) return;
+                        if (a.error || t.error || c.error) throw (a.error || t.error || c.error);
+                        if (a.data && a.data.length) setCatalogo(catalogoDesdeFilas(a.data, t.data || [], c.data));
+                    } catch (err) { console.warn("No se ha podido leer el catálogo de Pilates; se muestran los valores por defecto.", err); }
+                };
+                cargar();
+                const canal = supabase.channel('catalogo_web')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividades' }, cargar)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'tarifas' }, cargar)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'config_centro' }, cargar)
                     .subscribe();
                 return () => { activo = false; supabase.removeChannel(canal); };
             }, []);
@@ -520,9 +611,9 @@
             }, []);
 
             const value = useMemo(() => ({
-                content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, loginGoogle, googleError, logout,
+                content, catalogo, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, loginGoogle, googleError, logout,
                 reabrirEditor, consumirReapertura: () => setReabrirEditor(false),
-            }), [content, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, loginGoogle, googleError, logout, reabrirEditor]);
+            }), [content, catalogo, updateField, resetToDefaults, importarAntiguo, isAdmin, adminUser, isCloudReady, hasCloudContent, saveState, saveError, login, loginGoogle, googleError, logout, reabrirEditor]);
 
             // Pantalla de arranque: el logotipo aparece en fundido, se mantiene un instante y se desvanece
             // cuando el contenido está listo (mínimo 1,4 s para que la entrada luzca).
@@ -610,7 +701,9 @@
                 return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
             }, [isOpen, onClose]);
             if (!isOpen) return null;
-            const { contact, schedule, general } = content;
+            const { contact, schedule, general, pilates } = content;
+            const { catalogo } = useContent();
+            const centro = catalogo.centro;
             return (
                 <div className="fixed inset-0 z-[90] bg-ink-deep/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
                     <div role="dialog" aria-modal="true" aria-labelledby="cita-title" className="bg-white w-full sm:max-w-md rounded-t-4xl sm:rounded-4xl shadow-2xl animate-rise overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -623,8 +716,9 @@
                             <button onClick={onClose} className="p-2 -mr-2 -mt-2 text-ink-soft hover:text-ink rounded-full" aria-label="Cerrar"><X size={22} /></button>
                         </div>
                         <div className="p-8 space-y-3">
-                            <Btn as="a" ref={firstRef} href={waHref(contact.whatsappPhone, contact.whatsappMessage)} target="_blank" rel="noreferrer" variant="whatsapp" className="w-full"><MessageCircle size={18} /> {contact.buttonWhatsapp}</Btn>
-                            <Btn as="a" href={telHref(contact.phone)} variant="secondary" className="w-full"><Phone size={18} /> {contact.buttonCall} · {contact.phone}</Btn>
+                            {contact.whatsappPhone && <Btn as="a" href={waHref(contact.whatsappPhone, contact.whatsappMessage)} target="_blank" rel="noreferrer" variant="whatsapp" className="w-full"><MessageCircle size={18} /> {contact.buttonWhatsapp}</Btn>}
+                            <Btn as="a" ref={firstRef} href={telHref(contact.phone)} className="w-full"><Phone size={18} /> {contact.buttonCall} · {contact.phone}</Btn>
+                            {centro.whatsapp && <Btn as="a" href={waHref(centro.whatsapp, pilates.whatsappMessage)} target="_blank" rel="noreferrer" variant="secondary" className="w-full"><MessageCircle size={18} /> {pilates.buttonWhatsapp} Pilates · {centro.telefono}</Btn>}
                             <div className="pt-4 text-sm text-ink-soft font-light space-y-1">
                                 <p className="flex items-center gap-2"><Clock size={15} className="text-sand" /> {schedule.lines[0]}</p>
                                 <p className="flex items-center gap-2"><MapPin size={15} className="text-sand" /> {contact.address}, {contact.city}</p>
@@ -784,6 +878,12 @@
                                         <div aria-hidden="true" className="absolute -top-6 -left-6 w-2/3 h-2/3 bg-sand-light rounded-4xl"></div>
                                         <div className="relative rounded-4xl overflow-hidden aspect-[4/5] bg-sand-light">
                                             <Img src={a.image} alt={a.imageAlt} className="w-full h-full object-cover" />
+                                            {a.imageCaption && (
+                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-deep/85 to-transparent px-6 pt-10 pb-5 text-white">
+                                                    <p className="font-serif text-xl leading-tight">{a.imageCaption}</p>
+                                                    {a.imageCaptionSub && <p className="text-[11px] uppercase tracking-label text-sand mt-1">{a.imageCaptionSub}</p>}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </Reveal>
@@ -937,50 +1037,102 @@
             );
         };
 
+        // Tarjeta de actividad: icono en círculo con relieve; al tocar, la descripción en tarjeta oscura (como las imágenes del centro)
+        const ActividadCard = ({ a, abierta, onToggle }) => {
+            const url = urlIconoActividad(a.icono);
+            const inicial = (a.nombre || "?").trim().charAt(0).toUpperCase();
+            return (
+                <li className={`rounded-3xl border transition-colors ${abierta ? 'bg-ink-deep border-ink-deep text-sand-light' : 'bg-white/80 border-white hover:border-sand'}`}>
+                    <button type="button" onClick={onToggle} aria-expanded={abierta} className="w-full text-left px-5 py-4 flex items-center gap-4">
+                        <span className="icono-actividad shrink-0">{url ? <img src={url} alt="" loading="lazy" /> : <span className="font-serif text-2xl text-ink">{inicial}</span>}</span>
+                        <span className="flex-1 min-w-0">
+                            <span className={`block font-serif text-xl leading-tight ${abierta ? 'text-sand-light' : 'text-ink'}`}>{a.nombre}</span>
+                            <span className={`block text-[11px] uppercase tracking-label mt-1 ${abierta ? 'text-sand' : 'text-sand-deep'}`}>{a.duracion} min</span>
+                        </span>
+                        <ChevronDown size={18} className={`shrink-0 transition-transform ${abierta ? 'rotate-180 text-sand' : 'text-sand-deep'}`} />
+                    </button>
+                    {abierta && (
+                        <div className="px-5 pb-6 -mt-1">
+                            {a.foto && <img src={a.foto} alt="" className="w-full aspect-[16/9] object-cover rounded-2xl mb-4" loading="lazy" />}
+                            {a.descripcion && <p className="text-[15px] leading-relaxed font-light text-sand-light/95">{a.descripcion}</p>}
+                            {a.lema && <p className="mt-4 font-serif italic text-2xl text-sand">{a.lema}</p>}
+                        </div>
+                    )}
+                </li>
+            );
+        };
+
         const Pilates = () => {
-            const { content } = useContent();
+            const { content, catalogo } = useContent();
             const p = content.pilates;
-            const ig = (p.instagram || '').replace(/^@/, '');
+            const { centro, actividades, tarifas } = catalogo;
+            const ig = (centro.instagram || '').replace(/^@/, '');
+            const [abierta, setAbierta] = useState(null);
             return (
                 <section id="pilates" className="py-20 md:py-28 lg:py-36 bg-sand-light overflow-hidden">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-                        <div className="lg:col-span-5">
-                            <Reveal>
-                                <div className="relative">
-                                    <div aria-hidden="true" className="absolute inset-0 -m-6 border border-ink/15 rounded-4xl"></div>
-                                    <Img src={p.logo} alt="Nuevo Palmar Pilates. Control, precisión, bienestar" className="relative w-full max-w-md mx-auto object-contain rounded-3xl" />
-                                </div>
-                            </Reveal>
-                            <Reveal delay={120}>
-                                <dl className="mt-14 max-w-md mx-auto space-y-3 text-ink">
-                                    <dt className="text-[11px] uppercase tracking-label text-sand-deep">{p.centerLabel}</dt>
-                                    <dd className="flex items-center gap-3 text-[15px] font-light"><MapPin size={16} className="text-sand-deep shrink-0" /> {p.address}</dd>
-                                    <dd><a href={telHref(p.phone)} className="flex items-center gap-3 text-[15px] font-light hover:text-sand-deep"><Phone size={16} className="text-sand-deep shrink-0" /> {p.phone}</a></dd>
-                                    <dd><a href={`https://www.instagram.com/${ig}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-[15px] font-light hover:text-sand-deep"><Instagram size={16} className="text-sand-deep shrink-0" /> {p.instagram}</a></dd>
-                                </dl>
-                            </Reveal>
-                        </div>
-                        <div className="lg:col-span-7">
-                            <Reveal>
-                                <Eyebrow>{p.label}</Eyebrow>
-                                <Title className="mt-6">{p.title}</Title>
-                                <p className="mt-7 text-ink-soft text-lg font-light leading-relaxed">{p.intro}</p>
-                            </Reveal>
-                            <Reveal delay={100}>
-                                <ul className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {p.programs.map((pr, i) => (
-                                        <li key={i} className="bg-white/80 border border-white rounded-3xl px-6 py-5 flex items-center justify-between gap-4">
-                                            <span className="font-serif text-2xl text-ink">{pr}</span>
-                                            <span className="font-serif text-sand-deep" aria-hidden="true">{pad(i)}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                                <p className="mt-8 text-ink-soft text-base md:text-lg font-light leading-relaxed">{p.outro}</p>
-                                <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
-                                    <Btn as="a" href={PILATES_APP_URL} className="w-full sm:w-auto px-9 py-4 text-[13px]">{p.buttonApp} <ArrowUpRight size={17} /></Btn>
-                                    <a href={PILATES_APP_URL} className="inline-flex items-center justify-center gap-2 text-[12px] uppercase tracking-btn font-medium text-ink border-b border-ink/40 hover:border-ink py-1 self-center"><Smartphone size={16} /> {p.buttonBook}</a>
-                                </div>
-                            </Reveal>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+                            <div className="lg:col-span-5 lg:sticky lg:top-28">
+                                <Reveal>
+                                    <div className="relative">
+                                        <div aria-hidden="true" className="absolute inset-0 -m-6 border border-ink/15 rounded-4xl"></div>
+                                        <Img src={p.logo} alt="Nuevo Palmar Pilates. Control, precisión, bienestar" className="relative w-full max-w-md mx-auto object-contain rounded-3xl" />
+                                    </div>
+                                </Reveal>
+                                {p.image && <Reveal delay={80}><div className="mt-8 rounded-4xl overflow-hidden aspect-[4/3] max-w-md mx-auto"><Img src={p.image} alt="Sala de Reformer del centro de Pilates" className="w-full h-full object-cover" /></div></Reveal>}
+                                <Reveal delay={120}>
+                                    <dl className="mt-10 max-w-md mx-auto space-y-3 text-ink">
+                                        <dt className="text-[11px] uppercase tracking-label text-sand-deep">{p.centerLabel}</dt>
+                                        {centro.direccion && <dd className="flex items-start gap-3 text-[15px] font-light"><MapPin size={16} className="text-sand-deep shrink-0 mt-1" /> <span>{centro.direccion}</span></dd>}
+                                        {centro.telefono && <dd><a href={telHref(centro.telefono)} className="flex items-center gap-3 text-[15px] font-light hover:text-sand-deep"><Phone size={16} className="text-sand-deep shrink-0" /> {centro.telefono}{centro.whatsapp ? ' · también WhatsApp' : ''}</a></dd>}
+                                        {ig && <dd><a href={`https://www.instagram.com/${ig}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-[15px] font-light hover:text-sand-deep"><Instagram size={16} className="text-sand-deep shrink-0" /> {centro.instagram}</a></dd>}
+                                        {centro.email && <dd><a href={`mailto:${centro.email}`} className="flex items-center gap-3 text-[15px] font-light hover:text-sand-deep break-all"><Mail size={16} className="text-sand-deep shrink-0" /> {centro.email}</a></dd>}
+                                    </dl>
+                                    <div className="mt-6 max-w-md mx-auto flex flex-col sm:flex-row gap-3">
+                                        {centro.whatsapp && <Btn as="a" href={waHref(centro.whatsapp, p.whatsappMessage)} target="_blank" rel="noreferrer" variant="whatsapp" className="flex-1"><MessageCircle size={16} /> {p.buttonWhatsapp}</Btn>}
+                                        {centro.direccion && <Btn as="a" href={mapsDirUrl(centro.direccion)} target="_blank" rel="noreferrer" variant="secondary" className="flex-1"><ExternalLink size={15} /> {p.buttonDirections}</Btn>}
+                                    </div>
+                                </Reveal>
+                            </div>
+                            <div className="lg:col-span-7">
+                                <Reveal>
+                                    <Eyebrow>{p.label}</Eyebrow>
+                                    <Title className="mt-6">{p.title}</Title>
+                                    <p className="mt-7 text-ink-soft text-lg font-light leading-relaxed">{p.intro}</p>
+                                </Reveal>
+                                <Reveal delay={100}>
+                                    <div className="mt-10 flex items-baseline justify-between gap-4 flex-wrap">
+                                        <h3 className="font-serif text-2xl text-ink">{p.activitiesLabel}</h3>
+                                        <span className="text-xs text-ink-soft font-light">{p.activitiesHint}</span>
+                                    </div>
+                                    <ul className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {actividades.map(a => <ActividadCard key={a.id} a={a} abierta={abierta === a.id} onToggle={() => setAbierta(abierta === a.id ? null : a.id)} />)}
+                                    </ul>
+                                </Reveal>
+                                {tarifas.length > 0 && (
+                                    <Reveal delay={120}>
+                                        <h3 className="mt-14 font-serif text-2xl text-ink">{p.tariffsLabel}</h3>
+                                        <ul className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {tarifas.map(t => (
+                                                <li key={t.id} className="bg-white/80 border border-white rounded-3xl px-5 py-4">
+                                                    <div className="flex items-baseline justify-between gap-3">
+                                                        <span className="font-medium text-ink text-[15px] leading-snug">{t.nombre}</span>
+                                                        <span className="font-serif text-2xl text-sand-deep whitespace-nowrap">{precioTexto(t)}</span>
+                                                    </div>
+                                                    {t.descripcion && <p className="mt-1.5 text-sm text-ink-soft font-light leading-relaxed">{t.descripcion}</p>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        {p.familyNote && <p className="mt-4 text-sm text-ink-soft font-light italic">{p.familyNote}</p>}
+                                    </Reveal>
+                                )}
+                                <Reveal delay={140}>
+                                    <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                                        <Btn as="a" href={PILATES_APP_URL} className="w-full sm:w-auto px-9 py-4 text-[13px]">{p.buttonApp} <ArrowUpRight size={17} /></Btn>
+                                        <a href={PILATES_APP_URL} className="inline-flex items-center justify-center gap-2 text-[12px] uppercase tracking-btn font-medium text-ink border-b border-ink/40 hover:border-ink py-1 self-center"><Smartphone size={16} /> {p.buttonBook}</a>
+                                    </div>
+                                </Reveal>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1156,8 +1308,8 @@
                                         </div>
                                     </dl>
                                     <div className="mt-10 pt-8 border-t border-white/15 flex flex-col sm:flex-row gap-3">
-                                        <Btn as="a" href={waHref(c.whatsappPhone, c.whatsappMessage)} target="_blank" rel="noreferrer" variant="sand" className="flex-1"><MessageCircle size={16} /> {c.buttonWhatsapp}</Btn>
-                                        <Btn as="a" href={telHref(c.phone)} variant="ghostDark" className="flex-1"><Phone size={16} /> {c.buttonCall}</Btn>
+                                        {c.whatsappPhone && <Btn as="a" href={waHref(c.whatsappPhone, c.whatsappMessage)} target="_blank" rel="noreferrer" variant="sand" className="flex-1"><MessageCircle size={16} /> {c.buttonWhatsapp}</Btn>}
+                                        <Btn as="a" href={telHref(c.phone)} variant={c.whatsappPhone ? "ghostDark" : "sand"} className="flex-1"><Phone size={16} /> {c.buttonCall}</Btn>
                                     </div>
                                 </div>
                             </Reveal>
@@ -1229,7 +1381,7 @@
             ] },
             { id: 'about', label: 'Quiénes somos', fields: [
                 { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'text', l: 'Texto (deja una línea en blanco entre párrafos)', t: 'textarea', rows: 8 },
-                { k: 'image', l: 'Imagen', t: 'image' }, { k: 'imageAlt', l: 'Descripción de la imagen (alt)' }
+                { k: 'image', l: 'Imagen', t: 'image' }, { k: 'imageAlt', l: 'Descripción de la imagen (alt)' }, { k: 'imageCaption', l: 'Pie de la foto (nombre)' }, { k: 'imageCaptionSub', l: 'Pie de la foto (cargo)' }
             ] },
             { id: 'philosophy', label: 'Filosofía', fields: [
                 { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'text', l: 'Texto', t: 'textarea', rows: 6 }, { k: 'pillars', l: 'Pilares (uno por línea)', t: 'lines' }
@@ -1243,10 +1395,12 @@
             { id: 'accidents', label: 'Accidentes', fields: [
                 { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'items', l: 'Puntos (uno por línea)', t: 'lines' }, { k: 'outro', l: 'Frase de cierre', t: 'textarea' }, { k: 'button', l: 'Botón' }
             ] },
-            { id: 'pilates', label: 'Pilates', fields: [
-                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'programs', l: 'Programas (uno por línea)', t: 'lines' }, { k: 'outro', l: 'Texto de cierre', t: 'textarea' },
-                { k: 'buttonApp', l: 'Botón grande (Área Pilates)' }, { k: 'buttonBook', l: 'Enlace "Reservar clases desde el móvil"' },
-                { k: 'centerLabel', l: 'Rótulo de datos del centro' }, { k: 'address', l: 'Dirección del centro de Pilates' }, { k: 'phone', l: 'Teléfono del centro de Pilates' }, { k: 'instagram', l: 'Instagram' }, { k: 'logo', l: 'Logotipo de Pilates', t: 'image' }
+            { id: 'pilates', label: 'Pilates', nota: 'Las actividades, las tarifas y los datos de contacto del centro de Pilates se gestionan desde la app (Tarifas y Ajustes) y aparecen aquí automáticamente.', fields: [
+                { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' },
+                { k: 'activitiesLabel', l: 'Rótulo de actividades' }, { k: 'activitiesHint', l: 'Ayuda junto a las actividades' }, { k: 'tariffsLabel', l: 'Rótulo de tarifas' }, { k: 'familyNote', l: 'Nota bajo las tarifas' },
+                { k: 'buttonApp', l: 'Botón grande (Área Pilates)' }, { k: 'buttonBook', l: 'Enlace "Reservar clases desde el móvil"' }, { k: 'centerLabel', l: 'Rótulo de datos del centro' },
+                { k: 'buttonWhatsapp', l: 'Botón WhatsApp' }, { k: 'whatsappMessage', l: 'Mensaje inicial de WhatsApp', t: 'textarea' }, { k: 'buttonDirections', l: 'Botón "Cómo llegar"' },
+                { k: 'logo', l: 'Logotipo de Pilates', t: 'image' }, { k: 'image', l: 'Foto del centro', t: 'image' }
             ] },
             { id: 'facilities', label: 'Instalaciones', fields: [
                 { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' }, { k: 'images', l: 'Fotos del carrusel', t: 'images' }
@@ -1260,7 +1414,7 @@
             { id: 'contact', label: 'Contacto', fields: [
                 { k: 'label', l: 'Etiqueta' }, { k: 'title', l: 'Título', t: 'textarea' }, { k: 'intro', l: 'Introducción', t: 'textarea' },
                 { k: 'address', l: 'Dirección' }, { k: 'city', l: 'Código postal y localidad' }, { k: 'phone', l: 'Teléfono' }, { k: 'email', l: 'Correo electrónico' },
-                { k: 'whatsappPhone', l: 'Número de WhatsApp (con prefijo, sin espacios: 34...)' }, { k: 'whatsappMessage', l: 'Mensaje inicial de WhatsApp', t: 'textarea' },
+                { k: 'whatsappPhone', l: 'Número de WhatsApp (con prefijo, sin espacios: 34...). Vacío = sin WhatsApp' }, { k: 'whatsappMessage', l: 'Mensaje inicial de WhatsApp', t: 'textarea' },
                 { k: 'buttonWhatsapp', l: 'Botón WhatsApp' }, { k: 'buttonCall', l: 'Botón llamar' }, { k: 'buttonDirections', l: 'Botón "Cómo llegar"' }
             ] },
             { id: 'schedule', label: 'Horario', fields: [
@@ -1533,6 +1687,7 @@
                                             <SmallBtn onClick={importar} disabled={importando}>{importando ? 'Importando…' : 'Importar de la versión anterior'}</SmallBtn>
                                         </div>
                                     )}
+                                    {current.nota && <p className="text-xs text-ink-soft font-light bg-sand-ivory border border-sand-light rounded-2xl px-4 py-3">{current.nota}</p>}
                                     {current.fields.map(f => <Field key={f.k} section={current.id} field={f} />)}
                                 </div>
                                 <div className="px-6 py-4 border-t border-sand-light flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-sand-ivory/50">

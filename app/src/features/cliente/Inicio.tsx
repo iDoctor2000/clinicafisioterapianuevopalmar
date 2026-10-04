@@ -10,6 +10,7 @@ import { cap, diaMes, diasHasta, fechaRelativa, horarioFijoDe, periodoTexto, pro
 import { chipOrigen } from './estados';
 import { BarraProgreso, Encabezado, HojaCancelar, PuntoActividad } from './comun';
 import { AvatarCliente } from '@/features/comun/AvatarCliente';
+import { IconoActividad } from '@/features/comun/IconoActividad';
 
 export function Inicio() {
   const { db, cliente, contrato, tarifa } = useCliente();
@@ -62,7 +63,7 @@ export function Inicio() {
                 {diasHasta(proxima.clase.fecha, ahora) === 0 && <Chip tono="ambar">Hoy</Chip>}
                 {diasHasta(proxima.clase.fecha, ahora) === 1 && <Chip tono="ambar">Mañana</Chip>}
               </div>
-              <p className="text-2xl font-semibold flex items-center gap-2"><PuntoActividad color={proxima.actividad.color} />{proxima.actividad.nombre}</p>
+              <p className="text-2xl font-semibold flex items-center gap-3"><IconoActividad actividad={proxima.actividad} tamano="md" />{proxima.actividad.nombre}</p>
               <ul className="mt-3 space-y-1.5 text-[17px]">
                 <li className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-beige-600 shrink-0" /> {cap(fechaLarga(proxima.clase.fecha))}</li>
                 <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-beige-600 shrink-0" /> De {proxima.clase.horaInicio} a {horaFin(proxima.clase.horaInicio, proxima.clase.duracionMin)}</li>

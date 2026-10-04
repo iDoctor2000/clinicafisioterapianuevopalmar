@@ -9,6 +9,7 @@ import { parseISO, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Boton, Chip, Hoja, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
+import { IconoActividad } from '@/features/comun/IconoActividad';
 import { useCliente } from './useCliente';
 import { actividadIncluida, cap, evaluarReservaDe, recuperacionCubre, reservaActivaEn, vistaReserva } from './consultas';
 import { Encabezado, HojaCancelar, Nota, Pestanas, PuntoActividad } from './comun';
@@ -82,7 +83,7 @@ export function Horario() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <PuntoActividad color={v.actividad.color} className={cn(atenuada && 'opacity-50')} />
+              <IconoActividad actividad={v.actividad} tamano="sm" className={cn(atenuada && 'opacity-50')} />
               <span className={cn('font-semibold text-lg truncate', cancelada && 'line-through', atenuada && 'text-ink-soft')}>{v.actividad.nombre}</span>
             </div>
             {!compacta && v.monitor && <div className="text-sm text-ink-muted">Con {v.monitor.nombre}</div>}

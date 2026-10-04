@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarClock, Info, Plus } from 'lucide-react';
-import type { DiaSemana, PlantillaClase } from '@/domain/types';
+import { duracionActividad, type DiaSemana, type PlantillaClase } from '@/domain/types';
 import { DIAS_SEMANA_CORTO, DIAS_SEMANA_LABEL, horaFin } from '@/domain/fechas';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
@@ -79,7 +79,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
   const mons = monitores(db);
   const acts = db.actividades.filter((a) => a.activa || a.id === plantilla?.actividadId);
   const [f, setF] = useState<Omit<PlantillaClase, 'id'>>(
-    plantilla ?? { actividadId: acts[0]?.id ?? '', diaSemana: diaInicial, horaInicio: '10:00', duracionMin: 55, monitorId: mons[0]?.id ?? '', plazas: 8, activa: true, vigenciaDesde: null, vigenciaHasta: null },
+    plantilla ?? { actividadId: acts[0]?.id ?? '', diaSemana: diaInicial, horaInicio: '10:00', duracionMin: duracionActividad(acts[0]), monitorId: mons[0]?.id ?? '', plazas: 8, activa: true, vigenciaDesde: null, vigenciaHasta: null },
   );
   const guardar = async () => {
     if (!f.actividadId || !f.monitorId || !f.horaInicio) return toast.error('Completa actividad, hora y monitor.');
@@ -89,7 +89,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
   return (
     <Hoja abierta onCerrar={onCerrar} titulo={plantilla ? 'Editar franja' : 'Nueva franja'}>
       <div className="space-y-4">
-        <Seleccion etiqueta="Actividad" value={f.actividadId} onChange={(e) => setF({ ...f, actividadId: e.target.value })}>
+        <Seleccion etiqueta="Actividad" value={f.actividadId} onChange={(e) => setF({ ...f, actividadId: e.target.value, duracionMin: plantilla ? f.duracionMin : duracionActividad(acts.find((a) => a.id === e.target.value)) })}>
           {acts.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
         </Seleccion>
         <div>
@@ -100,7 +100,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
         </div>
         <div className="grid grid-cols-3 gap-3">
           <Entrada etiqueta="Hora" type="time" value={f.horaInicio} onChange={(e) => setF({ ...f, horaInicio: e.target.value })} />
-          <Entrada etiqueta="Minutos" type="number" min={15} step={5} value={f.duracionMin} onChange={(e) => setF({ ...f, duracionMin: Number(e.target.value) })} />
+          <Entrada etiqueta="Minutos" ayuda={`Por defecto ${duracionActividad(acts.find((a) => a.id === f.actividadId))} min`} type="number" min={15} step={5} value={f.duracionMin} onChange={(e) => setF({ ...f, duracionMin: Number(e.target.value) })} />
           <Entrada etiqueta="Plazas" type="number" min={1} value={f.plazas} onChange={(e) => setF({ ...f, plazas: Number(e.target.value) })} />
         </div>
         <Seleccion etiqueta="Monitor/a" value={f.monitorId} onChange={(e) => setF({ ...f, monitorId: e.target.value })}>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, CalendarOff, Eye, EyeOff, History, ImagePlus, Images, Plus, Save, Settings, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarOff, Building2, Eye, EyeOff, History, ImagePlus, Images, Plus, Save, Settings, Trash2 } from 'lucide-react';
 import type { DiaCierre, PortadaImagen } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
 import { useModo } from '@/data/store';
@@ -23,6 +23,7 @@ export function Ajustes() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Reglas />
         <Cierres />
+        <div className="lg:col-span-2"><CentroPilates /></div>
         <div className="lg:col-span-2"><FotosPortada /></div>
         <div className="lg:col-span-2"><Auditoria /></div>
         <div className="lg:col-span-2"><Diagnostico /></div>
@@ -69,6 +70,39 @@ function Reglas() {
           </div>
           <div className="flex justify-end"><Boton onClick={guardar} disabled={!cambiado} cargando={guardando}><Save className="h-5 w-5" /> Guardar</Boton></div>
         </div>
+      </Seccion>
+    </Tarjeta>
+  );
+}
+
+/** Datos de contacto del centro de Pilates: se muestran en la web pública (sección Pilates). */
+function CentroPilates() {
+  const { db, ejecutar } = useTrabajador();
+  const c = db.config;
+  const inicial = { direccion: c.direccion ?? '', telefono: c.telefono ?? '', whatsapp: c.whatsapp ?? '', instagram: c.instagram ?? '', email: c.email ?? '' };
+  const [f, setF] = useState(inicial);
+  const [guardando, setGuardando] = useState(false);
+  const cambiado = JSON.stringify(f) !== JSON.stringify(inicial);
+  const guardar = async () => {
+    const whatsapp = f.whatsapp.replace(/[^\d]/g, '');
+    if (f.whatsapp && !/^\d{9,15}$/.test(whatsapp)) return toast.error('El WhatsApp debe llevar prefijo y solo números, por ejemplo 34620600591.');
+    setGuardando(true);
+    const r = await ejecutar('actualizarConfig', { config: { direccion: f.direccion.trim(), telefono: f.telefono.trim(), whatsapp, instagram: f.instagram.trim(), email: f.email.trim() } });
+    setGuardando(false);
+    if (r.ok) toast.ok('Datos del centro guardados. La web los muestra al momento.'); else toast.error(r.error);
+  };
+  return (
+    <Tarjeta className="p-4 sm:p-6">
+      <Seccion titulo={<span className="flex items-center gap-2"><Building2 className="h-5 w-5 text-ink-muted" /> Datos del centro de Pilates</span>}>
+        <p className="text-sm text-ink-soft mb-4">Aparecen en la web pública, en la sección de Pilates. Los de la clínica de fisioterapia se cambian desde el editor de la web.</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2"><Entrada etiqueta="Dirección" value={f.direccion} onChange={(e) => setF({ ...f, direccion: e.target.value })} placeholder="C/ Artemisa 6, Bajo · 30120 El Palmar (Murcia)" /></div>
+          <Entrada etiqueta="Teléfono" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} placeholder="620 600 591" />
+          <Entrada etiqueta="WhatsApp (prefijo y sin espacios)" ayuda="Vacío si no hay WhatsApp." value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} placeholder="34620600591" />
+          <Entrada etiqueta="Instagram" value={f.instagram} onChange={(e) => setF({ ...f, instagram: e.target.value })} placeholder="@pilatesnuevopalmar" />
+          <Entrada etiqueta="Correo electrónico" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="info@fisioterapianuevopalmar.com" />
+        </div>
+        <div className="flex justify-end mt-4"><Boton onClick={guardar} disabled={!cambiado} cargando={guardando}><Save className="h-5 w-5" /> Guardar</Boton></div>
       </Seccion>
     </Tarjeta>
   );

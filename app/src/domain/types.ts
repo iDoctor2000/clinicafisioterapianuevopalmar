@@ -43,6 +43,13 @@ export interface ConfigCentro {
   diasCierre: DiaCierre[];
   /** Zona horaria del centro. */
   zonaHoraria: string;
+  /** Datos de contacto del centro de Pilates (se muestran en la web pública). */
+  direccion?: string;
+  telefono?: string;
+  /** Con prefijo y sin espacios (34620600591). Vacío = sin WhatsApp. */
+  whatsapp?: string;
+  instagram?: string;
+  email?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,6 +64,23 @@ export interface Actividad {
   /** Color de la actividad en calendarios (clase Tailwind o hex). */
   color: string;
   activa: boolean;
+  /** Nombre completo para la web pública ("Pilates Reformer con Torre"). Vacío = nombre. */
+  nombreWeb?: string;
+  /** Duración por defecto de una clase (minutos). */
+  duracionMin?: number;
+  /** Frase final ("Siente el ritmo"). */
+  lema?: string;
+  /** Descripción completa (web y ficha de la actividad). */
+  descripcionLarga?: string;
+  /** Clave de icono incluido (ver lib/iconos) o URL de imagen subida. */
+  icono?: string;
+  /** Foto opcional (URL pública). */
+  fotoUrl?: string;
+}
+
+/** Duración por defecto de una clase de la actividad (55 min si no se indica). */
+export function duracionActividad(a: Pick<Actividad, 'duracionMin'> | undefined): number {
+  return a?.duracionMin && a.duracionMin > 0 ? a.duracionMin : 55;
 }
 
 export type TipoTarifa = 'RECURRENTE' | 'BONO' | 'CLASE_SUELTA';
