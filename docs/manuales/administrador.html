@@ -47,7 +47,7 @@
   <table>
     <tr><th style="width:30%"></th><th>La web de la clínica</th><th>La app de Pilates</th></tr>
     <tr><td><strong>Para qué</strong></td><td>Escaparate público: quiénes somos, especialidades, instalaciones, contacto.</td><td>Reservas, clases, clientes, avisos. Cada persona entra con su correo.</td></tr>
-    <tr><td><strong>Dirección</strong></td><td><code>idoctor2000.github.io/clinicafisioterapianuevopalmar/</code></td><td>La misma, añadiendo <code>app/</code> al final (o el botón "Área Pilates" de la web).</td></tr>
+    <tr><td><strong>Dirección</strong></td><td><code>www.fisioterapianuevopalmar.com/</code></td><td>La misma, añadiendo <code>app/</code> al final (o el botón "Área Pilates" de la web).</td></tr>
     <tr><td><strong>Quién la cambia</strong></td><td>Tú, con el editor que hay en el pie de la web (capítulo 13).</td><td>Tú y el equipo, desde dentro de la app, según permisos.</td></tr>
   </table>
 
@@ -99,11 +99,11 @@
   <h2>Instalar la app en el móvil (Android y iPhone)</h2>
   <p>No se descarga de ninguna tienda: se abre una dirección y se deja en la pantalla de inicio. Se hace <strong>una sola vez</strong>. Después se abre con un toque, sin barra del navegador y con la sesión ya iniciada. En iPhone, además, es imprescindible para recibir avisos.</p>
   <p>La dirección de la app es:</p>
-  <p><code>https://idoctor2000.github.io/clinicafisioterapianuevopalmar/app/</code></p>
+  <p><code>https://www.fisioterapianuevopalmar.com/app/</code></p>
   <p>También se llega desde la web de la clínica con el botón <span class="btn claro">ÁREA PILATES</span> de arriba.</p>
   <div class="caja ojo">
-    <div class="t">La dirección cambiará</div>
-    <p>Cuando la app pase a su sitio definitivo (el dominio propio de la clínica), la dirección será otra y este manual se actualizará. Si el icono que tienes instalado dejara de abrir, bastaría con instalarlo de nuevo con la dirección nueva.</p>
+    <div class="t">Si la instalaste antes de octubre de 2026</div>
+    <p>La app estaba antes en otra dirección (idoctor2000.github.io). Si tu icono es de entonces, bórralo e instálala de nuevo desde <strong>www.fisioterapianuevopalmar.com/app</strong>, y vuelve a activar los avisos en el móvil. Tu cuenta y tus reservas siguen igual.</p>
   </div>
 
   <h3>Android (Chrome)</h3>
@@ -462,12 +462,13 @@
     <tr><th style="width:26%">Pieza</th><th>Qué es</th><th style="width:30%">Quién la cuida</th></tr>
     <tr><td><strong>Supabase</strong></td><td>La base de datos donde están los clientes, las clases, las reservas y los usuarios, y también los textos y las fotos de la web pública. Está en servidores de la Unión Europea (Fráncfort). La cuenta es la del correo del centro.</td><td>Juan Antonio. No toques nada ahí sin preguntar: un cambio equivocado puede borrar datos.</td></tr>
     <tr><td><strong>GitHub</strong></td><td>Donde está guardado el "código" de la web y de la app, y desde donde se publican.</td><td>Juan Antonio.</td></tr>
+    <tr><td><strong>Strato</strong></td><td>Donde está contratado el dominio fisioterapianuevopalmar.com (cliente 73059770). Solo se usa el dominio: sus registros DNS apuntan a GitHub. El hosting de Strato no se usa.</td><td>La clínica (titular). No toques los registros DNS A, AAAA ni el CNAME de www.</td></tr>
     <tr><td><strong>Google Cloud</strong></td><td>Lo que permite el botón "Entrar con Google".</td><td>Juan Antonio.</td></tr>
   </table>
   <ul>
     <li><strong>Copias de seguridad:</strong> antes de un cambio grande (por ejemplo, borrar clientes antiguos en bloque), pide a Juan Antonio que haga una copia de la base de datos.</li>
     <li><strong>Contraseñas de clientes:</strong> nadie las ve, ni siquiera tú. Si un cliente la olvida, la recupera él mismo con "Crear mi contraseña".</li>
-    <li><strong>Dominio propio:</strong> está previsto pasar todo a <code>www.fisioterapianuevopalmar.com</code> cuando la web esté probada. Cuando se haga, cambiarán las direcciones de este manual.</li>
+    <li><strong>Dominio:</strong> <code>www.fisioterapianuevopalmar.com</code> está contratado en Strato, a nombre de la clínica. En Strato solo se usa el dominio (sus registros DNS apuntan a GitHub); el hosting de Strato no se usa. No cambies los registros DNS A, AAAA ni el CNAME de www, o la web dejará de verse.</li>
   </ul>
 </section>
 
