@@ -9,3 +9,4 @@ export { Entrada, Seleccion, AreaTexto, Interruptor, Etiqueta as EtiquetaCampo }
 export * from './Vacio';
 export * from './Carrusel';
 export * from './MenuLateral';
+export * from './CodigoQR';

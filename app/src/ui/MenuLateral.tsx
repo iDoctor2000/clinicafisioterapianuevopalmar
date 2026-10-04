@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { CircleHelp, Menu, X, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { BotonQR, HojaQR } from './CodigoQR';
 
 export interface ItemMenu {
   /** Ruta de la sección. Si no hay, es una acción (`onClick`). */
@@ -156,7 +157,9 @@ export function BotonAyuda({ href, className }: { href: string; className?: stri
 }
 
 export function CabeceraCapa({ zona, onMenu, menuAbierto, derecha, ayuda }: { zona: string; onMenu: () => void; menuAbierto: boolean; derecha?: ReactNode; ayuda?: string }) {
+  const [qr, setQr] = useState(false);
   return (
+    <>
     <header className="sticky top-0 z-30 bg-sand/90 backdrop-blur border-b border-beige-200 pt-safe">
       <div className="max-w-6xl mx-auto w-full px-4 h-14 flex items-center gap-2">
         <BotonMenu onClick={onMenu} abierto={menuAbierto} />
@@ -167,9 +170,13 @@ export function CabeceraCapa({ zona, onMenu, menuAbierto, derecha, ayuda }: { zo
         </div>
         <div className="ml-auto flex items-center gap-2">
           {derecha}
+          <BotonQR onClick={() => setQr(true)} />
           {ayuda && <BotonAyuda href={ayuda} />}
         </div>
       </div>
     </header>
+    {/* Fuera de la cabecera: su backdrop-blur haría que la hoja fija quedara dentro de ella. */}
+    <HojaQR abierta={qr} onCerrar={() => setQr(false)} />
+    </>
   );
 }
