@@ -10,3 +10,4 @@ export * from './Vacio';
 export * from './Carrusel';
 export * from './MenuLateral';
 export * from './CodigoQR';
+export * from './AvisoInstalacion';

@@ -14,25 +14,7 @@ import { SelectorFoto } from '@/features/comun/SelectorFoto';
 import { EnlacePrivacidad } from '@/app/Privacidad';
 import { format } from 'date-fns';
 import { FichaActividad } from '@/features/comun/FichaActividad';
-
-type EventoInstalacion = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
-
-/** Capturamos el evento de instalación de la PWA en cuanto el navegador lo emite. */
-let promptInstalacion: EventoInstalacion | null = null;
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    promptInstalacion = e as EventoInstalacion;
-  });
-}
-
-function estaInstalada(): boolean {
-  try {
-    return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  } catch {
-    return false;
-  }
-}
+import { estaInstalada, instalarDirecto } from '@/lib/instalacion';
 
 export function Perfil() {
   const { db, cliente, contrato, tarifa } = useCliente();
@@ -145,15 +127,9 @@ export function Perfil() {
   };
 
   const instalar = async () => {
-    if (promptInstalacion) {
-      try {
-        await promptInstalacion.prompt();
-        const { outcome } = await promptInstalacion.userChoice;
-        if (outcome === 'accepted') toast.ok('La app se está instalando en tu móvil.');
-        promptInstalacion = null;
-        return;
-      } catch { /* si falla el prompt nativo, mostramos las instrucciones */ }
-    }
+    const r = await instalarDirecto();
+    if (r === 'aceptada') { toast.ok('La app se está instalando en tu móvil.'); return; }
+    if (r === 'rechazada') return;
     setHoja('INSTALAR');
   };
 
