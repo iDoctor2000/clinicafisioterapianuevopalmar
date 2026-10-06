@@ -128,10 +128,15 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
   const modalidadReal: Modalidad = esRecurrente ? modalidad : 'LIBRE';
   const cupoPorCat = useMemo(() => new Map((tarifa?.cupos ?? []).map((c) => [c.categoria, c.sesionesSemana])), [tarifa]);
   const totalFranjas = Array.from(cupoPorCat.values()).reduce((a, b) => a + b, 0);
-  const plantillas = db.plantillas
-    .filter((p) => p.activa && cupoPorCat.has(db.actividades.find((a) => a.id === p.actividadId)?.categoria as Categoria))
-    .sort((a, b) => a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio));
   const categoriaDe = (plantillaId: string): Categoria => db.actividades.find((a) => a.id === db.plantillas.find((p) => p.id === plantillaId)?.actividadId)?.categoria ?? 'DIRIGIDA';
+  // Se listan todas las franjas activas: las de categorías que la tarifa no incluye van en gris,
+  // con el motivo, para que nadie piense que "falta" una clase del horario.
+  const plantillas = db.plantillas
+    .filter((p) => p.activa)
+    .sort((a, b) => a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio));
+  const incluida = (plantillaId: string) => cupoPorCat.has(categoriaDe(plantillaId));
+  const nombreCat = (c: Categoria) => (c === 'REFORMER' ? 'Reformer' : CATEGORIA_LABEL[c].toLowerCase());
+  const categoriasFuera = (['DIRIGIDA', 'REFORMER'] as Categoria[]).filter((c) => !cupoPorCat.has(c) && plantillas.some((p) => categoriaDe(p.id) === c));
   const elegidasPorCat = (cat: Categoria) => franjas.filter((f) => categoriaDe(f) === cat).length;
   const alternar = (id: string) => {
     if (franjas.includes(id)) return setFranjas(franjas.filter((f) => f !== id));
@@ -176,15 +181,24 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
               {plantillas.map((p) => {
                 const v = plantillaVista(db, p.id)!;
                 const activa = franjas.includes(p.id);
+                const dentro = incluida(p.id);
                 return (
-                  <label key={p.id} className={cn('flex items-center gap-3 p-3 cursor-pointer', activa ? 'bg-beige-50' : 'hover:bg-sand')}>
-                    <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={activa} onChange={() => alternar(p.id)} />
+                  <label key={p.id} className={cn('flex items-center gap-3 p-3', dentro ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed', activa ? 'bg-beige-50' : dentro && 'hover:bg-sand')}>
+                    <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={activa} disabled={!dentro} onChange={() => alternar(p.id)} />
                     <PuntoColor color={v.actividad?.color ?? '#999'} />
                     <span className="flex-1 min-w-0"><span className="font-semibold">{DIAS_SEMANA_LABEL[p.diaSemana]} {p.horaInicio}</span><span className="block text-sm text-ink-muted truncate">{v.actividad?.nombre} · {v.monitor?.nombre} · {p.plazas} plazas</span></span>
+                    {!dentro && <span className="text-xs font-semibold text-ink-muted shrink-0">No incluida</span>}
                   </label>
                 );
               })}
             </div>
+            {categoriasFuera.length > 0 && (
+              <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3 mt-2">
+                Esta tarifa incluye solo <strong>{Array.from(cupoPorCat.keys()).map((c) => nombreCat(c)).join(' y ')}</strong>: las franjas de {categoriasFuera.map((c) => nombreCat(c)).join(' y ')} aparecen en gris y no se pueden elegir.
+                {categoriasFuera.includes('REFORMER') && ' Para Reformer, elige una tarifa de Reformer o el Pack mixto.'}
+                {categoriasFuera.includes('DIRIGIDA') && ' Para clases dirigidas, elige una tarifa de dirigidas o el Pack mixto.'}
+              </p>
+            )}
             {previstas != null && <p className="text-sm font-medium text-beige-600 mt-2">{previstas} sesiones previstas en el periodo (descontando días de cierre).</p>}
           </div>
         )}
