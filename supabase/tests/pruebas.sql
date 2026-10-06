@@ -381,7 +381,7 @@ do $$ begin
   assert (select count(*) from public.trabajador_permisos) = 0, 'no ve permisos';
   assert (select count(*) from public.auditoria) = 0, 'no ve auditoría';
   assert (select count(*) from public.avisos) = 1, 'solo el aviso del que es destinatario (el general)';
-  assert (select count(*) from public.tarifas) = 8 and (select count(*) from public.actividades) = 4 and (select count(*) from public.clases) > 0, 'catálogo legible';
+  assert (select count(*) from public.tarifas) = 9 and (select count(*) from public.actividades) = 4 and (select count(*) from public.clases) > 0, 'catálogo legible';
   assert (select count(*) from public.config_centro) = 1 and (select count(*) from public.plantillas_clase) = 20, 'config y horario legibles';
   assert (select count(*) from public.pagos) = 0 and (select count(*) from public.suscripciones_push) = 0, 'tablas vacías accesibles';
 end $$;
@@ -426,7 +426,7 @@ do $$ begin
   assert (select count(*) from public.trabajadores) = 3, 've a sus compañeros';
   assert (select count(*) from public.trabajador_permisos) = 6, 'solo sus propios permisos';
   assert (select count(*) from public.auditoria) = 0, 'no ve auditoría';
-  assert (select count(*) from public.tarifas) = 8, 've tarifas';
+  assert (select count(*) from public.tarifas) = 9, 've tarifas';
 end $$;
 update public.clientes set direccion = 'Calle Mayor 1' where id = pruebas.id('cliente_a');
 select pruebas.espera_error(format('insert into public.clientes_clinica (cliente_id, lesiones) values (%L, %L)', pruebas.id('cliente_a'), 'x'), '%row-level security%');

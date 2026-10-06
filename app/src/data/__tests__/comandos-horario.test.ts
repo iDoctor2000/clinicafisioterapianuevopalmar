@@ -50,11 +50,12 @@ describe('guardarPlantilla: cambios aplicados a las clases futuras', () => {
     if (!contratoFijo) return; // la demo siempre tiene uno; si no, no hay nada que comprobar
     const plantillaId = contratoFijo.franjasFijas[0].plantillaId;
     const plantilla = c0.db.plantillas.find((p) => p.id === plantillaId)!;
-    const antes = c0.db.reservas.filter((r) => r.contratoId === contratoFijo.id && r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA' && c0.db.clases.some((c) => c.id === r.claseId && c.plantillaId === plantillaId && c.fecha >= hoy)).length;
+    // Solo fechas estrictamente futuras: la clase de hoy a las 07:15 ya habría empezado y no se le generaría reserva.
+    const antes = c0.db.reservas.filter((r) => r.contratoId === contratoFijo.id && r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA' && c0.db.clases.some((c) => c.id === r.claseId && c.plantillaId === plantillaId && c.fecha > hoy)).length;
     const r = guardarPlantilla(c0, { plantilla: { ...plantilla, horaInicio: '07:15' } });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    const despues = r.db.reservas.filter((x) => x.contratoId === contratoFijo.id && x.origen === 'AUTOMATICA' && x.estado === 'RESERVADA' && r.db.clases.some((c) => c.id === x.claseId && c.plantillaId === plantillaId && c.fecha >= hoy && c.horaInicio === '07:15'));
+    const despues = r.db.reservas.filter((x) => x.contratoId === contratoFijo.id && x.origen === 'AUTOMATICA' && x.estado === 'RESERVADA' && r.db.clases.some((c) => c.id === x.claseId && c.plantillaId === plantillaId && c.fecha > hoy && c.horaInicio === '07:15'));
     expect(despues.length).toBe(antes);
   });
 
