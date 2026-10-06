@@ -7,6 +7,7 @@ import { nombreCompleto } from '@/data/selectores';
 import { Boton, Chip, Entrada, Interruptor, Tarjeta, Vacio, toast } from '@/ui';
 import { useTrabajador } from './useTrabajador';
 import { buscarClientes, resumenCliente } from './consultas';
+import { pagosVencidos } from '@/domain/cobros';
 import { AvatarCliente, CampoBusqueda, Encabezado, Segmentado } from './comunes';
 
 export function Clientes() {
@@ -43,6 +44,7 @@ export function Clientes() {
                       <span className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold truncate">{nombreCompleto(c)}</span>
                         {!c.activo && <Chip tono="rojo">Baja</Chip>}
+                        {pagosVencidos(db.pagos, c.id, hoy).length > 0 && <Chip tono="rojo">Pago pendiente</Chip>}
                       </span>
                       <span className="block text-sm text-ink-muted truncate">
                         {r.tarifa ? `${r.tarifa.nombre} · ${r.contrato?.modalidad === 'FIJO' ? 'horario fijo' : 'turno libre'}` : 'Sin tarifa activa'}

@@ -86,7 +86,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
     const r = await ejecutar('guardarPlantilla', { plantilla: { ...f, id: plantilla?.id, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) } });
     if (r.ok) {
       if (!plantilla) toast.ok('Franja creada. Se han generado sus clases.');
-      else if (r.valor.conservadas > 0) toast.info(`Franja actualizada. Sus clases futuras ya tienen el nuevo horario, salvo ${r.valor.conservadas} con reservas de alumnos, que se conservan como estaban: revísalas en el calendario.`);
+      else if (r.valor.conservadas > 0) toast.info(`Franja actualizada en el calendario. ${r.valor.conservadas === 1 ? 'Una clase con alumnos apuntados mantiene' : `${r.valor.conservadas} clases con alumnos apuntados mantienen`} su día y hora para no descolocarles; la actividad, el monitor y las plazas sí se han cambiado.`);
       else toast.ok('Franja actualizada. Sus clases futuras ya tienen el nuevo horario.');
       onCerrar();
     } else toast.error(r.error);

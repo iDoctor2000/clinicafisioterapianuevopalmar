@@ -180,8 +180,44 @@ export interface Contrato {
   /** Actividades concretas permitidas (vacío = todas las de las categorías de la tarifa). */
   actividadesPermitidasIds: Id[];
   notas: string;
+  /** Oferta aplicada al contratar (por defecto NINGUNA). */
+  oferta?: Oferta;
+  /** Importe acordado por mes (recurrente) o total (bono / clase suelta), en céntimos. null = sin indicar. */
+  importeCentimos?: number | null;
+  /** Forma de pago habitual del cliente. */
+  metodoPago?: MetodoPago | null;
   creadoEl: ISOInstant;
   creadoPor: Id;
+}
+
+// ---------------------------------------------------------------------------
+// Cobros
+// ---------------------------------------------------------------------------
+
+export type Oferta = 'NINGUNA' | 'TRIMESTRAL' | 'FAMILIAR';
+export const OFERTA_LABEL: Record<Oferta, string> = { NINGUNA: 'Sin oferta', TRIMESTRAL: 'Oferta trimestral', FAMILIAR: 'Oferta familiar' };
+
+export const METODOS_PAGO = ['EFECTIVO', 'TARJETA', 'BIZUM', 'TRANSFERENCIA', 'DOMICILIACION'] as const;
+export type MetodoPago = (typeof METODOS_PAGO)[number];
+export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
+  EFECTIVO: 'Efectivo', TARJETA: 'Tarjeta', BIZUM: 'Bizum', TRANSFERENCIA: 'Transferencia', DOMICILIACION: 'Domiciliación',
+};
+
+export type EstadoPago = 'PENDIENTE' | 'PAGADO' | 'CANCELADO';
+
+/** Un cobro de un contrato: una cuota del plan (mes 1, mes 2…) o un cobro suelto. */
+export interface Pago {
+  id: Id;
+  contratoId: Id | null;
+  clienteId: Id;
+  concepto: string;
+  importeCentimos: number;
+  /** Fecha en la que toca cobrarlo (null = sin fecha). */
+  venceEl: ISODate | null;
+  estado: EstadoPago;
+  metodo: MetodoPago | null;
+  pagadoEl: ISOInstant | null;
+  creadoEl: ISOInstant;
 }
 
 // ---------------------------------------------------------------------------

@@ -7,9 +7,10 @@
  */
 import type {
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, DiaSemana, EstadoClase,
-  EstadoContrato, EstadoRecuperacion, EstadoReserva, Id, InformacionClinica, LecturaAviso, Modalidad, MotivoRecuperacion,
-  Ambito, OrigenReserva, Permiso, PlantillaClase, PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
+  EstadoContrato, EstadoPago, EstadoRecuperacion, EstadoReserva, Id, InformacionClinica, LecturaAviso, MetodoPago, Modalidad, MotivoRecuperacion,
+  Ambito, Oferta, OrigenReserva, Pago, Permiso, PlantillaClase, PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
 } from '@/domain/types';
+import { METODOS_PAGO } from '@/domain/types';
 import type { Usuario } from '../db';
 
 // ---------------------------------------------------------------------------
@@ -82,6 +83,13 @@ export interface FilaContrato {
   id: string; cliente_id: string; tarifa_id: string; fecha_inicio: string; fecha_fin: string; modalidad: Modalidad;
   sesiones_restantes: number | null; estado: EstadoContrato; actividades_permitidas_ids: string[]; notas: string;
   creado_por: string | null; creado_el: string;
+  // 0013 (pueden faltar si la migración no está aplicada)
+  oferta?: Oferta | null; importe_centimos?: number | null; metodo_pago?: MetodoPago | null;
+}
+
+export interface FilaPago {
+  id: string; contrato_id: string | null; cliente_id: string; importe_centimos: number; estado: string; proveedor: string;
+  concepto?: string | null; vence_el?: string | null; pagado_el: string | null; creado_el: string;
 }
 export interface FilaContratoFranja { contrato_id: string; plantilla_id: string }
 
@@ -332,7 +340,26 @@ export function aContrato(f: FilaContrato, franjas: FilaContratoFranja[]): Contr
     id: f.id, clienteId: f.cliente_id, tarifaId: f.tarifa_id, fechaInicio: aFecha(f.fecha_inicio), fechaFin: aFecha(f.fecha_fin), modalidad: f.modalidad,
     franjasFijas: franjas.filter((x) => x.contrato_id === f.id).map((x) => ({ plantillaId: x.plantilla_id })),
     sesionesRestantes: f.sesiones_restantes, estado: f.estado, actividadesPermitidasIds: f.actividades_permitidas_ids ?? [], notas: f.notas,
+    oferta: f.oferta ?? 'NINGUNA', importeCentimos: f.importe_centimos ?? null, metodoPago: f.metodo_pago ?? null,
     creadoEl: aInstante(f.creado_el), creadoPor: actor(f.creado_por),
+  };
+}
+
+const METODOS = new Set<string>(METODOS_PAGO);
+/** En la tabla `pagos` el método va en `proveedor` (preparada para Stripe). Los estados que la app no usa cuentan como cancelados. */
+export function aPago(f: FilaPago): Pago {
+  const estado: EstadoPago = f.estado === 'PAGADO' || f.estado === 'PENDIENTE' ? f.estado : 'CANCELADO';
+  return {
+    id: f.id, contratoId: f.contrato_id, clienteId: f.cliente_id, concepto: f.concepto ?? '', importeCentimos: f.importe_centimos,
+    venceEl: f.vence_el ? aFecha(f.vence_el) : null, estado, metodo: METODOS.has(f.proveedor) ? (f.proveedor as MetodoPago) : null,
+    pagadoEl: f.pagado_el ? aInstante(f.pagado_el) : null, creadoEl: aInstante(f.creado_el),
+  };
+}
+
+export function dePago(p: Omit<Pago, 'creadoEl'>): Record<string, unknown> {
+  return {
+    id: p.id, contrato_id: p.contratoId, cliente_id: p.clienteId, concepto: p.concepto, importe_centimos: p.importeCentimos,
+    vence_el: p.venceEl, estado: p.estado, proveedor: p.metodo ?? 'SIN_INDICAR', pagado_el: p.estado === 'PAGADO' ? p.pagadoEl ?? new Date().toISOString() : null,
   };
 }
 

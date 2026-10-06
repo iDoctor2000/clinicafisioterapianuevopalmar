@@ -1,7 +1,8 @@
 import { addMonths, startOfMonth, subMonths } from 'date-fns';
-import type { Actividad, Cliente, Contrato, PlantillaClase, PortadaImagen, Reserva, Tarifa, Trabajador } from '@/domain/types';
+import type { Actividad, Cliente, Contrato, Pago, PlantillaClase, PortadaImagen, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import { VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
+import { planDeCobros } from '@/domain/cobros';
 import { generarClases, generarReservasAutomaticas, clasificarCancelacion, caducidadRecuperacion, categoriasPermitidasRecuperacion } from '@/domain/rules';
 import { DB_VERSION, type Db, type Usuario } from './db';
 
@@ -110,9 +111,9 @@ export function crearSeed(ahora: Date = new Date()): Db {
   });
   const contratos: Contrato[] = [
     K('con-maria', 'maria', 'tar-dir2', 'LIBRE'),
-    K('con-juan', 'juan', 'tar-dir2', 'FIJO', ['pl-mar-1800', 'pl-jue-1800']),
+    K('con-juan', 'juan', 'tar-dir2', 'FIJO', ['pl-mar-1800', 'pl-jue-1800'], { oferta: 'NINGUNA', importeCentimos: 5000, metodoPago: 'BIZUM' }),
     K('con-lucia', 'lucia', 'tar-bono-dir', 'LIBRE', [], { sesionesRestantes: 6, fechaFin: sumarDias(inicioPeriodo, 182) }),
-    K('con-carmen', 'carmen', 'tar-ref2', 'FIJO', ['pl-lun-1000', 'pl-mie-1000']),
+    K('con-carmen', 'carmen', 'tar-ref2', 'FIJO', ['pl-lun-1000', 'pl-mie-1000'], { oferta: 'NINGUNA', importeCentimos: 6500, metodoPago: 'EFECTIVO' }),
     K('con-antonio', 'antonio', 'tar-mixta', 'LIBRE'),
     K('con-isabel', 'isabel', 'tar-dir3', 'FIJO', ['pl-lun-0900', 'pl-mie-0900', 'pl-vie-0900']),
     K('con-pedro', 'pedro', 'tar-ref3', 'FIJO', ['pl-lun-1900', 'pl-mie-1900', 'pl-vie-1900']),
@@ -122,6 +123,16 @@ export function crearSeed(ahora: Date = new Date()): Db {
     K('con-paco', 'paco', 'tar-ref2', 'FIJO', ['pl-mar-1700', 'pl-jue-1700']),
     K('con-nuria', 'nuria', 'tar-dir2', 'FIJO', ['pl-lun-1800', 'pl-mie-1800']),
   ];
+
+  // Cobros de ejemplo: Juan tiene pagado el primer mes; Carmen debe el primero (sale "Pago pendiente").
+  const cuotas = (c: Contrato, pagadas: number): Pago[] =>
+    planDeCobros({ tarifa: tarifas.find((t) => t.id === c.tarifaId)!, inicio: c.fechaInicio, fin: c.fechaFin, oferta: c.oferta ?? 'NINGUNA', importeCentimos: c.importeCentimos ?? null })
+      .map((q, k) => ({
+        id: `pag-${c.id}-${k + 1}`, contratoId: c.id, clienteId: c.clienteId, ...q,
+        estado: k < pagadas ? 'PAGADO' : 'PENDIENTE', metodo: k < pagadas ? c.metodoPago ?? null : null,
+        pagadoEl: k < pagadas ? `${q.venceEl}T10:00:00.000Z` : null, creadoEl: ahoraISO,
+      }));
+  const pagos: Pago[] = [...cuotas(contratos[1], 1), ...cuotas(contratos[3], 0)];
 
   const usuarios: Usuario[] = [
     ...trabajadores.map((t): Usuario => ({ id: t.userId!, email: t.email, tipo: 'TRABAJADOR', clienteId: null, trabajadorId: t.id })),
@@ -211,7 +222,7 @@ export function crearSeed(ahora: Date = new Date()): Db {
 
   return {
     version: DB_VERSION,
-    config, actividades, tarifas, clientes, contratos, plantillas, clases, reservas, recuperaciones, avisos,
+    config, actividades, tarifas, clientes, contratos, pagos, plantillas, clases, reservas, recuperaciones, avisos,
     lecturas: [], trabajadores, usuarios,
     auditoria: [{ id: id('aud'), instante: ahoraISO, actorId: 'sistema', actorNombre: 'Sistema', accion: 'SEED', entidad: 'db', entidadId: '-', detalle: 'Datos de demostración generados' }],
     portada: portadaDemo(ahoraISO),
