@@ -95,12 +95,12 @@ export function alcanceAvisos(db: DatosAmbito & { avisos: Aviso[] }, sesion: Ses
  * Recorta una instantánea completa a lo que alcanza el trabajador. Con ámbito
  * CENTRO devuelve el mismo objeto (sin copiar). Con SUS_CLASES deja solo sus
  * clases y franjas, las reservas de esas clases, sus alumnos (con contratos y
- * recuperaciones) y los avisos que le conciernen. Trabajadores, actividades,
+ * recuperaciones, cobros) y los avisos que le conciernen. Trabajadores, actividades,
  * tarifas y configuración no se tocan.
  */
 export function recortarAlAmbito<T extends DatosAmbito & {
   clientes: Cliente[]; plantillas: PlantillaClase[]; avisos: Aviso[];
-  contratos: { clienteId: Id }[]; recuperaciones: { clienteId: Id }[]; lecturas: { clienteId: Id }[];
+  contratos: { clienteId: Id }[]; recuperaciones: { clienteId: Id }[]; lecturas: { clienteId: Id }[]; pagos?: { clienteId: Id }[];
 }>(db: T, sesion: Sesion | null): T {
   const alumnos = alumnosDe(db, sesion);
   if (alumnos === null) return db;
@@ -116,5 +116,6 @@ export function recortarAlAmbito<T extends DatosAmbito & {
     recuperaciones: db.recuperaciones.filter((r) => alumnos.has(r.clienteId)),
     lecturas: db.lecturas.filter((l) => alumnos.has(l.clienteId)),
     avisos: alcanceAvisos(db, sesion),
+    ...(db.pagos ? { pagos: db.pagos.filter((p) => alumnos.has(p.clienteId)) } : {}),
   };
 }

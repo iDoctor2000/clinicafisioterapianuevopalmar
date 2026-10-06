@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, Tag } from 'lucide-react';
-import type { Categoria, Cliente, Contrato, Modalidad, Reserva, Tarifa } from '@/domain/types';
+import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, Pencil, Tag } from 'lucide-react';
+import type { Categoria, Cliente, Contrato, MetodoPago, Modalidad, Oferta, Reserva, Tarifa } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import { DIAS_SEMANA_LABEL, fechaCorta, fechaLarga, hoyISO, sumarDias, sumarMeses } from '@/domain/fechas';
 import { clasificarCancelacion, fechaFinPorDefecto, sesionesPrevistas } from '@/domain/rules';
 import { clasesDelDia } from '@/data/selectores';
+import { aCentimos, aTextoEuros, importeSugerido, planDeCobros } from '@/domain/cobros';
 import { AreaTexto, Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { contratosDeCliente, plantillaVista, resumenCliente, reservasDeClienteSeparadas } from './consultas';
 import { ChipAsistencia, ChipEstadoReserva, ChipOrigen, Confirmacion, Dato, PuntoColor, Segmentado, fechaMedia, may } from './comunes';
+import { CamposPago, PlanCobros, TarjetaCobros, textoPago, type DatosPago } from './Cobros';
 
 const TIPO_TARIFA = { RECURRENTE: 'Mensual', BONO: 'Bono', CLASE_SUELTA: 'Clase suelta' } as const;
 const ESTADO_CONTRATO = { ACTIVO: { texto: 'Activo', tono: 'beige' }, FINALIZADO: { texto: 'Finalizado', tono: 'gris' }, CANCELADO: { texto: 'Cancelado', tono: 'rojo' } } as const;
@@ -22,6 +24,7 @@ const ESTADO_CONTRATO = { ACTIVO: { texto: 'Activo', tono: 'beige' }, FINALIZADO
 export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
   const { db, puede, ejecutar } = useTrabajador();
   const [nueva, setNueva] = useState(false);
+  const [editar, setEditar] = useState(false);
   const [finalizar, setFinalizar] = useState<Contrato | null>(null);
   const [cancelarFuturas, setCancelarFuturas] = useState(true);
   const hoy = hoyISO();
@@ -54,6 +57,7 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
               {tarifa.tipo === 'BONO' && <Dato etiqueta="Sesiones restantes">{contrato.sesionesRestantes ?? 0} de {tarifa.bono?.sesiones}</Dato>}
               {tarifa.tipo === 'RECURRENTE' && <Dato etiqueta="Cupo semanal">{tarifa.cupos.map((c) => `${c.sesionesSemana} ${CATEGORIA_LABEL[c.categoria].toLowerCase()}`).join(' + ')}</Dato>}
               {previstas != null && <Dato etiqueta="Sesiones previstas en el periodo">{previstas} (descontando cierres)</Dato>}
+              <Dato etiqueta="Pago">{textoPago(contrato, tarifa.tipo === 'RECURRENTE')}</Dato>
               {contrato.notas && <Dato etiqueta="Notas" className="sm:col-span-2">{contrato.notas}</Dato>}
             </div>
             {contrato.modalidad === 'FIJO' && (
@@ -73,11 +77,18 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
                 </ul>
               </div>
             )}
-            {puede('CLIENTES_EDITAR') && <div className="mt-6 flex justify-end"><Boton variante="peligro" tamano="sm" onClick={() => setFinalizar(contrato)}>Finalizar contrato</Boton></div>}
+            {puede('CLIENTES_EDITAR') && (
+              <div className="mt-6 flex justify-end gap-2 flex-wrap">
+                <Boton variante="secundario" tamano="sm" onClick={() => setEditar(true)}><Pencil className="h-4 w-4" /> Editar contratación</Boton>
+                <Boton variante="peligro" tamano="sm" onClick={() => setFinalizar(contrato)}>Finalizar contrato</Boton>
+              </div>
+            )}
           </Tarjeta>
         ) : (
           <Tarjeta><Vacio icono={Tag} titulo="Sin tarifa activa" texto="Este cliente no tiene ninguna contratación en vigor." /></Tarjeta>
         )}
+
+        <TarjetaCobros cliente={cliente} contrato={contrato} />
 
         {historial.length > 0 && (
           <Tarjeta>
@@ -102,12 +113,66 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
       </aside>
 
       {nueva && <HojaNuevaContratacion cliente={cliente} onCerrar={() => setNueva(false)} />}
+      {editar && contrato && tarifa && <HojaEditarContratacion contrato={contrato} tarifa={tarifa} onCerrar={() => setEditar(false)} />}
       <Confirmacion abierta={finalizar != null} onCerrar={() => setFinalizar(null)} titulo="Finalizar contrato" textoConfirmar="Finalizar" peligro onConfirmar={confirmarFin}>
         <p>El contrato de <strong className="text-ink">{tarifa?.nombre}</strong> termina hoy. El cliente dejará de poder reservar con esta tarifa.</p>
         <div className="rounded-2xl border border-ink/10 px-4">
           <Interruptor activo={cancelarFuturas} onCambio={setCancelarFuturas} etiqueta="Cancelar sus reservas futuras" descripcion={`${reservasFuturas} reserva${reservasFuturas === 1 ? '' : 's'} pendiente${reservasFuturas === 1 ? '' : 's'} de este contrato. Se cancelan como "por el centro", sin penalizar.`} />
         </div>
       </Confirmacion>
+    </div>
+  );
+}
+
+/** Lista de franjas del horario para elegir las fijas de un contrato (las no incluidas en la tarifa, en gris). */
+function SelectorFranjas({ tarifa, franjas, setFranjas, inicio, fin }: { tarifa: Tarifa; franjas: string[]; setFranjas: (f: string[]) => void; inicio: string; fin: string }) {
+  const { db } = useTrabajador();
+  const cupoPorCat = useMemo(() => new Map(tarifa.cupos.map((c) => [c.categoria, c.sesionesSemana])), [tarifa]);
+  const totalFranjas = Array.from(cupoPorCat.values()).reduce((a, b) => a + b, 0);
+  const categoriaDe = (plantillaId: string): Categoria => db.actividades.find((a) => a.id === db.plantillas.find((p) => p.id === plantillaId)?.actividadId)?.categoria ?? 'DIRIGIDA';
+  // Se listan todas las franjas activas (y las ya elegidas aunque ya no lo estén): las de categorías
+  // que la tarifa no incluye van en gris, con el motivo, para que nadie piense que "falta" una clase.
+  const plantillas = db.plantillas
+    .filter((p) => p.activa || franjas.includes(p.id))
+    .sort((a, b) => a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio));
+  const incluida = (plantillaId: string) => cupoPorCat.has(categoriaDe(plantillaId));
+  const nombreCat = (c: Categoria) => (c === 'REFORMER' ? 'Reformer' : CATEGORIA_LABEL[c].toLowerCase());
+  const categoriasFuera = (['DIRIGIDA', 'REFORMER'] as Categoria[]).filter((c) => !cupoPorCat.has(c) && plantillas.some((p) => categoriaDe(p.id) === c));
+  const elegidasPorCat = (cat: Categoria) => franjas.filter((f) => categoriaDe(f) === cat).length;
+  const alternar = (id: string) => {
+    if (franjas.includes(id)) return setFranjas(franjas.filter((f) => f !== id));
+    const cat = categoriaDe(id);
+    if (elegidasPorCat(cat) >= (cupoPorCat.get(cat) ?? 0)) return toast.info(`Esta tarifa incluye ${cupoPorCat.get(cat)} sesión/es semanales de ${CATEGORIA_LABEL[cat].toLowerCase()}. Desmarca otra franja primero.`);
+    setFranjas([...franjas, id]);
+  };
+  const previstas = sesionesPrevistas({ fechaInicio: inicio, fechaFin: fin, franjasFijas: franjas.map((plantillaId) => ({ plantillaId })) }, db.plantillas, db.config).total;
+  return (
+    <div>
+      <span className="block text-[15px] font-semibold mb-1.5">Franjas fijas <span className="text-ink-muted font-normal">({franjas.length}/{totalFranjas})</span></span>
+      <div className="max-h-64 overflow-y-auto rounded-2xl border border-ink/10 divide-y divide-ink/5">
+        {plantillas.map((p) => {
+          const v = plantillaVista(db, p.id)!;
+          const activa = franjas.includes(p.id);
+          const dentro = incluida(p.id);
+          return (
+            <label key={p.id} className={cn('flex items-center gap-3 p-3', dentro || activa ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed', activa ? 'bg-beige-50' : dentro && 'hover:bg-sand')}>
+              <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={activa} disabled={!dentro && !activa} onChange={() => alternar(p.id)} />
+              <PuntoColor color={v.actividad?.color ?? '#999'} />
+              <span className="flex-1 min-w-0"><span className="font-semibold">{DIAS_SEMANA_LABEL[p.diaSemana]} {p.horaInicio}</span><span className="block text-sm text-ink-muted truncate">{v.actividad?.nombre} · {v.monitor?.nombre} · {p.plazas} plazas</span></span>
+              {!dentro && <span className="text-xs font-semibold text-ink-muted shrink-0">No incluida</span>}
+              {dentro && !p.activa && <span className="text-xs font-semibold text-ink-muted shrink-0">Franja desactivada</span>}
+            </label>
+          );
+        })}
+      </div>
+      {categoriasFuera.length > 0 && (
+        <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3 mt-2">
+          Esta tarifa incluye solo <strong>{Array.from(cupoPorCat.keys()).map((c) => nombreCat(c)).join(' y ')}</strong>: las franjas de {categoriasFuera.map((c) => nombreCat(c)).join(' y ')} aparecen en gris y no se pueden elegir.
+          {categoriasFuera.includes('REFORMER') && ' Para Reformer, elige una tarifa de Reformer o el Pack mixto.'}
+          {categoriasFuera.includes('DIRIGIDA') && ' Para clases dirigidas, elige una tarifa de dirigidas o el Pack mixto.'}
+        </p>
+      )}
+      <p className="text-sm font-medium text-beige-600 mt-2">{previstas} sesiones previstas en el periodo (descontando días de cierre).</p>
     </div>
   );
 }
@@ -122,50 +187,55 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
   const [modalidad, setModalidad] = useState<Modalidad>('FIJO');
   const [franjas, setFranjas] = useState<string[]>([]);
   const [notas, setNotas] = useState('');
+  const [oferta, setOferta] = useState<Oferta>('NINGUNA');
+  const [metodo, setMetodo] = useState<MetodoPago | ''>('');
+  // null = importe propuesto (tarifa u oferta); texto = escrito a mano.
+  const [importeManual, setImporteManual] = useState<string | null>(null);
+  // Importes de cada cuota cambiados a mano (posición → texto). Se descartan si cambia el plan.
+  const [ajustes, setAjustes] = useState<Record<number, string>>({});
+  const [primeroCobrado, setPrimeroCobrado] = useState(false);
   const tarifa: Tarifa | undefined = tarifas.find((t) => t.id === tarifaId);
   const fin = finManual ?? (tarifa ? fechaFinPorDefecto(tarifa, inicio, sumarMeses) : inicio);
   const esRecurrente = tarifa?.tipo === 'RECURRENTE';
   const modalidadReal: Modalidad = esRecurrente ? modalidad : 'LIBRE';
-  const cupoPorCat = useMemo(() => new Map((tarifa?.cupos ?? []).map((c) => [c.categoria, c.sesionesSemana])), [tarifa]);
-  const totalFranjas = Array.from(cupoPorCat.values()).reduce((a, b) => a + b, 0);
-  const categoriaDe = (plantillaId: string): Categoria => db.actividades.find((a) => a.id === db.plantillas.find((p) => p.id === plantillaId)?.actividadId)?.categoria ?? 'DIRIGIDA';
-  // Se listan todas las franjas activas: las de categorías que la tarifa no incluye van en gris,
-  // con el motivo, para que nadie piense que "falta" una clase del horario.
-  const plantillas = db.plantillas
-    .filter((p) => p.activa)
-    .sort((a, b) => a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio));
-  const incluida = (plantillaId: string) => cupoPorCat.has(categoriaDe(plantillaId));
-  const nombreCat = (c: Categoria) => (c === 'REFORMER' ? 'Reformer' : CATEGORIA_LABEL[c].toLowerCase());
-  const categoriasFuera = (['DIRIGIDA', 'REFORMER'] as Categoria[]).filter((c) => !cupoPorCat.has(c) && plantillas.some((p) => categoriaDe(p.id) === c));
-  const elegidasPorCat = (cat: Categoria) => franjas.filter((f) => categoriaDe(f) === cat).length;
-  const alternar = (id: string) => {
-    if (franjas.includes(id)) return setFranjas(franjas.filter((f) => f !== id));
-    const cat = categoriaDe(id);
-    if (elegidasPorCat(cat) >= (cupoPorCat.get(cat) ?? 0)) return toast.info(`Esta tarifa incluye ${cupoPorCat.get(cat)} sesión/es semanales de ${CATEGORIA_LABEL[cat].toLowerCase()}.`);
-    setFranjas([...franjas, id]);
-  };
-  const previstas = modalidadReal === 'FIJO' ? sesionesPrevistas({ fechaInicio: inicio, fechaFin: fin, franjasFijas: franjas.map((plantillaId) => ({ plantillaId })) }, db.plantillas, db.config).total : null;
+  const importeTexto = importeManual ?? aTextoEuros(tarifa ? importeSugerido(tarifa, oferta) : null);
+  const importeCentimos = aCentimos(importeTexto);
+  const plan = tarifa ? planDeCobros({ tarifa, inicio, fin, oferta, importeCentimos: importeManual == null ? null : importeCentimos }) : [];
+  const importesPlan = plan.map((q, i) => ajustes[i] ?? aTextoEuros(q.importeCentimos));
+  const reiniciarPlan = () => setAjustes({});
 
   const guardar = async () => {
     if (!tarifa) return;
     if (fin < inicio) return toast.error('La fecha de fin debe ser posterior al inicio.');
     if (modalidadReal === 'FIJO' && franjas.length === 0) return toast.error('Elige al menos una franja fija.');
+    if (importeTexto.trim() && importeCentimos == null) return toast.error('El importe no es válido: escríbelo en euros (por ejemplo 45 o 45,50).');
+    const cuotas = plan.map((q, i) => ({ ...q, importeCentimos: aCentimos(importesPlan[i]) }));
+    if (cuotas.some((q) => q.importeCentimos == null)) return toast.error('Revisa los importes del plan de cobros.');
+    if (primeroCobrado && !metodo) return toast.error('Elige la forma de pago para apuntar el primer cobro.');
     const r = await ejecutar('crearContrato', {
-      contrato: { clienteId: cliente.id, tarifaId: tarifa.id, fechaInicio: inicio, fechaFin: fin, modalidad: modalidadReal, franjasFijas: modalidadReal === 'FIJO' ? franjas.map((plantillaId) => ({ plantillaId })) : [], sesionesRestantes: tarifa.bono?.sesiones ?? null, actividadesPermitidasIds: [], notas: notas.trim() },
+      contrato: {
+        clienteId: cliente.id, tarifaId: tarifa.id, fechaInicio: inicio, fechaFin: fin, modalidad: modalidadReal,
+        franjasFijas: modalidadReal === 'FIJO' ? franjas.map((plantillaId) => ({ plantillaId })) : [], sesionesRestantes: tarifa.bono?.sesiones ?? null,
+        actividadesPermitidasIds: [], notas: notas.trim(), oferta, importeCentimos, metodoPago: metodo || null,
+      },
+      cobros: cuotas.map((q, i) => ({
+        concepto: q.concepto, importeCentimos: q.importeCentimos!, venceEl: q.venceEl,
+        estado: i === 0 && primeroCobrado ? 'PAGADO' : 'PENDIENTE', metodo: i === 0 && primeroCobrado ? metodo || null : null, pagadoEl: null,
+      })),
     });
-    if (r.ok) { toast.ok('Contratación creada. Las reservas de horario fijo se han generado automáticamente.'); onCerrar(); } else toast.error(r.error);
+    if (r.ok) { toast.ok('Contratación creada. Las reservas de horario fijo y el plan de cobros se han generado.'); onCerrar(); } else toast.error(r.error);
   };
 
   return (
     <Hoja abierta onCerrar={onCerrar} titulo="Nueva contratación" className="sm:max-w-2xl">
       <div className="space-y-4">
-        <Seleccion etiqueta="Tarifa" value={tarifaId} onChange={(e) => { setTarifaId(e.target.value); setFranjas([]); setFinManual(null); }}>
+        <Seleccion etiqueta="Tarifa" value={tarifaId} onChange={(e) => { setTarifaId(e.target.value); setFranjas([]); setFinManual(null); setImporteManual(null); reiniciarPlan(); }}>
           {tarifas.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
         </Seleccion>
         {tarifa && <p className="text-sm text-ink-muted -mt-2">{tarifa.descripcion}</p>}
         <div className="grid grid-cols-2 gap-3">
-          <Entrada etiqueta="Fecha de inicio" type="date" value={inicio} onChange={(e) => { setInicio(e.target.value); setFinManual(null); }} />
-          <Entrada etiqueta="Fecha de fin" type="date" value={fin} min={inicio} onChange={(e) => setFinManual(e.target.value)} />
+          <Entrada etiqueta="Fecha de inicio" type="date" value={inicio} onChange={(e) => { setInicio(e.target.value); setFinManual(null); reiniciarPlan(); }} />
+          <Entrada etiqueta="Fecha de fin" type="date" value={fin} min={inicio} onChange={(e) => { setFinManual(e.target.value); reiniciarPlan(); }} />
         </div>
         {esRecurrente && (
           <div>
@@ -174,37 +244,71 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
             <p className="text-sm text-ink-muted mt-1">{modalidad === 'FIJO' ? 'Las reservas se generan automáticamente cada semana en las franjas elegidas.' : 'El cliente reserva cada semana las clases que quiera dentro de su cupo.'}</p>
           </div>
         )}
-        {esRecurrente && modalidad === 'FIJO' && (
-          <div>
-            <span className="block text-[15px] font-semibold mb-1.5">Franjas fijas <span className="text-ink-muted font-normal">({franjas.length}/{totalFranjas})</span></span>
-            <div className="max-h-64 overflow-y-auto rounded-2xl border border-ink/10 divide-y divide-ink/5">
-              {plantillas.map((p) => {
-                const v = plantillaVista(db, p.id)!;
-                const activa = franjas.includes(p.id);
-                const dentro = incluida(p.id);
-                return (
-                  <label key={p.id} className={cn('flex items-center gap-3 p-3', dentro ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed', activa ? 'bg-beige-50' : dentro && 'hover:bg-sand')}>
-                    <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={activa} disabled={!dentro} onChange={() => alternar(p.id)} />
-                    <PuntoColor color={v.actividad?.color ?? '#999'} />
-                    <span className="flex-1 min-w-0"><span className="font-semibold">{DIAS_SEMANA_LABEL[p.diaSemana]} {p.horaInicio}</span><span className="block text-sm text-ink-muted truncate">{v.actividad?.nombre} · {v.monitor?.nombre} · {p.plazas} plazas</span></span>
-                    {!dentro && <span className="text-xs font-semibold text-ink-muted shrink-0">No incluida</span>}
-                  </label>
-                );
-              })}
-            </div>
-            {categoriasFuera.length > 0 && (
-              <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3 mt-2">
-                Esta tarifa incluye solo <strong>{Array.from(cupoPorCat.keys()).map((c) => nombreCat(c)).join(' y ')}</strong>: las franjas de {categoriasFuera.map((c) => nombreCat(c)).join(' y ')} aparecen en gris y no se pueden elegir.
-                {categoriasFuera.includes('REFORMER') && ' Para Reformer, elige una tarifa de Reformer o el Pack mixto.'}
-                {categoriasFuera.includes('DIRIGIDA') && ' Para clases dirigidas, elige una tarifa de dirigidas o el Pack mixto.'}
-              </p>
-            )}
-            {previstas != null && <p className="text-sm font-medium text-beige-600 mt-2">{previstas} sesiones previstas en el periodo (descontando días de cierre).</p>}
-          </div>
-        )}
+        {tarifa && esRecurrente && modalidad === 'FIJO' && <SelectorFranjas tarifa={tarifa} franjas={franjas} setFranjas={setFranjas} inicio={inicio} fin={fin} />}
         {tarifa?.tipo === 'BONO' && tarifa.bono && <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3">Bono de <strong>{tarifa.bono.sesiones} sesiones</strong> de {CATEGORIA_LABEL[tarifa.bono.categoria].toLowerCase()}, válido hasta el {fechaMedia(fin)}.</p>}
+
+        <div className="border-t border-ink/10 pt-4 space-y-4">
+          <h3 className="font-semibold text-lg">Pago</h3>
+          <CamposPago mensual={esRecurrente} datos={{ oferta, importe: importeTexto, metodo }}
+            onCambio={(d) => {
+              if (d.oferta !== oferta) { setOferta(d.oferta); setImporteManual(null); reiniciarPlan(); }
+              if (d.importe !== importeTexto) { setImporteManual(d.importe); reiniciarPlan(); }
+              setMetodo(d.metodo);
+            }} />
+          {plan.length > 0 && (
+            <PlanCobros plan={plan} importes={importesPlan} onImporte={(i, t) => setAjustes({ ...ajustes, [i]: t })} primeroCobrado={primeroCobrado} onPrimeroCobrado={setPrimeroCobrado} />
+          )}
+        </div>
+
         <AreaTexto etiqueta="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" className="min-h-[4rem]" />
         <Boton ancho onClick={guardar}>Crear contratación</Boton>
+      </div>
+    </Hoja>
+  );
+}
+
+function HojaEditarContratacion({ contrato, tarifa, onCerrar }: { contrato: Contrato; tarifa: Tarifa; onCerrar: () => void }) {
+  const { ejecutar } = useTrabajador();
+  const [fin, setFin] = useState(contrato.fechaFin);
+  const [franjas, setFranjas] = useState<string[]>(contrato.franjasFijas.map((f) => f.plantillaId));
+  const [notas, setNotas] = useState(contrato.notas);
+  const [sesiones, setSesiones] = useState(String(contrato.sesionesRestantes ?? 0));
+  const [pago, setPago] = useState<DatosPago>({ oferta: contrato.oferta ?? 'NINGUNA', importe: aTextoEuros(contrato.importeCentimos ?? null), metodo: contrato.metodoPago ?? '' });
+  const esFijo = contrato.modalidad === 'FIJO';
+
+  const guardar = async () => {
+    if (fin < contrato.fechaInicio) return toast.error('La fecha de fin debe ser posterior al inicio.');
+    if (esFijo && franjas.length === 0) return toast.error('Elige al menos una franja fija.');
+    const importe = aCentimos(pago.importe);
+    if (pago.importe.trim() && importe == null) return toast.error('El importe no es válido: escríbelo en euros (por ejemplo 45 o 45,50).');
+    const r = await ejecutar('editarContrato', {
+      contratoId: contrato.id,
+      cambios: {
+        fechaFin: fin, franjasFijas: franjas.map((plantillaId) => ({ plantillaId })), notas: notas.trim(),
+        oferta: pago.oferta, importeCentimos: importe, metodoPago: pago.metodo || null,
+        sesionesRestantes: tarifa.tipo === 'BONO' ? Math.max(0, Number(sesiones) || 0) : null,
+      },
+    });
+    if (r.ok) { toast.ok(esFijo ? 'Contratación actualizada. Las reservas fijas futuras se han rehecho.' : 'Contratación actualizada.'); onCerrar(); } else toast.error(r.error);
+  };
+
+  return (
+    <Hoja abierta onCerrar={onCerrar} titulo="Editar contratación" className="sm:max-w-2xl">
+      <div className="space-y-4">
+        <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3"><strong className="text-ink">{tarifa.nombre}</strong> desde el {fechaMedia(contrato.fechaInicio)}. Para cambiar de tarifa, crea una contratación nueva: esta se finaliza sola.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Entrada etiqueta="Fecha de fin" type="date" value={fin} min={contrato.fechaInicio} onChange={(e) => setFin(e.target.value)} />
+          {tarifa.tipo === 'BONO' && <Entrada etiqueta="Sesiones que quedan" type="number" min={0} value={sesiones} onChange={(e) => setSesiones(e.target.value)} />}
+        </div>
+        {esFijo && <SelectorFranjas tarifa={tarifa} franjas={franjas} setFranjas={setFranjas} inicio={contrato.fechaInicio} fin={fin} />}
+        {esFijo && <p className="text-sm text-ink-muted -mt-2">Al guardar, las reservas automáticas futuras se rehacen con estas franjas. Las clases pasadas y las reservas hechas a mano no se tocan.</p>}
+        <div className="border-t border-ink/10 pt-4 space-y-4">
+          <h3 className="font-semibold text-lg">Pago</h3>
+          <CamposPago mensual={tarifa.tipo === 'RECURRENTE'} datos={pago} onCambio={setPago} />
+          <p className="text-sm text-ink-muted">Los cobros ya apuntados no cambian: se gestionan en la tarjeta "Cobros".</p>
+        </div>
+        <AreaTexto etiqueta="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" className="min-h-[4rem]" />
+        <Boton ancho onClick={guardar}>Guardar cambios</Boton>
       </div>
     </Hoja>
   );

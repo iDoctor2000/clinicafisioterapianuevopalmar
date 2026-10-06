@@ -5,7 +5,7 @@
  * (Supabase Edge Functions) sin cambios.
  */
 import type {
-  Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, Id, ISODate,
+  Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, Id, ISODate, MetodoPago, Oferta, Pago,
   PlantillaClase, PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
 } from '@/domain/types';
 import { tienePermiso } from '@/domain/types';
@@ -320,7 +320,15 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
     const futuras = nuevo.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy);
     const borrables = new Set(futuras.filter((c) => nuevo.reservas.every((r) => r.claseId !== c.id || soloAutomatica(r))).map((c) => c.id));
     conservadas = futuras.length - borrables.size;
-    nuevo = { ...nuevo, clases: nuevo.clases.filter((c) => !borrables.has(c.id)), reservas: nuevo.reservas.filter((r) => !borrables.has(r.claseId)) };
+    // Las conservadas mantienen su día y hora (sus alumnos ya cuentan con ellas), pero toman la
+    // actividad, el monitor, la duración y las plazas nuevas (nunca menos plazas que alumnos apuntados).
+    const conservar = new Set(futuras.filter((c) => !borrables.has(c.id)).map((c) => c.id));
+    const ocupadas = (claseId: Id) => nuevo.reservas.filter((r) => r.claseId === claseId && r.estado === 'RESERVADA').length;
+    nuevo = {
+      ...nuevo,
+      clases: nuevo.clases.filter((c) => !borrables.has(c.id)).map((c) => (conservar.has(c.id) ? { ...c, actividadId: p.actividadId, monitorId: p.monitorId, duracionMin: p.duracionMin, plazas: Math.max(p.plazas, ocupadas(c.id)) } : c)),
+      reservas: nuevo.reservas.filter((r) => !borrables.has(r.claseId)),
+    };
   }
   nuevo = generarClasesPendientes(nuevo, ahora);
   const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas` : `${p.diaSemana} ${p.horaInicio}`;
@@ -361,7 +369,10 @@ export function guardarCliente(ctx: Ctx, args: { cliente: Omit<Cliente, 'id'> & 
   return ok(auditar(nuevo, sesion, ahora, existente ? 'EDITAR_CLIENTE' : 'CREAR_CLIENTE', 'cliente', cliente.id, `${cliente.nombre} ${cliente.apellidos}`), cliente);
 }
 
-export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 'creadoEl' | 'creadoPor' | 'estado'> }): Resultado<Contrato> {
+/** Cuota o cobro que se crea junto con el contrato (plan de cobros). */
+export type CobroNuevo = Pick<Pago, 'concepto' | 'importeCentimos' | 'venceEl' | 'estado' | 'metodo' | 'pagadoEl'>;
+
+export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 'creadoEl' | 'creadoPor' | 'estado'>; cobros?: CobroNuevo[] }): Resultado<Contrato> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'CLIENTES_EDITAR');
   if (e) return fallo(e);
@@ -375,8 +386,84 @@ export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 
   const contratos = db.contratos.map((c) => (c.clienteId === contrato.clienteId && c.estado === 'ACTIVO' ? { ...c, estado: 'FINALIZADO' as const } : c)).concat(contrato);
   let nuevo: Db = { ...db, contratos };
   const reservas = nuevo.reservas.concat(generarReservasAutomaticas(contrato, nuevo.clases, nuevo.reservas, () => nuevoId('res'), ahora.toISOString()));
-  nuevo = { ...nuevo, reservas };
+  const pagos = (args.cobros ?? []).map((q): Pago => ({
+    ...q, id: nuevoId('pag'), contratoId: contrato.id, clienteId: contrato.clienteId, creadoEl: ahora.toISOString(),
+    pagadoEl: q.estado === 'PAGADO' ? q.pagadoEl ?? ahora.toISOString() : null,
+  }));
+  nuevo = { ...nuevo, reservas, pagos: [...nuevo.pagos, ...pagos] };
   return ok(auditar(nuevo, sesion, ahora, 'CREAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${tarifa.nombre} ${contrato.fechaInicio}→${contrato.fechaFin}`), contrato);
+}
+
+/** Datos de un contrato que se pueden cambiar después de crearlo (la tarifa y el inicio no). */
+export interface CambiosContrato {
+  fechaFin: ISODate;
+  franjasFijas: Contrato['franjasFijas'];
+  notas: string;
+  oferta: Oferta;
+  importeCentimos: number | null;
+  metodoPago: MetodoPago | null;
+  /** Solo bonos: corregir las sesiones que quedan. */
+  sesionesRestantes: number | null;
+}
+
+/**
+ * Modifica un contrato activo. Si cambian las franjas fijas o la fecha de fin, las reservas
+ * automáticas futuras que ya no corresponden se eliminan y se generan las que falten.
+ * Las reservas pasadas y las hechas a mano no se tocan.
+ */
+export function editarContrato(ctx: Ctx, args: { contratoId: Id; cambios: CambiosContrato }): Resultado<Contrato> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLIENTES_EDITAR');
+  if (e) return fallo(e);
+  const actual = db.contratos.find((c) => c.id === args.contratoId);
+  if (!actual) return fallo('El contrato no existe.');
+  if (actual.estado !== 'ACTIVO') return fallo('Solo se puede modificar un contrato activo.');
+  const k = args.cambios;
+  if (k.fechaFin < actual.fechaInicio) return fallo('La fecha de fin debe ser posterior al inicio.');
+  if (actual.modalidad === 'FIJO' && k.franjasFijas.length === 0) return fallo('Un contrato de horario fijo necesita al menos una franja.');
+  const tarifa = db.tarifas.find((t) => t.id === actual.tarifaId);
+  const contrato: Contrato = {
+    ...actual, fechaFin: k.fechaFin, notas: k.notas, oferta: k.oferta, importeCentimos: k.importeCentimos, metodoPago: k.metodoPago,
+    franjasFijas: actual.modalidad === 'FIJO' ? k.franjasFijas : [],
+    sesionesRestantes: tarifa?.tipo === 'BONO' ? Math.max(0, k.sesionesRestantes ?? actual.sesionesRestantes ?? 0) : actual.sesionesRestantes,
+  };
+  const hoy = aISODate(ahora);
+  const franjas = new Set(contrato.franjasFijas.map((f) => f.plantillaId));
+  const claseDe = indexar(db.clases);
+  const sobra = (r: Reserva) => {
+    if (r.contratoId !== contrato.id || r.origen !== 'AUTOMATICA' || r.estado !== 'RESERVADA') return false;
+    const c = claseDe.get(r.claseId);
+    return !!c && c.fecha >= hoy && (!c.plantillaId || !franjas.has(c.plantillaId) || c.fecha > contrato.fechaFin);
+  };
+  let reservas = db.reservas.filter((r) => !sobra(r));
+  reservas = reservas.concat(generarReservasAutomaticas(contrato, db.clases.filter((c) => c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()));
+  const nuevo: Db = { ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas };
+  return ok(auditar(nuevo, sesion, ahora, 'EDITAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: fin ${contrato.fechaFin}`), contrato);
+}
+
+/** Crea o modifica un cobro (cuota del plan o cobro suelto). */
+export function guardarPago(ctx: Ctx, args: { pago: Omit<Pago, 'id' | 'creadoEl'> & { id?: Id } }): Resultado<Pago> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLIENTES_EDITAR');
+  if (e) return fallo(e);
+  if (!Number.isFinite(args.pago.importeCentimos) || args.pago.importeCentimos < 0) return fallo('El importe no es válido.');
+  if (!args.pago.concepto.trim()) return fallo('Escribe un concepto (por ejemplo, "Mes 1").');
+  const existente = args.pago.id ? db.pagos.find((p) => p.id === args.pago.id) : undefined;
+  const pago: Pago = {
+    ...args.pago, concepto: args.pago.concepto.trim(), id: existente?.id ?? nuevoId('pag'), creadoEl: existente?.creadoEl ?? ahora.toISOString(),
+    pagadoEl: args.pago.estado === 'PAGADO' ? args.pago.pagadoEl ?? ahora.toISOString() : null,
+  };
+  const nuevo: Db = { ...db, pagos: existente ? db.pagos.map((p) => (p.id === pago.id ? pago : p)) : [...db.pagos, pago] };
+  return ok(auditar(nuevo, sesion, ahora, existente ? 'EDITAR_PAGO' : 'CREAR_PAGO', 'pago', pago.id, `${nombreCliente(db, pago.clienteId)}: ${pago.concepto} · ${pago.importeCentimos / 100} € · ${pago.estado}`), pago);
+}
+
+export function borrarPago(ctx: Ctx, args: { id: Id }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLIENTES_EDITAR');
+  if (e) return fallo(e);
+  const pago = db.pagos.find((p) => p.id === args.id);
+  if (!pago) return fallo('El cobro no existe.');
+  return ok(auditar({ ...db, pagos: db.pagos.filter((p) => p.id !== args.id) }, sesion, ahora, 'BORRAR_PAGO', 'pago', pago.id, `${nombreCliente(db, pago.clienteId)}: ${pago.concepto}`), undefined);
 }
 
 export function finalizarContrato(ctx: Ctx, args: { contratoId: Id; cancelarReservasFuturas: boolean }): Resultado<void> {

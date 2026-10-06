@@ -17,7 +17,7 @@ import type { Db } from '../db';
 import type { ArgsComando, NombreComando, ValorComando } from '../tiposComandos';
 import { mensajeError, servidor } from './cliente';
 import { borrarFoto } from './fotos';
-import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePlantilla, dePortadaImagen, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
+import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePago, dePlantilla, dePortadaImagen, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
 import { borrarImagenPortada } from './portada';
 
 export type ResultadoRemoto<T = unknown> = { ok: true; valor: (db: Db) => T } | { ok: false; error: string };
@@ -143,8 +143,38 @@ const impl: Impl = {
       p_cliente_id: c.clienteId, p_tarifa_id: c.tarifaId, p_fecha_inicio: c.fechaInicio, p_fecha_fin: c.fechaFin, p_modalidad: c.modalidad,
       p_franjas: c.modalidad === 'FIJO' ? c.franjasFijas.map((f) => f.plantillaId) : [], p_actividades_permitidas: c.actividadesPermitidasIds,
       p_notas: c.notas, p_sesiones_restantes: c.sesionesRestantes,
+      p_oferta: c.oferta ?? 'NINGUNA', p_importe_centimos: c.importeCentimos ?? null, p_metodo_pago: c.metodoPago ?? null,
+      p_cobros: (args.cobros ?? []).map((q) => ({
+        concepto: q.concepto, importe_centimos: q.importeCentimos, vence_el: q.venceEl, estado: q.estado, metodo: q.metodo,
+        pagado_el: q.estado === 'PAGADO' ? q.pagadoEl ?? new Date().toISOString() : null,
+      })),
     });
     return (db) => db.contratos.find((x) => x.id === id) ?? { ...c, id, estado: 'ACTIVO', creadoEl: new Date().toISOString(), creadoPor: 'sistema' };
+  },
+
+  async editarContrato(args) {
+    const k = args.cambios;
+    await rpc('editar_contrato', {
+      p_contrato_id: args.contratoId, p_fecha_fin: k.fechaFin, p_franjas: k.franjasFijas.map((f) => f.plantillaId), p_notas: k.notas,
+      p_oferta: k.oferta, p_importe_centimos: k.importeCentimos, p_metodo_pago: k.metodoPago, p_sesiones_restantes: k.sesionesRestantes,
+    });
+    return (db) => db.contratos.find((x) => x.id === args.contratoId)!;
+  },
+
+  async guardarPago(args) {
+    const id = args.pago.id ?? nuevoUuid();
+    const fila = dePago({ ...args.pago, id, concepto: args.pago.concepto.trim() });
+    const r = await servidor().from('pagos').upsert(fila).select('id');
+    comprobar(r);
+    if (!r.data || r.data.length === 0) throw new Error('No se ha podido guardar el cobro: no tienes permiso para este cliente.');
+    return (db) => db.pagos.find((x) => x.id === id) ?? { ...args.pago, id, creadoEl: new Date().toISOString() };
+  },
+
+  async borrarPago(args) {
+    const r = await servidor().from('pagos').delete().eq('id', args.id).select('id');
+    comprobar(r);
+    if (!r.data || r.data.length === 0) throw new Error('No se ha podido borrar el cobro: no tienes permiso para este cliente.');
+    return () => undefined;
   },
 
   async finalizarContrato(args) {

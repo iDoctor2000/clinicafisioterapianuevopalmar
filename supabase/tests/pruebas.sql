@@ -852,4 +852,99 @@ commit;
 select pruebas.sistema();
 
 \echo
+\echo '== 25. Cobros y edición de contratos (0013)'
+select pruebas.sistema();
+select pruebas.guardar('cliente_z', 'e0000000-0000-4000-8000-0000000000ff');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cliente_z'), 'Zoe', 'Cobros', '99999999Z', 'zoe@test.local', '600 000 099') on conflict (id) do nothing;
+select pruebas.como('admin');
+-- Alta con datos de pago y plan de cobros (oferta trimestral: 65 / 65 / 0; el primero cobrado).
+select pruebas.guardar('con_z', public.crear_contrato(
+  pruebas.id('cliente_z'), pruebas.id('tar_dir2'), public._hoy(), null, 'FIJO', array[pruebas.id('pl_lun_0900')], '{}', 'Prueba', null,
+  'TRIMESTRAL', 6500, 'BIZUM',
+  jsonb_build_array(
+    jsonb_build_object('concepto', 'Mes 1', 'importe_centimos', 6500, 'vence_el', public._hoy(), 'estado', 'PAGADO', 'metodo', 'BIZUM'),
+    jsonb_build_object('concepto', 'Mes 2', 'importe_centimos', 6500, 'vence_el', (public._hoy() + interval '1 month')::date, 'estado', 'PENDIENTE'),
+    jsonb_build_object('concepto', 'Mes 3', 'importe_centimos', 0, 'vence_el', (public._hoy() + interval '2 months')::date, 'estado', 'PENDIENTE', 'metodo', 'NO_VALE')
+  ))::text);
+do $$
+declare v_con uuid := pruebas.id('con_z');
+begin
+  assert (select oferta = 'TRIMESTRAL' and importe_centimos = 6500 and metodo_pago = 'BIZUM' from public.contratos where id = v_con), 'datos de pago guardados en el contrato';
+  assert (select count(*) from public.pagos where contrato_id = v_con) = 3, 'plan de 3 cobros';
+  assert (select count(*) from public.pagos where contrato_id = v_con and estado = 'PAGADO' and pagado_el is not null and proveedor = 'BIZUM') = 1, 'el primero, cobrado por Bizum';
+  assert (select proveedor from public.pagos where contrato_id = v_con and concepto = 'Mes 3') = 'SIN_INDICAR', 'un método no válido queda sin indicar';
+  assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
+           where r.contrato_id = v_con and r.origen = 'AUTOMATICA' and c.plantilla_id = pruebas.id('pl_lun_0900') and c.fecha >= public._hoy()) > 0, 'reservas automáticas del lunes';
+end $$;
+-- Edición: cambia la franja del lunes por la del miércoles, la forma de pago y la fecha de fin.
+select public.editar_contrato(pruebas.id('con_z'), (public._hoy() + interval '2 months')::date, array[pruebas.id('pl_mie_0900')], 'Cambia a miércoles',
+                              'TRIMESTRAL', 6500, 'EFECTIVO', null);
+do $$
+declare v_con uuid := pruebas.id('con_z');
+begin
+  assert (select metodo_pago = 'EFECTIVO' and notas = 'Cambia a miércoles' and fecha_fin = (public._hoy() + interval '2 months')::date from public.contratos where id = v_con), 'contrato editado';
+  assert (select array_agg(plantilla_id) from public.contrato_franjas where contrato_id = v_con) = array[pruebas.id('pl_mie_0900')], 'franjas cambiadas';
+  assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
+           where r.contrato_id = v_con and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_lun_0900') and c.fecha >= public._hoy()) = 0, 'sin reservas futuras del lunes';
+  assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
+           where r.contrato_id = v_con and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_mie_0900') and c.fecha >= public._hoy()) > 0, 'reservas futuras del miércoles';
+  assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
+           where r.contrato_id = v_con and c.fecha > (public._hoy() + interval '2 months')::date) = 0, 'nada después del nuevo fin';
+end $$;
+select pruebas.espera_error(format('select public.editar_contrato(%L, %L, %L::uuid[])', pruebas.id('con_z'), public._hoy(), '{}'), '%necesita al menos una franja%');
+select pruebas.espera_error(format('select public.editar_contrato(%L, %L)', pruebas.id('con_z'), public._hoy() - 400), '%posterior al inicio%');
+-- El administrador marca el mes 2 como cobrado (escritura directa, RLS).
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+update public.pagos set estado = 'PAGADO', proveedor = 'EFECTIVO', pagado_el = now() where contrato_id = pruebas.id('con_z') and concepto = 'Mes 2';
+do $$ begin assert (select estado from public.pagos where contrato_id = pruebas.id('con_z') and concepto = 'Mes 2') = 'PAGADO', 'el admin cobra el mes 2'; end $$;
+-- No se puede colgar un cobro de un contrato de otro cliente.
+select pruebas.espera_error(format('insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos) values (%L, %L, %L, 100)', pruebas.id('con_z'), pruebas.id('cliente_a'), 'Truco'), '%row-level security%');
+commit;
+-- Un cliente no ve los cobros de otro ni puede tocarlos.
+begin;
+set local role authenticated;
+select pruebas.como('a');
+do $$ begin assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_z')) = 0, 'un cliente no ve cobros ajenos'; end $$;
+select pruebas.espera_sin_efecto(format('update public.pagos set estado = %L where cliente_id = %L', 'PAGADO', pruebas.id('cliente_z')));
+select pruebas.espera_error(format('select public.editar_contrato(%L, %L, %L::uuid[])', pruebas.id('con_z'), current_date + 30, array[pruebas.id('pl_mie_0900')]), '%No tienes permiso%');
+commit;
+select pruebas.sistema();
+do $$ begin raise notice 'OK cobros y contratos'; end $$;
+
+\echo
+\echo '== 26. Horario (0013): las clases que se conservan por tener alumnos toman la actividad y las plazas nuevas'
+select pruebas.sistema();
+do $$
+declare
+  v_pl uuid := pruebas.id('pl_jue_1100');
+  v_hoy date := public._hoy();
+  v_act_antes uuid; v_plazas_antes integer; v_clase uuid; v_conservadas integer;
+begin
+  select actividad_id, plazas into v_act_antes, v_plazas_antes from public.plantillas_clase where id = v_pl;
+  select id into v_clase from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy
+     and exists (select 1 from public.reservas r where r.clase_id = clases.id and r.origen = 'MANUAL') order by fecha limit 1;
+  assert v_clase is not null, 'hay una clase con reserva manual (bloque 24)';
+  update public.plantillas_clase set actividad_id = pruebas.id('act_reformer'), plazas = 1 where id = v_pl;
+  perform set_config('request.jwt.claim.sub', current_setting('pruebas.u_admin'), false);
+  v_conservadas := public.plantilla_aplicar_cambios(v_pl);
+  perform set_config('request.jwt.claim.sub', '', false);
+  assert v_conservadas >= 1, 'se conserva la clase con alumnos';
+  assert (select actividad_id from public.clases where id = v_clase) = pruebas.id('act_reformer'), 'la clase conservada toma la actividad nueva';
+  assert (select hora_inicio from public.clases where id = v_clase) = '11:00'::time, 'y mantiene su hora';
+  assert (select plazas from public.clases where id = v_clase) >= (select count(*) from public.reservas where clase_id = v_clase and estado = 'RESERVADA'),
+    'nunca menos plazas que alumnos apuntados';
+  assert (select count(*) from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy and actividad_id <> pruebas.id('act_reformer')) = 0,
+    'todas las clases futuras de la franja tienen la actividad nueva';
+  -- Se deja como estaba.
+  update public.plantillas_clase set actividad_id = v_act_antes, plazas = v_plazas_antes where id = v_pl;
+  perform set_config('request.jwt.claim.sub', current_setting('pruebas.u_admin'), false);
+  perform public.plantilla_aplicar_cambios(v_pl);
+  perform set_config('request.jwt.claim.sub', '', false);
+  raise notice 'OK horario: clases conservadas actualizadas';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

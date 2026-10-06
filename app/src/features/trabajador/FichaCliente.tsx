@@ -9,6 +9,7 @@ import { nombreCompleto, recuperacionesDeCliente } from '@/data/selectores';
 import { AreaTexto, Boton, Chip, Entrada, Hoja, Tarjeta, Vacio, toast } from '@/ui';
 import { useTrabajador } from './useTrabajador';
 import { historialAsistencia, resumenCliente } from './consultas';
+import { pagosVencidos } from '@/domain/cobros';
 import { AvatarCliente, BloqueRestringido, Dato, Encabezado, Pestanas, fechaMedia, instanteCorto } from './comunes';
 import { SelectorFoto } from '@/features/comun/SelectorFoto';
 import { FormularioCliente, type DatosCliente } from './Clientes';
@@ -40,6 +41,7 @@ export function FichaCliente() {
               {r.contrato && <Chip tono="gris">{r.contrato.modalidad === 'FIJO' ? 'Horario fijo' : 'Turno libre'}</Chip>}
               {r.tarifa?.tipo === 'BONO' && r.contrato && <Chip tono="cocoa">Bono {r.contrato.sesionesRestantes ?? 0}/{r.tarifa.bono?.sesiones}</Chip>}
               {r.recuperaciones > 0 && <Chip tono="azul">{r.recuperaciones} recup.</Chip>}
+              {pagosVencidos(db.pagos, cliente.id, hoy).length > 0 && <Chip tono="rojo">Pago pendiente</Chip>}
             </div>
             <div className="flex gap-x-4 gap-y-1 flex-wrap text-sm text-ink-soft mt-2">
               {cliente.telefono && <a href={`tel:${cliente.telefono.replace(/\s/g, '')}`} className="inline-flex items-center gap-1 hover:underline"><Phone className="h-4 w-4" />{cliente.telefono}</a>}

@@ -10,10 +10,10 @@ import { aISODate } from '@/domain/fechas';
 import { DB_VERSION, type Db } from '../db';
 import { mensajeError, servidor } from './cliente';
 import {
-  aActividad, aAuditoria, aAviso, aClase, aCliente, aConfig, aContrato, aLectura, aPlantilla, aRecuperacion, aReserva, aTarifa,
+  aActividad, aAuditoria, aAviso, aClase, aCliente, aConfig, aContrato, aLectura, aPago, aPlantilla, aRecuperacion, aReserva, aTarifa,
   aPortadaImagen, aTrabajador, aTrabajadorDesdeMonitor, derivarUsuarios,
   type FilaActividad, type FilaAuditoria, type FilaAviso, type FilaAvisoDestinatario, type FilaAvisoLectura, type FilaClase, type FilaCliente,
-  type FilaClienteClinica, type FilaConfigCentro, type FilaContrato, type FilaContratoFranja, type FilaDiaCierre, type FilaMonitor,
+  type FilaClienteClinica, type FilaConfigCentro, type FilaContrato, type FilaContratoFranja, type FilaDiaCierre, type FilaPago, type FilaMonitor,
   type FilaPlantillaClase, type FilaPortadaImagen, type FilaRecuperacion, type FilaReserva, type FilaTarifa, type FilaTarifaCupo, type FilaTrabajador, type FilaTrabajadorPermiso,
 } from './mapeo';
 
@@ -53,7 +53,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
   if (configRes.error) throw new Error(`No se han podido cargar los datos del centro: ${mensajeError(configRes.error)}`);
 
   const [
-    cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, contratos, franjas,
+    cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, contratos, franjas, pagos,
     reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada,
   ] = await Promise.all([
     tabla<FilaDiaCierre>('dias_cierre', de('dias_cierre')),
@@ -69,6 +69,8 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     tabla<FilaClase>('clases', sb.from('clases').select('*').gte('fecha', desde).lte('fecha', hasta).order('fecha').order('hora_inicio').limit(LIMITE_FILAS) as unknown as Consulta<FilaClase>),
     tabla<FilaContrato>('contratos', de('contratos')),
     tabla<FilaContratoFranja>('contrato_franjas', de('contrato_franjas')),
+    // Cobros (0013). RLS: el personal con CLIENTES_VER (en su ámbito) y cada cliente los suyos.
+    tabla<FilaPago>('pagos', sb.from('pagos').select('*').order('vence_el', { ascending: true, nullsFirst: false }).order('creado_el').limit(LIMITE_FILAS) as unknown as Consulta<FilaPago>),
     // Las reservas no tienen fecha propia: se filtran por la de su clase (relación embebida clases!inner).
     tabla<FilaReserva>('reservas', sb.from('reservas').select('*, clases!inner(fecha)').gte('clases.fecha', desde).lte('clases.fecha', hasta).limit(LIMITE_FILAS) as unknown as Consulta<FilaReserva>),
     tabla<FilaRecuperacion>('recuperaciones', de('recuperaciones')),
@@ -92,6 +94,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     tarifas: tarifas.map((t) => aTarifa(t, cupos)),
     clientes: listaClientes,
     contratos: contratos.map((c) => aContrato(c, franjas)),
+    pagos: pagos.map(aPago),
     plantillas: plantillas.map(aPlantilla),
     clases: clases.map(aClase),
     reservas: reservas.map(aReserva),
