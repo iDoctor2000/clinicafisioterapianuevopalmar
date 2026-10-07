@@ -525,7 +525,7 @@ export function marcarAvisoLeido(ctx: Ctx, args: { avisoId: Id }): Resultado<voi
   return ok({ ...db, lecturas: [...db.lecturas, { avisoId: args.avisoId, clienteId: sesion.clienteId, leidoEl: ahora.toISOString() }] }, undefined);
 }
 
-export function actualizarPreferenciasCliente(ctx: Ctx, args: { notificacionesPush?: boolean; telefono?: string; email?: string; direccion?: string }): Resultado<void> {
+export function actualizarPreferenciasCliente(ctx: Ctx, args: { notificacionesPush?: boolean; telefono?: string; email?: string; direccion?: string; fechaNacimiento?: ISODate | null }): Resultado<void> {
   const { db, sesion, ahora } = ctx;
   if (sesion.tipo !== 'CLIENTE') return fallo('Solo para clientes.');
   const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === sesion.clienteId ? { ...c, ...limpiar(args) } : c)) };

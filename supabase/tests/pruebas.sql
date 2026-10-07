@@ -947,4 +947,52 @@ begin
 end $$;
 
 \echo
+\echo '== 27. Logros (0014): historial, conteo, resumen del centro y fecha de nacimiento'
+select pruebas.sistema();
+-- Una clase pasada con reserva de A (para que haya algo que contar).
+do $$
+declare v_clase uuid;
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), public._hoy() - 3, '10:00', 55, pruebas.id('tra_ana'), 8, true) returning id into v_clase;
+  insert into public.reservas (clase_id, cliente_id, origen, creado_por) values (v_clase, pruebas.id('cliente_a'), 'MANUAL', null);
+  perform pruebas.guardar('cl_pasada_logros', v_clase::text);
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('a');
+do $$
+declare v jsonb;
+begin
+  v := public.historial_clases();
+  assert jsonb_array_length(v) >= 1, 'el alumno ve sus clases hechas';
+  assert exists (select 1 from jsonb_array_elements(v) e where e->>'f' = (current_date - 3)::text and e->>'h' = '10:00'), 'incluye la clase pasada';
+end $$;
+select pruebas.espera_error(format('select public.historial_clases(%L)', pruebas.id('cliente_b')), '%No tienes permiso%');
+select pruebas.espera_error(format('select public.conteo_clases(array[%L]::uuid[])', pruebas.id('cliente_a')), '%Solo para el personal%');
+select pruebas.espera_error('select public.resumen_centro(2026)', '%No tienes permiso%');
+-- El alumno pone su fecha de nacimiento (permitido por el trigger de autoedición).
+update public.clientes set fecha_nacimiento = '1980-03-15' where id = pruebas.id('cliente_a');
+do $$ begin assert (select fecha_nacimiento from public.clientes where id = pruebas.id('cliente_a')) = '1980-03-15', 'el alumno guarda su cumpleaños'; end $$;
+commit;
+-- "No asiste" no cuenta.
+select pruebas.sistema();
+update public.reservas set asistencia = 'NO_ASISTE' where clase_id = pruebas.id('cl_pasada_logros');
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$
+declare v jsonb; r jsonb;
+begin
+  v := public.conteo_clases(array[pruebas.id('cliente_a')]);
+  assert not exists (select 1 from jsonb_array_elements(public.historial_clases(pruebas.id('cliente_a'))) e where e->>'f' = (current_date - 3)::text and e->>'h' = '10:00'),
+    'una falta no cuenta como clase hecha';
+  r := public.resumen_centro(extract(year from current_date)::int);
+  assert r ? 'total' and r ? 'alumnos' and r ? 'horas', 'el admin ve el resumen del centro';
+end $$;
+commit;
+select pruebas.sistema();
+do $$ begin raise notice 'OK logros'; end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

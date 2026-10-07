@@ -7,6 +7,7 @@ import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
 import { AvatarCliente } from '@/features/comun/AvatarCliente';
 import { cn } from '@/lib/cn';
 import { abrirWebClinica } from '@/lib/webClinica';
+import { Celebraciones } from './Celebraciones';
 
 const items = [
   { to: '/', etiqueta: 'Inicio', icono: Home },
@@ -61,6 +62,7 @@ export function CapaCliente() {
         <main key={loc.pathname} className="flex-1 min-w-0 pb-24 md:pb-8 animate-[aparecer_.2s_ease-out]">
           <div className="max-w-3xl mx-auto w-full px-4">
             <Outlet />
+            {sesion?.tipo === 'CLIENTE' && cliente && <Celebraciones />}
           </div>
         </main>
       </div>

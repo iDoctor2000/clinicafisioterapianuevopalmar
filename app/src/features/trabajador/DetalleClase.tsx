@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, Ban, Bell, Check, Clock, Lock, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { MENSAJE_CLASE_AJENA } from '@/domain/ambito';
+import { HITOS_CLASES, esCumpleanos } from '@/domain/logros';
+import { conteoClases } from '@/data/logros';
 import type { Cliente, Reserva } from '@/domain/types';
 import { fechaLarga, horaFin, hoyISO, esPasada, fechaCorta } from '@/domain/fechas';
 import { nombreCompleto, vistaClase } from '@/data/selectores';
@@ -22,6 +24,9 @@ export function DetalleClase() {
   const [anadir, setAnadir] = useState(false);
   const [cancelar, setCancelar] = useState(false);
   const [quitar, setQuitar] = useState<Reserva | null>(null);
+  // Antes de cualquier salida anticipada (regla de los hooks): solo para las clases de hoy.
+  const esDeHoy = clase?.fecha === hoyISO();
+  const hitos = useHitos(esDeHoy ? db.reservas.filter((r) => r.claseId === clase?.id && r.estado === 'RESERVADA').map((r) => r.clienteId) : [], clase?.fecha ?? '');
 
   if (claseAjena && !gestionaClase(claseAjena)) return <Vacio icono={Lock} titulo={MENSAJE_CLASE_AJENA} texto="Tu ámbito es «Solo sus clases»: únicamente puedes ver y gestionar las clases que impartes." accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
   if (!clase) return <Vacio icono={AlertTriangle} titulo="Clase no encontrada" accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
@@ -98,7 +103,11 @@ export function DetalleClase() {
                       <AvatarCliente cliente={c} tamano="md" />
                       <div className="flex-1 min-w-0">
                         <Link to={`/clientes/${r.clienteId}`} className="font-semibold hover:underline block truncate">{nombreCompleto(c)}</Link>
-                        <div className="flex gap-1.5 flex-wrap mt-0.5"><ChipOrigen origen={r.origen} />{!c?.activo && <Chip tono="rojo">Baja</Chip>}</div>
+                        <div className="flex gap-1.5 flex-wrap mt-0.5">
+                          <ChipOrigen origen={r.origen} />{!c?.activo && <Chip tono="rojo">Baja</Chip>}
+                          {clase.fecha === hoy && esCumpleanos(c?.fechaNacimiento, hoy) && <Chip tono="ambar">🎂 Cumple hoy</Chip>}
+                          {hitos.get(r.clienteId) && <Chip tono="beige">🎉 Su clase {hitos.get(r.clienteId)}</Chip>}
+                        </div>
                       </div>
                       {puede('RESERVAS_GESTIONAR') && !pasada && !cancelada && (
                         <button type="button" onClick={() => setQuitar(r)} aria-label="Quitar alumno" title="Quitar de la clase" className="h-11 w-11 rounded-full flex items-center justify-center text-ink-muted hover:bg-rose/10 hover:text-rose tap"><UserMinus className="h-5 w-5" /></button>
@@ -261,4 +270,19 @@ function HojaCancelarClase({ abierta, onCerrar, claseId, afectados }: { abierta:
       </div>
     </Hoja>
   );
+}
+
+/** Alumnos de la clase de hoy que llegan a una cifra redonda (10, 25, 50, 100…): "🎉 Su clase 100". */
+function useHitos(clienteIds: string[], fecha: string): Map<string, number> {
+  const [hitos, setHitos] = useState<Map<string, number>>(new Map());
+  const clave = clienteIds.join(',');
+  useEffect(() => {
+    if (!clave) { setHitos(new Map()); return; }
+    let vivo = true;
+    conteoClases(clave.split(','), fecha)
+      .then((m) => { if (vivo) setHitos(new Map([...m].filter(([, n]) => HITOS_CLASES.includes(n)))); })
+      .catch(() => { /* sin datos: no se muestra nada */ });
+    return () => { vivo = false; };
+  }, [clave, fecha]);
+  return hitos;
 }
