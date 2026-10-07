@@ -8,7 +8,6 @@ import { Boton, Chip, Entrada, Interruptor, Tarjeta, Vacio, toast } from '@/ui';
 import { useTrabajador } from './useTrabajador';
 import { buscarClientes, resumenCliente } from './consultas';
 import { pagosVencidos } from '@/domain/cobros';
-import { esCumpleanos } from '@/domain/logros';
 import { AvatarCliente, CampoBusqueda, Encabezado, Segmentado } from './comunes';
 
 export function Clientes() {
@@ -46,7 +45,6 @@ export function Clientes() {
                         <span className="font-semibold truncate">{nombreCompleto(c)}</span>
                         {!c.activo && <Chip tono="rojo">Baja</Chip>}
                         {pagosVencidos(db.pagos, c.id, hoy).length > 0 && <Chip tono="rojo">Pago pendiente</Chip>}
-                        {esCumpleanos(c.fechaNacimiento, hoy) && <Chip tono="ambar">🎂 Cumple hoy</Chip>}
                       </span>
                       <span className="block text-sm text-ink-muted truncate">
                         {r.tarifa ? `${r.tarifa.nombre} · ${r.contrato?.modalidad === 'FIJO' ? 'horario fijo' : 'turno libre'}` : 'Sin tarifa activa'}
@@ -72,7 +70,7 @@ export function Clientes() {
 // Formulario de datos personales (compartido por alta y edición)
 // ---------------------------------------------------------------------------
 
-export type DatosCliente = Pick<Cliente, 'nombre' | 'apellidos' | 'dni' | 'telefono' | 'email' | 'direccion' | 'notificacionesPush' | 'activo' | 'altaEl' | 'bajaEl' | 'fechaNacimiento'>;
+export type DatosCliente = Pick<Cliente, 'nombre' | 'apellidos' | 'dni' | 'telefono' | 'email' | 'direccion' | 'notificacionesPush' | 'activo' | 'altaEl' | 'bajaEl'>;
 
 export function FormularioCliente({ inicial, onGuardar, textoGuardar = 'Guardar', edicion, onCancelar }: { inicial: DatosCliente; onGuardar: (d: DatosCliente) => void; textoGuardar?: string; edicion?: boolean; onCancelar?: () => void }) {
   const [d, setD] = useState<DatosCliente>(inicial);
@@ -91,7 +89,6 @@ export function FormularioCliente({ inicial, onGuardar, textoGuardar = 'Guardar'
         <Entrada etiqueta="Teléfono" type="tel" value={d.telefono} onChange={(e) => set('telefono', e.target.value)} autoComplete="off" />
         <Entrada etiqueta="Correo electrónico" type="email" value={d.email} onChange={(e) => set('email', e.target.value)} autoComplete="off" />
         <Entrada etiqueta="Dirección" value={d.direccion} onChange={(e) => set('direccion', e.target.value)} autoComplete="off" />
-        <Entrada etiqueta="Fecha de nacimiento (opcional)" ayuda="Para felicitarle el día de su cumpleaños." type="date" value={d.fechaNacimiento ?? ''} onChange={(e) => set('fechaNacimiento', e.target.value || null)} />
         <Entrada etiqueta="Fecha de alta" type="date" value={d.altaEl} onChange={(e) => set('altaEl', e.target.value)} />
         {edicion && <Entrada etiqueta="Fecha de baja" type="date" value={d.bajaEl ?? ''} onChange={(e) => set('bajaEl', e.target.value || null)} />}
       </div>
@@ -119,7 +116,7 @@ export function NuevoCliente() {
       <Encabezado atras="/clientes" titulo="Nuevo cliente" subtitulo="Después podrás asignarle una tarifa desde su ficha." />
       <Tarjeta className="p-4 sm:p-6">
         <FormularioCliente
-          inicial={{ nombre: '', apellidos: '', dni: '', telefono: '', email: '', direccion: '', notificacionesPush: true, activo: true, altaEl: hoyISO(), bajaEl: null, fechaNacimiento: null }}
+          inicial={{ nombre: '', apellidos: '', dni: '', telefono: '', email: '', direccion: '', notificacionesPush: true, activo: true, altaEl: hoyISO(), bajaEl: null }}
           onGuardar={guardar} textoGuardar="Crear cliente" onCancelar={() => navigate('/clientes')}
         />
       </Tarjeta>

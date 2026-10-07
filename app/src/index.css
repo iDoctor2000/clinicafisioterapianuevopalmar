@@ -50,10 +50,3 @@
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes globo {
-  0% { transform: translateY(0) rotate(-4deg); opacity: 0; }
-  10% { opacity: 1; }
-  50% { transform: translateY(-55vh) rotate(5deg); }
-  100% { transform: translateY(-110vh) rotate(-3deg); opacity: 0; }
-}

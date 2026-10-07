@@ -15,7 +15,6 @@ import { EnlacePrivacidad } from '@/app/Privacidad';
 import { format } from 'date-fns';
 import { FichaActividad } from '@/features/comun/FichaActividad';
 import { estaInstalada, instalarDirecto } from '@/lib/instalacion';
-import { MisLogros } from './Celebraciones';
 
 export function Perfil() {
   const { db, cliente, contrato, tarifa } = useCliente();
@@ -25,13 +24,13 @@ export function Perfil() {
   /** Solo SUPABASE: este navegador tiene una suscripción push activa (null = aún no comprobado). */
   const [suscrito, setSuscrito] = useState<boolean | null>(null);
   const [ocupadoPush, setOcupadoPush] = useState(false);
-  const [form, setForm] = useState({ telefono: cliente.telefono, email: cliente.email, direccion: cliente.direccion, fechaNacimiento: cliente.fechaNacimiento ?? '' });
+  const [form, setForm] = useState({ telefono: cliente.telefono, email: cliente.email, direccion: cliente.direccion });
   const [hoja, setHoja] = useState<'INSTALAR' | 'SALIR' | 'FOTO' | null>(null);
-  const cambiado = form.telefono !== cliente.telefono || form.email !== cliente.email || form.direccion !== cliente.direccion || form.fechaNacimiento !== (cliente.fechaNacimiento ?? '');
+  const cambiado = form.telefono !== cliente.telefono || form.email !== cliente.email || form.direccion !== cliente.direccion;
   const franjas = horarioFijoDe(db, contrato);
 
   const guardar = async () => {
-    const r = await ejecutar('actualizarPreferenciasCliente', { telefono: form.telefono.trim(), email: form.email.trim(), direccion: form.direccion.trim(), fechaNacimiento: form.fechaNacimiento || null });
+    const r = await ejecutar('actualizarPreferenciasCliente', { telefono: form.telefono.trim(), email: form.email.trim(), direccion: form.direccion.trim() });
     if (r.ok) toast.ok('Tus datos se han guardado.');
     else toast.error(r.error);
   };
@@ -143,10 +142,6 @@ export function Perfil() {
         </button>
       </Encabezado>
 
-      <Seccion titulo="Mis logros">
-        <MisLogros />
-      </Seccion>
-
       <Seccion titulo="Mis datos">
         <Tarjeta className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -156,7 +151,6 @@ export function Perfil() {
           <Entrada etiqueta="Teléfono" type="tel" inputMode="tel" autoComplete="tel" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
           <Entrada etiqueta="Correo electrónico" type="email" inputMode="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Entrada etiqueta="Dirección" autoComplete="street-address" value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} />
-          <Entrada etiqueta="Fecha de nacimiento (opcional)" ayuda="Solo para felicitarte ese día 🎂" type="date" max={format(new Date(), 'yyyy-MM-dd')} value={form.fechaNacimiento} onChange={(e) => setForm({ ...form, fechaNacimiento: e.target.value })} />
           <Boton ancho disabled={!cambiado} onClick={guardar}>Guardar cambios</Boton>
           <Boton ancho variante="suave" onClick={() => setHoja('FOTO')}><Camera className="h-5 w-5" /> {cliente.fotoUrl ? 'Cambiar mi foto' : 'Poner mi foto'}</Boton>
           <p className="text-sm text-ink-muted">Para cambiar tu nombre o DNI, avísanos en recepción.</p>

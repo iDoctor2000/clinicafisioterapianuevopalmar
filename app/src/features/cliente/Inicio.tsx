@@ -11,7 +11,6 @@ import { chipOrigen } from './estados';
 import { BarraProgreso, Encabezado, HojaCancelar, PuntoActividad } from './comun';
 import { AvatarCliente } from '@/features/comun/AvatarCliente';
 import { IconoActividad } from '@/features/comun/IconoActividad';
-import { PreguntaCumpleanos, TarjetaResumenInicio } from './Celebraciones';
 
 export function Inicio() {
   const { db, cliente, contrato, tarifa } = useCliente();
@@ -36,9 +35,6 @@ export function Inicio() {
       </Encabezado>
 
       {portada.length > 0 && <Carrusel imagenes={portada} className="mb-5" />}
-
-      <TarjetaResumenInicio />
-      <PreguntaCumpleanos />
 
       {ultimoAviso && (
         <Link to="/avisos" className="block mb-4">

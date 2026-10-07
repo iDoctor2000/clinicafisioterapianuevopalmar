@@ -205,7 +205,6 @@ const impl: Impl = {
     if (args.telefono !== undefined) cambios.telefono = args.telefono;
     if (args.email !== undefined) cambios.email = args.email;
     if (args.direccion !== undefined) cambios.direccion = args.direccion;
-    if (args.fechaNacimiento !== undefined) cambios.fecha_nacimiento = args.fechaNacimiento || null;
     if (Object.keys(cambios).length > 0) comprobar(await servidor().from('clientes').update(cambios).eq('id', sesion.clienteId));
     return () => undefined;
   },
