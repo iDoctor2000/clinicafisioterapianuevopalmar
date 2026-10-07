@@ -21,6 +21,10 @@ set -euo pipefail
 # nuevo, su dirección completa (RESTORE_DB_URL), que tiene preferencia.
 recortar() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
 RESTORE_DB_URL="$(recortar "${RESTORE_DB_URL:-}")"
+# Si en RESTORE_DB_URL han puesto solo la contraseña (no empieza por postgres://), se acepta igual.
+if [[ -n "$RESTORE_DB_URL" && ! "$RESTORE_DB_URL" =~ ^postgres(ql)?:// ]]; then
+  RESTORE_DB_PASSWORD="$RESTORE_DB_URL"; RESTORE_DB_URL=""
+fi
 if [[ -z "$RESTORE_DB_URL" && -n "${RESTORE_DB_PASSWORD:-}" ]]; then
   CLAVE_URI="$(jq -rn --arg p "$(recortar "$RESTORE_DB_PASSWORD")" '$p|@uri')"
   RESTORE_DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF:-mgiekkqbgptxmqcrhxlr}:${CLAVE_URI}@${SUPABASE_DB_HOST:-aws-0-eu-central-1.pooler.supabase.com}:5432/${SUPABASE_DB_NAME:-postgres}"

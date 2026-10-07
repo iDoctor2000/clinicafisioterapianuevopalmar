@@ -25,6 +25,10 @@ set -euo pipefail
 SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF:-mgiekkqbgptxmqcrhxlr}"
 SUPABASE_DB_HOST="${SUPABASE_DB_HOST:-aws-0-eu-central-1.pooler.supabase.com}"
 recortar() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+# Si en SUPABASE_DB_URL han puesto solo la contraseña (no empieza por postgres://), se acepta igual.
+if [[ -z "${SUPABASE_DB_PASSWORD:-}" && -n "${SUPABASE_DB_URL:-}" && ! "$(recortar "$SUPABASE_DB_URL")" =~ ^postgres(ql)?:// ]]; then
+  SUPABASE_DB_PASSWORD="$SUPABASE_DB_URL"; SUPABASE_DB_URL=""
+fi
 if [[ -n "${SUPABASE_DB_PASSWORD:-}" ]]; then
   CLAVE_BD="$(recortar "$SUPABASE_DB_PASSWORD")"
   # La contraseña va "codificada" para que cualquier símbolo (@ / : # ?…) no rompa la dirección.
