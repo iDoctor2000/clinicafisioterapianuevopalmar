@@ -11,10 +11,10 @@ import { DB_VERSION, type Db } from '../db';
 import { mensajeError, servidor } from './cliente';
 import {
   aActividad, aAuditoria, aAviso, aClase, aCliente, aConfig, aContrato, aLectura, aPago, aPlantilla, aRecuperacion, aReserva, aTarifa,
-  aPortadaImagen, aTrabajador, aTrabajadorDesdeMonitor, derivarUsuarios,
+  aPortadaImagen, aPremioMes, aTrabajador, aTrabajadorDesdeMonitor, derivarUsuarios,
   type FilaActividad, type FilaAuditoria, type FilaAviso, type FilaAvisoDestinatario, type FilaAvisoLectura, type FilaClase, type FilaCliente,
   type FilaClienteClinica, type FilaConfigCentro, type FilaContrato, type FilaContratoFranja, type FilaDiaCierre, type FilaPago, type FilaMonitor,
-  type FilaPlantillaClase, type FilaPortadaImagen, type FilaRecuperacion, type FilaReserva, type FilaTarifa, type FilaTarifaCupo, type FilaTrabajador, type FilaTrabajadorPermiso,
+  type FilaPlantillaClase, type FilaPortadaImagen, type FilaPremioMes, type FilaRecuperacion, type FilaReserva, type FilaTarifa, type FilaTarifaCupo, type FilaTrabajador, type FilaTrabajadorPermiso,
 } from './mapeo';
 
 /** Meses hacia atrás y hacia delante que se cargan de clases y reservas. */
@@ -54,7 +54,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
 
   const [
     cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, contratos, franjas, pagos,
-    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada,
+    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios,
   ] = await Promise.all([
     tabla<FilaDiaCierre>('dias_cierre', de('dias_cierre')),
     tabla<FilaActividad>('actividades', sb.from('actividades').select('*').order('orden').order('nombre') as unknown as Consulta<FilaActividad>),
@@ -80,6 +80,8 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     tabla<FilaAuditoria>('auditoria', sb.from('auditoria').select('*').order('instante', { ascending: false }).limit(2000) as unknown as Consulta<FilaAuditoria>),
     // Carrusel de la portada (0008). Si la migración no está aplicada, la tabla no existe y queda vacío (aviso en consola).
     tabla<FilaPortadaImagen>('portada_imagenes', sb.from('portada_imagenes').select('*').order('orden').limit(50) as unknown as Consulta<FilaPortadaImagen>),
+    // Cliente del mes (0016). RLS: el personal todos; cada alumno los suyos y los que el ganador hizo públicos.
+    tabla<FilaPremioMes>('premios_mes', sb.from('premios_mes').select('*').order('mes', { ascending: false }).limit(60) as unknown as Consulta<FilaPremioMes>),
   ]);
 
   const clinicaPorCliente = new Map(clinicas.map((c) => [c.cliente_id, c]));
@@ -105,5 +107,6 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     usuarios: derivarUsuarios(listaClientes, listaTrabajadores),
     auditoria: auditoria.map(aAuditoria),
     portada: portada.map(aPortadaImagen),
+    premios: premios.map(aPremioMes),
   };
 }

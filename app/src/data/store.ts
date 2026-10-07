@@ -86,6 +86,7 @@ function enviarPushDeAviso(avisoId: string): void {
  */
 const despuesDe: { [K in NombreComando]?: (args: ArgsComando<K>, valor: ValorComando<K>, db: Db) => void } = {
   publicarAviso: (_args, aviso) => enviarPushDeAviso(aviso.id),
+  anunciarClienteDelMes: (_args, valor) => { if (valor.avisoId) enviarPushDeAviso(valor.avisoId); },
   cancelarClase: (args, valor, db) => {
     if (!args.avisar || valor.afectados === 0) return;
     // La RPC crea el aviso de cancelación: es el más reciente dirigido a esa clase.

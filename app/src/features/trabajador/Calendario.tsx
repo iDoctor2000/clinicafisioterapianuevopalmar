@@ -8,8 +8,10 @@ import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { clasesPorDiaDeSemana, clasesPorFechaEntre, clasesSueltasDe, monitores, semanasDelMes, textoRangoSemana } from './consultas';
 import { BarraOcupacion, Encabezado, Segmentado, may } from './comunes';
+import { esCumpleanos } from '@/domain/logros';
 import { CalendarioSemana } from './CalendarioSemana';
 import { CalendarioMes } from './CalendarioMes';
+import { BannerClienteDelMes } from './ClienteDelMes';
 import { IconoActividad } from '@/features/comun/IconoActividad';
 
 type Vista = 'DIA' | 'SEMANA' | 'MES';
@@ -60,6 +62,9 @@ export function Calendario() {
           </>
         }
       />
+
+      <CumpleanosDeHoy />
+      <BannerClienteDelMes />
 
       {vista === 'DIA' && (
         <>
@@ -215,3 +220,18 @@ export function HojaNuevaClase({ abierta, onCerrar, fechaInicial, onCreada }: { 
   );
 }
 
+/** "Hoy cumplen años: Carmen y Paco" (solo si hay alguien). */
+function CumpleanosDeHoy() {
+  const { db } = useTrabajador();
+  const hoy = hoyISO();
+  const lista = db.clientes.filter((c) => c.activo && esCumpleanos(c.fechaNacimiento, hoy));
+  if (lista.length === 0) return null;
+  const nombres = lista.map((c) => `${c.nombre} ${c.apellidos.split(' ')[0] ?? ''}`.trim());
+  const texto = nombres.length === 1 ? nombres[0] : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+  return (
+    <div className="mb-4 flex items-center gap-3 rounded-2xl bg-beige-50 border border-beige-200 px-4 py-3">
+      <span className="text-2xl" aria-hidden>🎂</span>
+      <span className="text-ink-soft">Hoy {lista.length === 1 ? 'cumple' : 'cumplen'} años: <strong className="text-ink">{texto}</strong>. ¡Felicítale{lista.length === 1 ? '' : 's'} en clase!</span>
+    </div>
+  );
+}

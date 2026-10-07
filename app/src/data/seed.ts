@@ -226,5 +226,6 @@ export function crearSeed(ahora: Date = new Date()): Db {
     lecturas: [], trabajadores, usuarios,
     auditoria: [{ id: id('aud'), instante: ahoraISO, actorId: 'sistema', actorNombre: 'Sistema', accion: 'SEED', entidad: 'db', entidadId: '-', detalle: 'Datos de demostración generados' }],
     portada: portadaDemo(ahoraISO),
+    premios: [],
   };
 }

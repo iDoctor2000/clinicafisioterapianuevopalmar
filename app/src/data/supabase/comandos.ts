@@ -205,6 +205,7 @@ const impl: Impl = {
     if (args.telefono !== undefined) cambios.telefono = args.telefono;
     if (args.email !== undefined) cambios.email = args.email;
     if (args.direccion !== undefined) cambios.direccion = args.direccion;
+    if (args.fechaNacimiento !== undefined) cambios.fecha_nacimiento = args.fechaNacimiento || null;
     if (Object.keys(cambios).length > 0) comprobar(await servidor().from('clientes').update(cambios).eq('id', sesion.clienteId));
     return () => undefined;
   },
@@ -303,6 +304,27 @@ const impl: Impl = {
   // La subida del archivo la hace la pantalla (subirImagenPortada) antes de llamar al comando con la URL pública.
   // RLS: solo es_admin() escribe; si no afecta a ninguna fila, no hay permiso.
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // Cliente del mes (0016): todo por funciones (la tabla es de solo lectura).
+  // -------------------------------------------------------------------------
+  async anunciarClienteDelMes(args) {
+    const avisoId = await rpc<string | null>('anunciar_cliente_del_mes', {
+      p_mes: args.mes, p_cliente_id: args.clienteId, p_clases: Math.max(0, Math.round(args.clases)), p_motivo: args.motivo,
+      p_titulo: args.aviso?.titulo ?? null, p_cuerpo: args.aviso?.cuerpo ?? null,
+    });
+    return () => ({ avisoId: avisoId ?? null });
+  },
+
+  async quitarClienteDelMes(args) {
+    await rpc('quitar_cliente_del_mes', { p_mes: args.mes });
+    return () => undefined;
+  },
+
+  async responderClienteDelMes(args) {
+    await rpc('responder_cliente_del_mes', { p_mes: args.mes, p_publico: args.publico });
+    return () => undefined;
+  },
+
   async guardarPortadaImagen(args) {
     const sb = servidor();
     const id = args.imagen.id ?? nuevoUuid();

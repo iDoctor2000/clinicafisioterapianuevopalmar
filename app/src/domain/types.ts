@@ -50,6 +50,14 @@ export interface ConfigCentro {
   whatsapp?: string;
   instagram?: string;
   email?: string;
+  /** Texto de la felicitación de cumpleaños (vacío = el de por defecto). */
+  mensajeCumpleanos?: string;
+  /** "Tu año en Pilates": activo y ventana en la que se muestra (MM-DD, por defecto 12-15 → 01-15). */
+  resumenAnualActivo?: boolean;
+  resumenAnualDesde?: string;
+  resumenAnualHasta?: string;
+  /** Premio "Cliente del mes" (por defecto, activo). */
+  clienteDelMesActivo?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +156,8 @@ export interface Cliente {
    * `fotos-clientes` (`<clienteId>/avatar.jpg?v=<marca>`), que la app convierte en URL firmada.
    */
   fotoUrl: string | null;
+  /** Fecha de nacimiento (opcional): solo para felicitarle el día de su cumpleaños. */
+  fechaNacimiento?: ISODate | null;
   /**
    * Instante en que el cliente aceptó la política de privacidad (en la app o firmada en papel).
    * null = consentimiento pendiente: en producción la app se lo pide antes de dejarle entrar.
@@ -343,6 +353,21 @@ export interface LecturaAviso {
 // ---------------------------------------------------------------------------
 // Portada del cliente (carrusel de fotos del centro)
 // ---------------------------------------------------------------------------
+
+/** Premio "Cliente del mes". */
+export interface PremioMes {
+  /** Primer día del mes premiado (AAAA-MM-01). */
+  mes: ISODate;
+  clienteId: Id;
+  /** Clases que hizo ese mes (al anunciarlo). */
+  clases: number;
+  motivo: string;
+  anunciadoEl: ISOInstant;
+  /** El ganador decide: null sin contestar, true lo pueden ver todos, false no. */
+  publico: boolean | null;
+  /** Nombre para mostrar a los demás alumnos ("Ana G."), solo si publico. */
+  nombrePublico: string;
+}
 
 export interface PortadaImagen {
   id: Id;

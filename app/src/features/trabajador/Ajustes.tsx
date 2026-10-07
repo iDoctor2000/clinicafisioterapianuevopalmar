@@ -11,6 +11,7 @@ import { Boton, Chip, Entrada, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { Diagnostico } from './Diagnostico';
+import { Sorpresas } from './Sorpresas';
 import { ultimaCopia, type UltimaCopia } from '@/data/supabase/copias';
 import { excelDeDatos } from '@/data/exportar';
 import { descargarBlob } from '@/lib/compartir';
@@ -28,6 +29,7 @@ export function Ajustes() {
         <Cierres />
         <div className="lg:col-span-2"><CentroPilates /></div>
         <div className="lg:col-span-2"><FotosPortada /></div>
+        <div className="lg:col-span-2"><Sorpresas /></div>
         <div className="lg:col-span-2"><CopiasSeguridad /></div>
         <div className="lg:col-span-2"><Auditoria /></div>
         <div className="lg:col-span-2"><Diagnostico /></div>

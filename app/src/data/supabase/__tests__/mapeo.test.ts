@@ -34,9 +34,13 @@ describe('config_centro', () => {
       nombre: 'Centro', minutosAntelacionCancelacion: 90, diasVentanaReserva: 10, recuperacionCaducaConContrato: false, diasCaducidadRecuperacion: 45,
       zonaHoraria: 'Europe/Madrid', diasCierre: [{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }],
       direccion: '', telefono: '', whatsapp: '', instagram: '', email: '',
+      mensajeCumpleanos: '', resumenAnualActivo: true, resumenAnualDesde: '12-15', resumenAnualHasta: '01-15', clienteDelMesActivo: true,
     });
     const { id: _id, dias_generacion_clases: _d, ...esperado } = fila;
-    expect(deConfig(c)).toEqual({ ...esperado, direccion: '', telefono: '', whatsapp: '', instagram: '', email: '' });
+    expect(deConfig(c)).toEqual({
+      ...esperado, direccion: '', telefono: '', whatsapp: '', instagram: '', email: '',
+      mensaje_cumpleanos: '', resumen_anual_activo: true, resumen_anual_desde: '12-15', resumen_anual_hasta: '01-15', cliente_del_mes_activo: true,
+    });
     expect(deDiasCierre(c.diasCierre)).toEqual([{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }]);
   });
   it('solo incluye las columnas presentes en el parcial', () => {
@@ -112,10 +116,10 @@ describe('clientes', () => {
     expect(c).toEqual<Cliente>({
       id: U1, nombre: 'María', apellidos: 'García', dni: '1A', direccion: 'C/ Sol', email: 'm@x.com', telefono: '600',
       clinica: { lesiones: 'Rodilla', patologias: '', observaciones: 'Ok', actualizadaEl: '2026-02-01T10:00:00.000Z' },
-      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null,
+      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null, fechaNacimiento: null,
     });
     const { user_id: _u, ...sinUser } = fila;
-    expect(deCliente(c)).toEqual(sinUser);
+    expect(deCliente(c)).toEqual({ ...sinUser, fecha_nacimiento: null });
     expect(deClinica(c.id, c.clinica, AUTH)).toEqual({ cliente_id: U1, lesiones: 'Rodilla', patologias: '', observaciones: 'Ok', actualizada_por: AUTH });
   });
   it('sin fila clínica (RLS): campos vacíos y actualizadaEl null', () => {
