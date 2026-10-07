@@ -1,8 +1,9 @@
 # Copia de seguridad diaria de la base de datos (cifrada). Ver docs/RECUPERACION.md.
 #
 # Necesita dos secretos del repositorio (Settings → Secrets and variables → Actions → Secrets):
-#   SUPABASE_DB_URL     Dirección de conexión de Supabase ("Session pooler", con la contraseña).
-#   BACKUP_PASSPHRASE   Contraseña con la que se cifran las copias (guárdala también fuera de GitHub).
+#   SUPABASE_DB_PASSWORD  Contraseña de la base de datos de Supabase (solo la contraseña).
+#                         (Alternativa: SUPABASE_DB_URL con la dirección completa del "Session pooler".)
+#   BACKUP_PASSPHRASE     Contraseña con la que se cifran las copias (guárdala también fuera de GitHub).
 # Las copias se guardan 90 días como "artifacts" de cada ejecución. Van cifradas: aunque el
 # repositorio sea público, sin la contraseña no se pueden leer.
 name: Copia de seguridad diaria
@@ -28,11 +29,12 @@ jobs:
     steps:
       - name: Comprobar que están los secretos
         env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
-            echo "::error::Faltan los secretos SUPABASE_DB_URL y/o BACKUP_PASSPHRASE (Settings → Secrets and variables → Actions)."
+          if [ -z "$SUPABASE_DB_PASSWORD$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Faltan secretos: SUPABASE_DB_PASSWORD (contraseña de la base de datos) y BACKUP_PASSPHRASE (Settings → Secrets and variables → Actions)."
             exit 1
           fi
 
@@ -49,6 +51,7 @@ jobs:
       - name: Hacer la copia cifrada
         id: copia
         env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: bash scripts/copias/hacer-copia.sh copias
@@ -82,7 +85,7 @@ jobs:
 
           Detalle: $ENLACE
 
-          Mientras no se arregle, no hay copia nueva. Revisa que los secretos SUPABASE_DB_URL y BACKUP_PASSPHRASE siguen bien (Settings → Secrets and variables → Actions) o avisa a quien mantiene la app. Cuando vuelva a funcionar, cierra este aviso."
+          Mientras no se arregle, no hay copia nueva. Revisa que los secretos SUPABASE_DB_PASSWORD y BACKUP_PASSPHRASE siguen bien (Settings → Secrets and variables → Actions) o avisa a quien mantiene la app. Cuando vuelva a funcionar, cierra este aviso."
           if [ -n "$ABIERTA" ]; then
             gh issue comment "$ABIERTA" --repo "${{ github.repository }}" --body "$CUERPO"
           else
