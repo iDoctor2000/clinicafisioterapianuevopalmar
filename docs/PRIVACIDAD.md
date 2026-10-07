@@ -21,7 +21,8 @@ Usamos tus datos únicamente para gestionar tu actividad en el centro de Pilates
 3. **Adaptar las clases a tu estado de salud**: lesiones, patologías y observaciones relevantes para la práctica del ejercicio, que el personal sanitario y los monitores necesitan conocer para tu seguridad.
 4. **Identificarte en clase** mediante tu fotografía, si decides ponerla.
 5. **Enviarte avisos del centro** (cancelaciones, cambios de horario, clases extraordinarias) dentro de la aplicación y, si lo activas, como notificaciones en tu móvil.
-6. **Elaborar estadísticas internas** de ocupación y asistencia. Para ello los datos se usan de forma agregada, sin identificarte.
+6. **Felicitarte y reconocer tu constancia**: si nos das tu fecha de nacimiento (es opcional), la usamos únicamente para felicitarte el día de tu cumpleaños. Con tu asistencia la aplicación calcula tus medallas, tu reto del mes y tu resumen anual ("Tu año en Pilates"), que solo ves tú. Si te elegimos **"Cliente del mes"**, tu nombre y la inicial de tu apellido solo se muestran a los demás alumnos si lo aceptas expresamente en la aplicación; si no contestas o dices que no, solo lo ves tú y el personal del centro.
+7. **Elaborar estadísticas internas** de ocupación y asistencia. Para ello los datos se usan de forma agregada, sin identificarte.
 
 No usamos tus datos para publicidad ni los cedemos a terceros con fines comerciales.
 
@@ -34,6 +35,8 @@ No usamos tus datos para publicidad ni los cedemos a terceros con fines comercia
 | Contratación y uso | Tarifa, fechas, reservas, cancelaciones, recuperaciones, bonos, asistencia | El centro y tú, al reservar |
 | **Datos de salud** | Lesiones, patologías, observaciones para la práctica deportiva | El personal autorizado del centro |
 | Imagen | Fotografía de perfil (opcional) | Tú, o el personal con tu permiso |
+| Fecha de nacimiento | Día de tu cumpleaños (opcional), solo para felicitarte | Tú desde la aplicación, o recepción |
+| Reconocimientos | Medallas obtenidas, premios de "Cliente del mes" y tu respuesta sobre si se pueden mostrar a otros alumnos | Automático, y el administrador al elegir el premio |
 | Notificaciones | Identificador técnico de tu dispositivo para enviarte avisos (solo si activas las notificaciones) | Tu dispositivo, al activarlas |
 | Registro de actividad | Fecha y hora de las reservas, cancelaciones y cambios, y quién los realizó | Automático |
 
@@ -41,12 +44,13 @@ No usamos tus datos para publicidad ni los cedemos a terceros con fines comercia
 
 - **Ejecución del contrato** (art. 6.1.b RGPD): gestionar tu tarifa, tus reservas y tus avisos.
 - **Consentimiento explícito** (art. 9.2.a RGPD) para los **datos de salud** y para tu **fotografía**. Puedes retirarlo cuando quieras; hasta entonces el tratamiento realizado es legítimo.
-- **Consentimiento** para las **notificaciones en el móvil**, que activas y desactivas tú desde tu perfil.
+- **Consentimiento** para las **notificaciones en el móvil**, que activas y desactivas tú desde tu perfil, para la **fecha de nacimiento** (que puedes dejar en blanco o borrar cuando quieras) y para **mostrar a otros alumnos tu premio de "Cliente del mes"**.
 - **Interés legítimo** (art. 6.1.f RGPD) para la seguridad de la aplicación y el registro de actividad.
 
 ## 5. Quién puede ver tus datos
 
 - **El personal del centro**, solo en la medida en que lo necesite para su trabajo. Cada trabajador tiene permisos concretos; por ejemplo, la **información de salud solo es visible para el personal expresamente autorizado**, y los monitores que solo imparten sus clases ven únicamente a sus alumnos.
+- **Los demás alumnos** no ven tus datos. La única excepción es el premio "Cliente del mes": si lo ganas **y aceptas expresamente** que se vea, los demás alumnos verán tu nombre y la inicial de tu apellido. El historial de premios lo ve el personal del centro.
 - **Tú**, desde tu perfil, ves tus datos de contacto, tus reservas y tu tarifa. La información de salud la gestiona el personal sanitario; puedes pedir una copia en cualquier momento.
 
 ## 6. Quién nos ayuda a tratarlos (encargados del tratamiento)
