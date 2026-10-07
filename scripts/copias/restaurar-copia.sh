@@ -17,7 +17,15 @@
 # =============================================================================
 set -euo pipefail
 
-: "${RESTORE_DB_URL:?Falta RESTORE_DB_URL (base de datos de destino)}"
+# Destino: en el mismo proyecto basta la contraseña (RESTORE_DB_PASSWORD); para un proyecto
+# nuevo, su dirección completa (RESTORE_DB_URL), que tiene preferencia.
+recortar() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+RESTORE_DB_URL="$(recortar "${RESTORE_DB_URL:-}")"
+if [[ -z "$RESTORE_DB_URL" && -n "${RESTORE_DB_PASSWORD:-}" ]]; then
+  CLAVE_URI="$(jq -rn --arg p "$(recortar "$RESTORE_DB_PASSWORD")" '$p|@uri')"
+  RESTORE_DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF:-mgiekkqbgptxmqcrhxlr}:${CLAVE_URI}@${SUPABASE_DB_HOST:-aws-0-eu-central-1.pooler.supabase.com}:5432/${SUPABASE_DB_NAME:-postgres}"
+fi
+: "${RESTORE_DB_URL:?Falta el destino: RESTORE_DB_PASSWORD (mismo proyecto) o RESTORE_DB_URL (proyecto nuevo)}"
 : "${BACKUP_PASSPHRASE:?Falta BACKUP_PASSPHRASE (contraseña con la que se cifró la copia)}"
 ARCHIVO="${1:?Indica el archivo de la copia (copia-....tar.gpg)}"
 CON_USUARIOS=false

@@ -19,7 +19,24 @@
 # =============================================================================
 set -euo pipefail
 
-: "${SUPABASE_DB_URL:?Falta SUPABASE_DB_URL (dirección de conexión a la base de datos)}"
+# Conexión: lo más sencillo es dar solo la contraseña de la base de datos (SUPABASE_DB_PASSWORD);
+# el resto (usuario y servidor del "Session pooler" del proyecto) no es secreto y va aquí.
+# También se admite la dirección completa (SUPABASE_DB_URL).
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF:-mgiekkqbgptxmqcrhxlr}"
+SUPABASE_DB_HOST="${SUPABASE_DB_HOST:-aws-0-eu-central-1.pooler.supabase.com}"
+recortar() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+if [[ -n "${SUPABASE_DB_PASSWORD:-}" ]]; then
+  CLAVE_BD="$(recortar "$SUPABASE_DB_PASSWORD")"
+  # La contraseña va "codificada" para que cualquier símbolo (@ / : # ?…) no rompa la dirección.
+  CLAVE_URI="$(jq -rn --arg p "$CLAVE_BD" '$p|@uri')"
+  SUPABASE_DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF}:${CLAVE_URI}@${SUPABASE_DB_HOST}:5432/${SUPABASE_DB_NAME:-postgres}"
+fi
+SUPABASE_DB_URL="$(recortar "${SUPABASE_DB_URL:-}")"
+: "${SUPABASE_DB_URL:?Falta la conexión: SUPABASE_DB_PASSWORD (contraseña de la base de datos) o SUPABASE_DB_URL}"
+if [[ "$SUPABASE_DB_URL" == *"[YOUR-PASSWORD]"* ]]; then
+  echo "La dirección todavía contiene [YOUR-PASSWORD]: hay que poner la contraseña real." >&2
+  exit 1
+fi
 : "${BACKUP_PASSPHRASE:?Falta BACKUP_PASSPHRASE (contraseña para cifrar la copia)}"
 SALIDA="${1:-.}"
 mkdir -p "$SALIDA"
