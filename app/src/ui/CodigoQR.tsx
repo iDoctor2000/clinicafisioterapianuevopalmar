@@ -5,6 +5,7 @@ import { Boton } from './Boton';
 import { Hoja } from './Hoja';
 import { toast } from './Toast';
 import { cn } from '@/lib/cn';
+import { cargarImagen, descargarBlob as descargarBlobComo, roundRect } from '@/lib/compartir';
 
 /** Dirección pública de la app (con dominio propio: https://www.fisioterapianuevopalmar.com/app/). */
 export function urlApp(): string {
@@ -46,14 +47,6 @@ async function tarjetaPng(url: string): Promise<Blob> {
   g.font = '600 34px Inter, system-ui, sans-serif';
   g.fillText(url.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1480);
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('No se ha podido generar la imagen.'))), 'image/png'));
-}
-
-function cargarImagen(src: string): Promise<HTMLImageElement> {
-  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
-}
-
-function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
 
 /** Botón redondo con el icono de QR para la cabecera. */
@@ -152,9 +145,5 @@ h1{font-size:22pt;font-weight:600;margin:4mm 0}p{font-family:Arial,sans-serif;fo
 }
 
 function descargarBlob(blob: Blob) {
-  const u = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = u; a.download = 'nuevo-palmar-pilates-qr.png';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(u), 2000);
+  descargarBlobComo(blob, 'nuevo-palmar-pilates-qr.png');
 }

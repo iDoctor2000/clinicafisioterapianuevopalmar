@@ -50,6 +50,12 @@ export interface ConfigCentro {
   whatsapp?: string;
   instagram?: string;
   email?: string;
+  /** Texto de la felicitación de cumpleaños (vacío = el de por defecto). */
+  mensajeCumpleanos?: string;
+  /** "Tu año en Pilates": activo y ventana en la que se muestra (MM-DD, por defecto 12-15 → 01-15). */
+  resumenAnualActivo?: boolean;
+  resumenAnualDesde?: string;
+  resumenAnualHasta?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +154,8 @@ export interface Cliente {
    * `fotos-clientes` (`<clienteId>/avatar.jpg?v=<marca>`), que la app convierte en URL firmada.
    */
   fotoUrl: string | null;
+  /** Fecha de nacimiento (opcional): solo para felicitarle el día de su cumpleaños. */
+  fechaNacimiento?: ISODate | null;
   /**
    * Instante en que el cliente aceptó la política de privacidad (en la app o firmada en papel).
    * null = consentimiento pendiente: en producción la app se lo pide antes de dejarle entrar.
