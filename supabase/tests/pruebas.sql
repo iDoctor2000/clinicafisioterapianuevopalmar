@@ -995,4 +995,54 @@ select pruebas.sistema();
 do $$ begin raise notice 'OK logros'; end $$;
 
 \echo
+\echo '== 28. Cliente del mes (0016)'
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$
+declare v_aviso uuid;
+begin
+  assert jsonb_typeof(public.actividad_del_mes(current_date)) = 'array', 'el admin ve la actividad del mes';
+  v_aviso := public.anunciar_cliente_del_mes(current_date, pruebas.id('cliente_a'), 9, 'Constancia', '🏆 ¡Cliente del mes!', 'Enhorabuena');
+  assert v_aviso is not null, 'el anuncio crea un aviso';
+  assert exists (select 1 from public.aviso_destinatarios where aviso_id = v_aviso and cliente_id = pruebas.id('cliente_a')), 'el aviso va al ganador';
+  assert (select count(*) from public.aviso_destinatarios where aviso_id = v_aviso) = 1, 'y solo al ganador';
+  -- Volver a anunciar el mismo mes sustituye (no duplica).
+  perform public.anunciar_cliente_del_mes(current_date, pruebas.id('cliente_a'), 10, 'Constancia');
+  assert (select count(*) from public.premios_mes where mes = date_trunc('month', current_date)::date) = 1, 'un ganador por mes';
+end $$;
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('b');
+do $$ begin assert (select count(*) from public.premios_mes) = 0, 'los demás no lo ven mientras el ganador no diga que sí'; end $$;
+select pruebas.espera_error('select public.anunciar_cliente_del_mes(current_date, auth.uid())', '%Solo el administrador%');
+select pruebas.espera_error('select public.actividad_del_mes(current_date)', '%No tienes permiso%');
+select pruebas.espera_error('select public.responder_cliente_del_mes(current_date, true)', '%no es tuyo%');
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('a');
+do $$
+begin
+  assert (select count(*) from public.premios_mes) = 1, 'el ganador ve su premio';
+  perform public.responder_cliente_del_mes(current_date, true);
+  assert (select nombre_publico from public.premios_mes where mes = date_trunc('month', current_date)::date) <> '', 'al aceptar se guarda el nombre para mostrar';
+end $$;
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('b');
+do $$ begin assert (select count(*) from public.premios_mes where publico) = 1, 'si acepta, lo ven todos'; end $$;
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.quitar_cliente_del_mes(current_date);
+do $$ begin assert (select count(*) from public.premios_mes) = 0, 'el admin puede quitar el premio'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin raise notice 'OK cliente del mes'; end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

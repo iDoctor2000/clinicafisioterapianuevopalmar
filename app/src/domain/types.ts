@@ -56,6 +56,8 @@ export interface ConfigCentro {
   resumenAnualActivo?: boolean;
   resumenAnualDesde?: string;
   resumenAnualHasta?: string;
+  /** Premio "Cliente del mes" (por defecto, activo). */
+  clienteDelMesActivo?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -351,6 +353,21 @@ export interface LecturaAviso {
 // ---------------------------------------------------------------------------
 // Portada del cliente (carrusel de fotos del centro)
 // ---------------------------------------------------------------------------
+
+/** Premio "Cliente del mes". */
+export interface PremioMes {
+  /** Primer día del mes premiado (AAAA-MM-01). */
+  mes: ISODate;
+  clienteId: Id;
+  /** Clases que hizo ese mes (al anunciarlo). */
+  clases: number;
+  motivo: string;
+  anunciadoEl: ISOInstant;
+  /** El ganador decide: null sin contestar, true lo pueden ver todos, false no. */
+  publico: boolean | null;
+  /** Nombre para mostrar a los demás alumnos ("Ana G."), solo si publico. */
+  nombrePublico: string;
+}
 
 export interface PortadaImagen {
   id: Id;

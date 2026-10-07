@@ -34,12 +34,12 @@ describe('config_centro', () => {
       nombre: 'Centro', minutosAntelacionCancelacion: 90, diasVentanaReserva: 10, recuperacionCaducaConContrato: false, diasCaducidadRecuperacion: 45,
       zonaHoraria: 'Europe/Madrid', diasCierre: [{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }],
       direccion: '', telefono: '', whatsapp: '', instagram: '', email: '',
-      mensajeCumpleanos: '', resumenAnualActivo: true, resumenAnualDesde: '12-15', resumenAnualHasta: '01-15',
+      mensajeCumpleanos: '', resumenAnualActivo: true, resumenAnualDesde: '12-15', resumenAnualHasta: '01-15', clienteDelMesActivo: true,
     });
     const { id: _id, dias_generacion_clases: _d, ...esperado } = fila;
     expect(deConfig(c)).toEqual({
       ...esperado, direccion: '', telefono: '', whatsapp: '', instagram: '', email: '',
-      mensaje_cumpleanos: '', resumen_anual_activo: true, resumen_anual_desde: '12-15', resumen_anual_hasta: '01-15',
+      mensaje_cumpleanos: '', resumen_anual_activo: true, resumen_anual_desde: '12-15', resumen_anual_hasta: '01-15', cliente_del_mes_activo: true,
     });
     expect(deDiasCierre(c.diasCierre)).toEqual([{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }]);
   });

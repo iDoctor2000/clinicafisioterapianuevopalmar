@@ -6,7 +6,7 @@
  */
 import type {
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, Id, ISODate, MetodoPago, Oferta, Pago,
-  PlantillaClase, PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
+  PlantillaClase, PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
 } from '@/domain/types';
 import { tienePermiso } from '@/domain/types';
 import {
@@ -687,4 +687,57 @@ export function ordenarPortada(ctx: Ctx, args: { ids: Id[] }): Resultado<void> {
   const ordenadas = [...db.portada].sort((a, b) => (posicion.get(a.id) ?? Infinity) - (posicion.get(b.id) ?? Infinity) || a.orden - b.orden);
   const portada = ordenadas.map((x, i) => ({ ...x, orden: i + 1 }));
   return ok(auditar({ ...db, portada }, sesion, ahora, 'ORDENAR_PORTADA', 'portada', '-', `${portada.length} fotos`), undefined);
+}
+
+// ---------------------------------------------------------------------------
+// Cliente del mes (0016)
+// ---------------------------------------------------------------------------
+
+/**
+ * Anuncia (o cambia) el cliente del mes. Con `aviso`, el ganador recibe un aviso personal
+ * (y, en Supabase, la notificación en el móvil). Solo el administrador.
+ */
+export function anunciarClienteDelMes(
+  ctx: Ctx,
+  args: { mes: ISODate; clienteId: Id; clases: number; motivo: string; aviso?: { titulo: string; cuerpo: string } | null },
+): Resultado<{ avisoId: Id | null }> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'TRABAJADOR' || sesion.rol !== 'ADMIN') return fallo('Solo el administrador puede elegir al cliente del mes.');
+  if (!db.clientes.some((c) => c.id === args.clienteId)) return fallo('El cliente no existe.');
+  const mes = `${args.mes.slice(0, 7)}-01`;
+  const anterior = db.premios.find((p) => p.mes === mes);
+  const mismo = anterior?.clienteId === args.clienteId;
+  const premio: PremioMes = {
+    mes, clienteId: args.clienteId, clases: Math.max(0, Math.round(args.clases)), motivo: args.motivo, anunciadoEl: ahora.toISOString(),
+    publico: mismo ? anterior!.publico : null, nombrePublico: mismo ? anterior!.nombrePublico : '',
+  };
+  let nuevo: Db = { ...db, premios: [premio, ...db.premios.filter((p) => p.mes !== mes)].sort((a, b) => b.mes.localeCompare(a.mes)) };
+  let avisoId: Id | null = null;
+  if (args.aviso?.titulo.trim()) {
+    const r = publicarAviso({ db: nuevo, sesion, ahora }, { titulo: args.aviso.titulo, cuerpo: args.aviso.cuerpo, destino: { tipo: 'CLIENTES', clienteIds: [args.clienteId] }, importante: true });
+    if (!r.ok) return fallo(r.error);
+    nuevo = r.db;
+    avisoId = r.valor.id;
+  }
+  return ok(auditar(nuevo, sesion, ahora, 'CLIENTE_DEL_MES', 'cliente', args.clienteId, `Cliente del mes de ${mes.slice(5, 7)}/${mes.slice(0, 4)}`), { avisoId });
+}
+
+export function quitarClienteDelMes(ctx: Ctx, args: { mes: ISODate }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'TRABAJADOR' || sesion.rol !== 'ADMIN') return fallo('Solo el administrador puede quitar el premio.');
+  const mes = `${args.mes.slice(0, 7)}-01`;
+  return ok(auditar({ ...db, premios: db.premios.filter((p) => p.mes !== mes) }, sesion, ahora, 'QUITAR_CLIENTE_DEL_MES', 'premio', mes.slice(0, 7), ''), undefined);
+}
+
+/** El ganador decide si los demás alumnos lo ven en la app. */
+export function responderClienteDelMes(ctx: Ctx, args: { mes: ISODate; publico: boolean }): Resultado<void> {
+  const { db, sesion } = ctx;
+  if (sesion.tipo !== 'CLIENTE') return fallo('Solo para alumnos.');
+  const mes = `${args.mes.slice(0, 7)}-01`;
+  const premio = db.premios.find((p) => p.mes === mes && p.clienteId === sesion.clienteId);
+  if (!premio) return fallo('Ese premio no es tuyo.');
+  const c = db.clientes.find((x) => x.id === sesion.clienteId);
+  const inicial = c?.apellidos.trim().charAt(0);
+  const nombrePublico = args.publico && c ? `${c.nombre}${inicial ? ` ${inicial}.` : ''}` : '';
+  return ok({ ...db, premios: db.premios.map((p) => (p === premio ? { ...p, publico: args.publico, nombrePublico } : p)) }, undefined);
 }

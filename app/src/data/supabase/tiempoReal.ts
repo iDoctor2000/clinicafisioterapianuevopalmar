@@ -8,7 +8,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { servidor } from './cliente';
 
-export const TABLAS_TIEMPO_REAL = ['reservas', 'clases', 'avisos', 'recuperaciones', 'contratos', 'pagos', 'portada_imagenes'] as const;
+export const TABLAS_TIEMPO_REAL = ['reservas', 'clases', 'avisos', 'recuperaciones', 'contratos', 'pagos', 'portada_imagenes', 'premios_mes'] as const;
 const DEBOUNCE_MS = 500;
 const INTERVALO_MS = 5 * 60 * 1000;
 

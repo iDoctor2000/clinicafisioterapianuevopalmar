@@ -14,6 +14,7 @@ import { esCumpleanos } from '@/domain/logros';
 import { AvatarCliente, BloqueRestringido, Dato, Encabezado, Pestanas, fechaMedia, instanteCorto } from './comunes';
 import { SelectorFoto } from '@/features/comun/SelectorFoto';
 import { FormularioCliente, type DatosCliente } from './Clientes';
+import { premiosDe } from './ClienteDelMes';
 import { PestanaReservas, PestanaTarifa } from './FichaTarifaReservas';
 
 type Pestana = 'DATOS' | 'CLINICA' | 'TARIFA' | 'RESERVAS' | 'RECUPERACIONES';
@@ -95,7 +96,7 @@ function BotonAvatar({ cliente, editable, onClick }: { cliente: Cliente; editabl
 // ---------------------------------------------------------------------------
 
 function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => void }) {
-  const { puede, ejecutar } = useTrabajador();
+  const { db, puede, ejecutar } = useTrabajador();
   const [editando, setEditando] = useState(false);
   const [papel, setPapel] = useState(false);
   const [registrando, setRegistrando] = useState(false);
@@ -126,6 +127,7 @@ function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => voi
         <Dato etiqueta="Correo electrónico">{cliente.email}</Dato>
         <Dato etiqueta="Dirección">{cliente.direccion}</Dato>
         <Dato etiqueta="Fecha de nacimiento">{cliente.fechaNacimiento ? fechaMedia(cliente.fechaNacimiento) : ''}</Dato>
+        {premiosDe(db, cliente.id) && <Dato etiqueta="Cliente del mes">🏆 {premiosDe(db, cliente.id)}</Dato>}
         <Dato etiqueta="Fecha de alta">{fechaMedia(cliente.altaEl)}</Dato>
         <Dato etiqueta="Fecha de baja">{cliente.bajaEl ? fechaMedia(cliente.bajaEl) : ''}</Dato>
         <Dato etiqueta="Notificaciones">{cliente.notificacionesPush ? 'Activadas' : 'Desactivadas'}</Dato>

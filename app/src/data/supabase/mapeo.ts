@@ -8,7 +8,7 @@
 import type {
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, DiaSemana, EstadoClase,
   EstadoContrato, EstadoPago, EstadoRecuperacion, EstadoReserva, Id, InformacionClinica, LecturaAviso, MetodoPago, Modalidad, MotivoRecuperacion,
-  Ambito, Oferta, OrigenReserva, Pago, Permiso, PlantillaClase, PortadaImagen, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
+  Ambito, Oferta, OrigenReserva, Pago, Permiso, PlantillaClase, PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
 } from '@/domain/types';
 import { METODOS_PAGO } from '@/domain/types';
 import type { Usuario } from '../db';
@@ -30,6 +30,7 @@ export interface FilaConfigCentro {
   direccion?: string; telefono?: string; whatsapp?: string; instagram?: string; email?: string;
   /** Columnas añadidas en 0014_logros.sql. */
   mensaje_cumpleanos?: string; resumen_anual_activo?: boolean; resumen_anual_desde?: string; resumen_anual_hasta?: string;
+  cliente_del_mes_activo?: boolean;
 }
 export interface FilaDiaCierre { fecha: string; motivo: string }
 
@@ -173,6 +174,7 @@ export function aConfig(fila: FilaConfigCentro | null, cierres: FilaDiaCierre[])
     direccion: fila.direccion ?? '', telefono: fila.telefono ?? '', whatsapp: fila.whatsapp ?? '', instagram: fila.instagram ?? '', email: fila.email ?? '',
     mensajeCumpleanos: fila.mensaje_cumpleanos ?? '', resumenAnualActivo: fila.resumen_anual_activo ?? true,
     resumenAnualDesde: fila.resumen_anual_desde ?? '12-15', resumenAnualHasta: fila.resumen_anual_hasta ?? '01-15',
+    clienteDelMesActivo: fila.cliente_del_mes_activo ?? true,
     diasCierre,
   };
 }
@@ -195,6 +197,7 @@ export function deConfig(c: Partial<ConfigCentro>): Partial<Omit<FilaConfigCentr
   if (c.resumenAnualActivo !== undefined) fila.resumen_anual_activo = c.resumenAnualActivo;
   if (c.resumenAnualDesde !== undefined) fila.resumen_anual_desde = c.resumenAnualDesde;
   if (c.resumenAnualHasta !== undefined) fila.resumen_anual_hasta = c.resumenAnualHasta;
+  if (c.clienteDelMesActivo !== undefined) fila.cliente_del_mes_activo = c.clienteDelMesActivo;
   return fila;
 }
 
@@ -437,6 +440,13 @@ export function aLectura(f: FilaAvisoLectura): LecturaAviso {
 // ---------------------------------------------------------------------------
 // Auditoría y usuarios
 // ---------------------------------------------------------------------------
+
+export interface FilaPremioMes {
+  mes: string; cliente_id: string; clases: number; motivo: string; anunciado_el: string; publico: boolean | null; nombre_publico: string;
+}
+export function aPremioMes(f: FilaPremioMes): PremioMes {
+  return { mes: aFecha(f.mes), clienteId: f.cliente_id, clases: f.clases, motivo: f.motivo ?? '', anunciadoEl: aInstante(f.anunciado_el), publico: f.publico, nombrePublico: f.nombre_publico ?? '' };
+}
 
 export function aPortadaImagen(f: FilaPortadaImagen): PortadaImagen {
   return { id: f.id, url: f.url, pie: f.pie ?? '', orden: f.orden, activa: f.activa, creadoEl: aInstante(f.creado_el) };

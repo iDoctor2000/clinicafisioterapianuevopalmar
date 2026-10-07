@@ -11,6 +11,7 @@ import { BarraOcupacion, Encabezado, Segmentado, may } from './comunes';
 import { esCumpleanos } from '@/domain/logros';
 import { CalendarioSemana } from './CalendarioSemana';
 import { CalendarioMes } from './CalendarioMes';
+import { BannerClienteDelMes } from './ClienteDelMes';
 import { IconoActividad } from '@/features/comun/IconoActividad';
 
 type Vista = 'DIA' | 'SEMANA' | 'MES';
@@ -63,6 +64,7 @@ export function Calendario() {
       />
 
       <CumpleanosDeHoy />
+      <BannerClienteDelMes />
 
       {vista === 'DIA' && (
         <>

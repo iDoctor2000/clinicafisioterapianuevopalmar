@@ -119,6 +119,49 @@ export function TarjetaCumpleanos({ nombre, mensaje, onCerrar }: { nombre: strin
 }
 
 // ---------------------------------------------------------------------------
+// Cliente del mes
+// ---------------------------------------------------------------------------
+
+/**
+ * Celebración del ganador. Con `preguntar`, pide si los demás alumnos pueden verlo en la
+ * app (el ganador decide). `onResponder` recibe la respuesta.
+ */
+export function TarjetaPremioMes({ nombre, mesTexto, clases, preguntar, onResponder, onCerrar, ejemplo }: {
+  nombre: string; mesTexto: string; clases: number; preguntar: boolean;
+  onResponder?: (publico: boolean) => Promise<void> | void; onCerrar: () => void; ejemplo?: boolean;
+}) {
+  const [guardando, setGuardando] = useState<boolean | null>(null);
+  const responder = async (publico: boolean) => {
+    setGuardando(publico);
+    try { await onResponder?.(publico); } finally { setGuardando(null); }
+  };
+  return (
+    <Celebracion onCerrar={onCerrar} etiqueta="Cliente del mes">
+      <span className="relative mx-auto h-28 w-28 rounded-full bg-gradient-to-br from-[#FBF3DF] via-[#F1DFB5] to-[#D8B978] border border-[#CFAE68]/70 shadow-[0_8px_18px_-6px_rgba(120,90,30,0.45),inset_0_1px_0_rgba(255,255,255,0.9)] flex items-center justify-center text-[#7A5A1E]">
+        <Trophy className="h-14 w-14" strokeWidth={1.5} />
+      </span>
+      <p className="lema mt-5">Cliente del mes · {mesTexto}{ejemplo ? ' · ejemplo' : ''}</p>
+      <h2 className="font-serif text-3xl mt-2 leading-tight">¡Enhorabuena, {nombre}!</h2>
+      <p className="text-ink-soft mt-3 text-[17px] leading-relaxed">
+        Por tu constancia en {mesTexto} ({clases} {clases === 1 ? 'clase' : 'clases'}), este mes el premio es para ti. ¡Gracias por cuidarte con nosotros! 💛
+      </p>
+      {preguntar ? (
+        <>
+          <p className="font-semibold mt-5">¿Quieres que los demás alumnos lo vean en la app?</p>
+          <p className="text-sm text-ink-muted mt-1">Solo saldría tu nombre y la inicial del apellido. Tú decides.</p>
+          <div className="mt-4 grid gap-2">
+            <Boton ancho onClick={() => void responder(true)} cargando={guardando === true} disabled={guardando !== null}>Sí, que se vea 🎉</Boton>
+            <Boton ancho variante="secundario" onClick={() => void responder(false)} cargando={guardando === false} disabled={guardando !== null}>Prefiero que no</Boton>
+          </div>
+        </>
+      ) : (
+        <Boton ancho className="mt-6" onClick={onCerrar}>¡Gracias! 🏆</Boton>
+      )}
+    </Celebracion>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Visor de historias
 // ---------------------------------------------------------------------------
 

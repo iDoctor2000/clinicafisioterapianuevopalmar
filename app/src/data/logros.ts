@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 import type { Id, ISODate } from '@/domain/types';
 
 import { clasesHechasDe, type ClaseHecha } from '@/domain/logros';
+import { finMes, type ActividadMes } from '@/domain/clienteDelMes';
+import { inicioSemana } from '@/domain/fechas';
 import { useStore } from './store';
 import { servidor } from './supabase/cliente';
 
@@ -99,3 +101,18 @@ export async function resumenCentro(anio: number): Promise<ResumenCentro> {
   return r.data as ResumenCentro;
 }
 
+
+/** Cliente del mes: clases, minutos y semanas con clase de cada alumno en el mes. */
+export async function actividadDelMes(mes: ISODate): Promise<ActividadMes[]> {
+  const fin = finMes(mes);
+  if (enDemo()) {
+    const { db } = useStore.getState();
+    return db.clientes.map((c) => {
+      const hechas = clasesHechasDe(db.reservas, db.clases, c.id, new Date()).filter((x) => x.fecha >= mes && x.fecha <= fin);
+      return { clienteId: c.id, clases: hechas.length, minutos: hechas.reduce((s, x) => s + x.duracionMin, 0), semanas: new Set(hechas.map((x) => inicioSemana(x.fecha))).size };
+    }).filter((a) => a.clases > 0);
+  }
+  const r = await servidor().rpc('actividad_del_mes', { p_mes: mes });
+  if (r.error) throw r.error;
+  return ((r.data as { c: string; n: number; min: number; sem: number }[] | null) ?? []).map((x) => ({ clienteId: x.c, clases: Number(x.n), minutos: Number(x.min), semanas: Number(x.sem) }));
+}

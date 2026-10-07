@@ -13,6 +13,7 @@ import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { alternativasPara, clasesSueltasDe, resumenCliente } from './consultas';
 import { AvatarCliente, BarraOcupacion, BuscadorClientes, ChipEstadoReserva, ChipOrigen, Confirmacion, Encabezado, Plegable, may } from './comunes';
+import { useGanadorVigente } from './ClienteDelMes';
 import { IconoActividad } from '@/features/comun/IconoActividad';
 
 export function DetalleClase() {
@@ -26,6 +27,7 @@ export function DetalleClase() {
   const [quitar, setQuitar] = useState<Reserva | null>(null);
   // Antes de cualquier salida anticipada (regla de los hooks): solo para las clases de hoy.
   const esDeHoy = clase?.fecha === hoyISO();
+  const ganador = useGanadorVigente();
   const hitos = useHitos(esDeHoy ? db.reservas.filter((r) => r.claseId === clase?.id && r.estado === 'RESERVADA').map((r) => r.clienteId) : [], clase?.fecha ?? '');
 
   if (claseAjena && !gestionaClase(claseAjena)) return <Vacio icono={Lock} titulo={MENSAJE_CLASE_AJENA} texto="Tu ámbito es «Solo sus clases»: únicamente puedes ver y gestionar las clases que impartes." accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
@@ -107,6 +109,7 @@ export function DetalleClase() {
                           <ChipOrigen origen={r.origen} />{!c?.activo && <Chip tono="rojo">Baja</Chip>}
                           {clase.fecha === hoy && esCumpleanos(c?.fechaNacimiento, hoy) && <Chip tono="ambar">🎂 Cumple hoy</Chip>}
                           {hitos.get(r.clienteId) && <Chip tono="beige">🎉 Su clase {hitos.get(r.clienteId)}</Chip>}
+                          {ganador === r.clienteId && <Chip tono="ambar">🏆 Cliente del mes</Chip>}
                         </div>
                       </div>
                       {puede('RESERVAS_GESTIONAR') && !pasada && !cancelada && (
