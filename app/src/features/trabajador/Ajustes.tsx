@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, CalendarOff, Building2, Eye, EyeOff, History, ImagePlus, Images, Plus, Save, Settings, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarOff, Building2, DatabaseBackup, ExternalLink, Eye, EyeOff, FileSpreadsheet, History, ImagePlus, Images, Plus, Save, Settings, Trash2 } from 'lucide-react';
 import type { DiaCierre, PortadaImagen } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
 import { useModo } from '@/data/store';
@@ -11,6 +11,9 @@ import { Boton, Chip, Entrada, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { Diagnostico } from './Diagnostico';
+import { ultimaCopia, type UltimaCopia } from '@/data/supabase/copias';
+import { excelDeDatos } from '@/data/exportar';
+import { descargarBlob } from '@/lib/compartir';
 import { normalizar } from './consultas';
 import { CampoBusqueda, Confirmacion, Encabezado, Seccion, Segmentado, fechaMedia, instanteCorto } from './comunes';
 
@@ -25,6 +28,7 @@ export function Ajustes() {
         <Cierres />
         <div className="lg:col-span-2"><CentroPilates /></div>
         <div className="lg:col-span-2"><FotosPortada /></div>
+        <div className="lg:col-span-2"><CopiasSeguridad /></div>
         <div className="lg:col-span-2"><Auditoria /></div>
         <div className="lg:col-span-2"><Diagnostico /></div>
       </div>
@@ -309,6 +313,75 @@ function Auditoria() {
         </ul>
         {filas.length > limite && <div className="flex justify-center mt-3"><Boton variante="secundario" tamano="sm" onClick={() => setLimite(limite + 100)}>Mostrar más</Boton></div>}
       </Seccion>
+    </Tarjeta>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Copias de seguridad
+// ---------------------------------------------------------------------------
+
+const URL_COPIAS = 'https://github.com/iDoctor2000/clinicafisioterapianuevopalmar/actions/workflows/copia-seguridad.yml';
+
+function CopiasSeguridad() {
+  const { db, puede } = useTrabajador();
+  const modo = useModo();
+  const [estado, setEstado] = useState<{ cargando: true } | { cargando: false; copia: UltimaCopia | null; error: string | null }>({ cargando: true });
+  const [confirmar, setConfirmar] = useState(false);
+
+  useEffect(() => {
+    if (modo !== 'SUPABASE') { setEstado({ cargando: false, copia: null, error: null }); return; }
+    let vivo = true;
+    ultimaCopia()
+      .then((copia) => { if (vivo) setEstado({ cargando: false, copia, error: null }); })
+      .catch((e: { code?: string; message?: string }) => {
+        if (!vivo) return;
+        const falta = e?.code === '42P01' || /copias_seguridad/.test(e?.message ?? '');
+        setEstado({ cargando: false, copia: null, error: falta ? 'Falta activar el registro de copias en Supabase (script 0015).' : 'No se ha podido consultar la última copia.' });
+      });
+    return () => { vivo = false; };
+  }, [modo]);
+
+  const descargar = () => {
+    const ahora = new Date();
+    descargarBlob(excelDeDatos(db, { conClinica: puede('CLINICA_VER'), generadoEl: ahora }), `nuevo-palmar-datos-${hoyISO(ahora)}.xlsx`);
+    setConfirmar(false);
+    toast.ok('Excel descargado. Guárdalo en un lugar seguro.');
+  };
+
+  let aviso: { tono: 'ok' | 'mal' | 'neutro'; texto: string };
+  if (modo !== 'SUPABASE') aviso = { tono: 'neutro', texto: 'En la demo no se hacen copias: los datos son de ejemplo.' };
+  else if (estado.cargando) aviso = { tono: 'neutro', texto: 'Consultando la última copia…' };
+  else if (estado.error) aviso = { tono: 'mal', texto: estado.error };
+  else if (!estado.copia) aviso = { tono: 'mal', texto: 'Todavía no se ha hecho ninguna copia. Revisa que las copias estén configuradas (manual del administrador).' };
+  else {
+    const horas = (Date.now() - Date.parse(estado.copia.hechaEl)) / 3_600_000;
+    const cuando = new Date(estado.copia.hechaEl).toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const tam = estado.copia.bytes >= 1_048_576 ? `${(estado.copia.bytes / 1_048_576).toLocaleString('es-ES', { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(estado.copia.bytes / 1024))} KB`;
+    aviso = horas <= 36
+      ? { tono: 'ok', texto: `Última copia: ${cuando} (${tam}). Todo en orden.` }
+      : { tono: 'mal', texto: `¡Atención! La última copia es de hace ${Math.floor(horas / 24)} días (${cuando}). Algo falla: revisa los avisos de GitHub o avisa a quien mantiene la app.` };
+  }
+
+  return (
+    <Tarjeta className="p-4 sm:p-6">
+      <Seccion titulo={<span className="flex items-center gap-2"><DatabaseBackup className="h-5 w-5 text-ink-muted" /> Copias de seguridad</span>}>
+        <div className={cn('rounded-2xl px-4 py-3 mb-4 font-medium', aviso.tono === 'ok' ? 'bg-beige-50 text-ink' : aviso.tono === 'mal' ? 'bg-rose/10 text-rose' : 'bg-sand text-ink-soft')}>
+          {aviso.tono === 'ok' ? '✓ ' : aviso.tono === 'mal' ? '⚠️ ' : ''}{aviso.texto}
+        </div>
+        <p className="text-sm text-ink-soft">
+          Cada noche se hace una <strong>copia cifrada de todos los datos</strong> (clientes, notas clínicas, contrataciones, cobros, reservas, historial y textos de la web) y se guarda 90 días.
+          Si un día pasara algo grave, se recupera siguiendo el capítulo "Copias de seguridad y recuperación" del manual.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <a href={URL_COPIAS} target="_blank" rel="noopener noreferrer"><Boton variante="secundario" tamano="sm"><ExternalLink className="h-4 w-4" /> Ver las copias en GitHub</Boton></a>
+          <Boton variante="secundario" tamano="sm" onClick={() => setConfirmar(true)}><FileSpreadsheet className="h-4 w-4" /> Descargar los datos en Excel</Boton>
+        </div>
+      </Seccion>
+      <Confirmacion abierta={confirmar} onCerrar={() => setConfirmar(false)} titulo="Descargar los datos en Excel" textoConfirmar="Descargar" onConfirmar={descargar}>
+        <p>Se descarga un Excel con los clientes{puede('CLINICA_VER') ? ', su información clínica' : ''}, las contrataciones, los cobros, el horario, las tarifas y el equipo.</p>
+        <p><strong className="text-ink">Es confidencial:</strong> tiene datos personales{puede('CLINICA_VER') ? ' y de salud' : ''}. Guárdalo en un lugar seguro (por ejemplo, un pendrive en la clínica) y no lo envíes por WhatsApp ni por correo.</p>
+      </Confirmacion>
     </Tarjeta>
   );
 }

@@ -35,8 +35,9 @@
     <li><span class="n">13</span> Ajustes: las reglas del centro y las fotos de la portada</li>
     <li><span class="n">14</span> La web de la clínica: editar textos y fotos</li>
     <li><span class="n">15</span> La "fontanería": dónde viven los datos y qué no tocar</li>
-    <li><span class="n">16</span> Problemas típicos y cómo salir de ellos</li>
-    <li><span class="n">17</span> Pequeño glosario</li>
+    <li><span class="n">16</span> Copias de seguridad y recuperación</li>
+    <li><span class="n">17</span> Problemas típicos y cómo salir de ellos</li>
+    <li><span class="n">18</span> Pequeño glosario</li>
   </ol>
 </div>
 
@@ -87,6 +88,8 @@
     <tr><td>Cambiar el texto de presentación de Pilates en la web</td><td>Web → editor → pestaña Pilates (los textos generales; lo demás viene de la app)</td><td>14</td></tr>
     <tr><td>Imprimir o compartir el código QR para que los alumnos descarguen la app</td><td>App → icono QR de la cabecera (junto a la interrogación) → Compartir, Descargar o Imprimir</td><td>3</td></tr>
     <tr><td>Ver quién hizo qué</td><td>App → Ajustes → Registro de cambios</td><td>13</td></tr>
+    <tr><td>Comprobar que se están haciendo las copias de seguridad</td><td>App → Ajustes → Copias de seguridad</td><td>16</td></tr>
+    <tr><td>Descargar los datos en un Excel</td><td>App → Ajustes → Copias de seguridad → Descargar los datos en Excel</td><td>16</td></tr>
     <tr><td>Enviar un informe cuando algo falla</td><td>App → Ajustes → Diagnóstico → Compartir informe</td><td>13</td></tr>
   </table>
   <div class="caja truco">
@@ -495,7 +498,7 @@
     <tr><td><strong>Google Cloud</strong></td><td>Lo que permite el botón "Entrar con Google".</td><td>Juan Antonio.</td></tr>
   </table>
   <ul>
-    <li><strong>Copias de seguridad:</strong> antes de un cambio grande (por ejemplo, borrar clientes antiguos en bloque), pide a Juan Antonio que haga una copia de la base de datos.</li>
+    <li><strong>Copias de seguridad:</strong> se hacen solas cada noche (capítulo 16). Antes de un cambio grande (por ejemplo, borrar clientes antiguos en bloque), pide que se haga una copia en ese momento: GitHub → Actions → Copia de seguridad diaria → Run workflow.</li>
     <li><strong>Contraseñas de clientes:</strong> nadie las ve, ni siquiera tú. Si un cliente la olvida, la recupera él mismo con "Crear mi contraseña".</li>
     <li><strong>Dominio:</strong> <code>www.fisioterapianuevopalmar.com</code> está contratado en Strato, a nombre de la clínica. En Strato solo se usa el dominio (sus registros DNS apuntan a GitHub); el hosting de Strato no se usa. No cambies los registros DNS A, AAAA ni el CNAME de www, o la web dejará de verse.</li>
   </ul>
@@ -503,6 +506,33 @@
 
 <section class="cap">
   <div class="capnum">Capítulo 16</div>
+  <h2>Copias de seguridad y recuperación</h2>
+  <p>Los datos de los alumnos no pueden perderse. Por eso, <strong>cada noche</strong> se hace sola una copia de seguridad de todo: clientes, notas clínicas, contrataciones, cobros, clases, reservas, historial y textos de la web. Va <strong>cifrada</strong> con una contraseña que solo tiene el centro y se guarda <strong>90 días</strong>. No tienes que hacer nada para que ocurra.</p>
+  <h3>Cómo sé que funciona</h3>
+  <p>En <strong>Ajustes → Copias de seguridad</strong> verás algo como <em>"✓ Última copia: martes 8 de octubre, 04:17. Todo en orden."</em>. Échale un vistazo de vez en cuando (por ejemplo, el día 1 de cada mes).</p>
+  <div class="caja ojo">
+    <div class="t">Si sale en rojo</div>
+    <p>Si pone que la última copia es de hace varios días, algo falla. Avisa a Juan Antonio o a quien mantenga la app. Además, cuando una copia falla, GitHub manda un correo con el título "⚠️ La copia de seguridad ha fallado".</p>
+  </div>
+  <h3>La contraseña de las copias</h3>
+  <p>Las copias van cifradas: sin su contraseña no las puede leer nadie (tampoco el centro). Esa contraseña está guardada <strong>en papel en la clínica y en el gestor de contraseñas de la administración</strong>. Si se pierde, las copias no sirven. No la cambies ni la tires.</p>
+  <h3>Descargar los datos en Excel</h3>
+  <p>En el mismo apartado, <span class="btn claro">Descargar los datos en Excel</span> te da una hoja de cálculo con los clientes, su información clínica, las contrataciones, los cobros, el horario, las tarifas y el equipo. Es útil para tenerlo a mano o consultarlo sin la app. <strong>Es confidencial</strong>: guárdalo en un lugar seguro (un pendrive en la clínica) y no lo envíes por WhatsApp ni por correo.</p>
+  <h3>Si pasa algo grave</h3>
+  <p>Por ejemplo, si alguien borra datos por error o Supabase dejara de funcionar. Que no cunda el pánico: con la copia se recupera todo tal como estaba la noche anterior.</p>
+  <ol class="pasos">
+    <li><strong>No toques nada más</strong> y apunta qué ha pasado y cuándo.</li>
+    <li>Avisa a Juan Antonio o a quien mantenga la app. Si no está, cualquier persona con conocimientos de informática puede hacerlo siguiendo el documento <strong>RECUPERACION.md</strong> del repositorio de GitHub (carpeta <code>docs</code>), que explica los pasos uno a uno.</li>
+    <li>La recuperación deja los datos <strong>como estaban en la copia elegida</strong>: lo que se hiciera después (reservas, cobros…) habrá que volver a apuntarlo.</li>
+  </ol>
+  <div class="caja truco">
+    <div class="t">Lo que no está en la copia</div>
+    <p>Las fotos de los clientes. Si un día se perdieran, cada alumno puede volver a ponerse la suya desde su perfil.</p>
+  </div>
+</section>
+
+<section class="cap">
+  <div class="capnum">Capítulo 17</div>
   <h2>Problemas típicos y cómo salir de ellos</h2>
   <dl class="faq">
     <dt>Un cliente entra y le sale "Tu usuario aún no está dado de alta en el centro".</dt>
@@ -524,7 +554,7 @@
     <dd>El cliente debe activarlas en Perfil → Avisos en el móvil y permitirlas en el móvil. En iPhone, con la app instalada en la pantalla de inicio. Que pruebe "Enviar notificación de prueba".</dd>
 
     <dt>He borrado algo sin querer.</dt>
-    <dd>Mira el Registro de cambios en Ajustes para ver qué pasó exactamente y avisa a Juan Antonio cuanto antes.</dd>
+    <dd>Mira el Registro de cambios en Ajustes para ver qué pasó exactamente y avisa a Juan Antonio cuanto antes. Si hace falta, se recupera de la copia de la noche anterior (capítulo 16).</dd>
 
     <dt>La web no muestra los cambios que acabo de guardar en el editor.</dt>
     <dd>Recarga la página. Si guardaste con el móvil sin cobertura, vuelve a entrar al editor y guarda de nuevo.</dd>
@@ -541,7 +571,7 @@
 </section>
 
 <section class="cap">
-  <div class="capnum">Capítulo 17</div>
+  <div class="capnum">Capítulo 18</div>
   <h2>Pequeño glosario</h2>
   <dl class="glosario">
     <dt>Actividad</dt><dd>Lo que se imparte (Reformer, Pilates Suelo, Yoga…).</dd>

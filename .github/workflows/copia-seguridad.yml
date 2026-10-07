@@ -1,0 +1,91 @@
+# Copia de seguridad diaria de la base de datos (cifrada). Ver docs/RECUPERACION.md.
+#
+# Necesita dos secretos del repositorio (Settings → Secrets and variables → Actions → Secrets):
+#   SUPABASE_DB_URL     Dirección de conexión de Supabase ("Session pooler", con la contraseña).
+#   BACKUP_PASSPHRASE   Contraseña con la que se cifran las copias (guárdala también fuera de GitHub).
+# Las copias se guardan 90 días como "artifacts" de cada ejecución. Van cifradas: aunque el
+# repositorio sea público, sin la contraseña no se pueden leer.
+name: Copia de seguridad diaria
+
+on:
+  schedule:
+    - cron: '17 2 * * *'   # cada noche, 03:17 (invierno) o 04:17 (verano) hora de Madrid
+  workflow_dispatch:        # botón "Run workflow" para hacer una copia en el momento
+
+permissions:
+  contents: read
+  actions: write   # mantener activa la tarea programada
+  issues: write    # avisar si falla
+
+concurrency:
+  group: copia-seguridad
+  cancel-in-progress: false
+
+jobs:
+  copia:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Comprobar que están los secretos
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Faltan los secretos SUPABASE_DB_URL y/o BACKUP_PASSPHRASE (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Instalar el cliente de PostgreSQL 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common > /dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Hacer la copia cifrada
+        id: copia
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: bash scripts/copias/hacer-copia.sh copias
+
+      - name: Guardar la copia (90 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: copia-seguridad-${{ steps.copia.outputs.dia }}
+          path: ${{ steps.copia.outputs.archivo }}
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: error
+          overwrite: true
+
+      # GitHub desactiva las tareas programadas de un repositorio público tras 60 días sin cambios.
+      - name: Mantener activa la tarea programada
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/copia-seguridad.yml/enable" || true
+
+      - name: Avisar si algo ha fallado
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENLACE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITULO="⚠️ La copia de seguridad ha fallado"
+          ABIERTA=$(gh issue list --repo "${{ github.repository }}" --state open --search "\"$TITULO\" in:title" --json number --jq '.[0].number // empty')
+          CUERPO="La copia de seguridad del $(date -u +%d/%m/%Y) no se ha podido hacer.
+
+          Detalle: $ENLACE
+
+          Mientras no se arregle, no hay copia nueva. Revisa que los secretos SUPABASE_DB_URL y BACKUP_PASSPHRASE siguen bien (Settings → Secrets and variables → Actions) o avisa a quien mantiene la app. Cuando vuelva a funcionar, cierra este aviso."
+          if [ -n "$ABIERTA" ]; then
+            gh issue comment "$ABIERTA" --repo "${{ github.repository }}" --body "$CUERPO"
+          else
+            gh issue create --repo "${{ github.repository }}" --title "$TITULO" --body "$CUERPO" --assignee "${{ github.repository_owner }}" \
+              || gh issue create --repo "${{ github.repository }}" --title "$TITULO" --body "$CUERPO"
+          fi
