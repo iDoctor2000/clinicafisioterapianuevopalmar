@@ -339,7 +339,10 @@ function SinAlta({ email }: { email: string }) {
       <Tarjeta className="p-6 text-center space-y-4">
         <UserX className="h-12 w-12 mx-auto text-cocoa" />
         <p className="text-lg font-semibold">Tu usuario aún no está dado de alta en el centro</p>
-        <p className="text-ink-muted">Has entrado como <strong className="text-ink">{email}</strong>, pero ese email no coincide con ninguna ficha del centro. Díselo en recepción: solo tienen que anotar este mismo email en tu ficha y volver a entrar.</p>
+        <p className="text-ink-muted">Has entrado como <strong className="text-ink">{email}</strong>, pero ese email no coincide con ninguna ficha del centro. Díselo en recepción: solo tienen que anotar este mismo email en tu ficha. Después pulsa "Volver a intentar".</p>
+        <Boton tamano="lg" ancho onClick={() => window.location.reload()}>
+          <RotateCcw className="h-5 w-5" /> Volver a intentar
+        </Boton>
         <Boton tamano="lg" ancho variante="secundario" cargando={saliendo} onClick={async () => { setSaliendo(true); await cerrar(); setSaliendo(false); }}>
           <LogOut className="h-5 w-5" /> Salir
         </Boton>

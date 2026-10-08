@@ -1045,4 +1045,45 @@ select pruebas.sistema();
 do $$ begin raise notice 'OK cliente del mes'; end $$;
 
 \echo
+\echo '== 29. Vincular cuenta y ficha en cualquier orden (0017)'
+select pruebas.sistema();
+-- La alumna se registra ANTES de que el centro le cree la ficha.
+insert into auth.users (id, email) values ('20000000-0000-4000-8000-0000000000a1', 'gema@test.local');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono)
+values ('e0000000-0000-4000-8000-0000000000a1', 'Gema', 'Antes', '71111111A', ' Gema@Test.local ', '600 000 101');
+do $$ begin
+  assert (select user_id from public.clientes where id = 'e0000000-0000-4000-8000-0000000000a1') = '20000000-0000-4000-8000-0000000000a1',
+    'la ficha creada después de la cuenta queda enlazada';
+end $$;
+-- Una segunda ficha con el mismo correo no rompe nada (se queda sin enlazar).
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono)
+values ('e0000000-0000-4000-8000-0000000000a2', 'Gema', 'Duplicada', '72222222A', 'gema@test.local', '600 000 102');
+do $$ begin
+  assert (select user_id from public.clientes where id = 'e0000000-0000-4000-8000-0000000000a2') is null, 'la ficha repetida no se enlaza ni da error';
+end $$;
+-- Correo mal escrito en la ficha y corregido después por recepción.
+insert into auth.users (id, email) values ('20000000-0000-4000-8000-0000000000a3', 'hugo@test.local');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono)
+values ('e0000000-0000-4000-8000-0000000000a3', 'Hugo', 'Corregido', '73333333A', 'hugo-mal@test.local', '600 000 103');
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+update public.clientes set email = 'hugo@test.local' where id = 'e0000000-0000-4000-8000-0000000000a3';
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select user_id from public.clientes where id = 'e0000000-0000-4000-8000-0000000000a3') = '20000000-0000-4000-8000-0000000000a3',
+    'al corregir el correo, la ficha queda enlazada';
+end $$;
+-- Cuenta nueva con dos fichas sin enlazar con su correo: se enlaza una y no falla el registro.
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  ('e0000000-0000-4000-8000-0000000000a4', 'Inés', 'Una', '74444444A', 'ines@test.local', '600 000 104'),
+  ('e0000000-0000-4000-8000-0000000000a5', 'Inés', 'Otra', '75555555A', 'ines@test.local', '600 000 105');
+insert into auth.users (id, email) values ('20000000-0000-4000-8000-0000000000a4', 'ines@test.local');
+do $$ begin
+  assert (select count(*) from public.clientes where user_id = '20000000-0000-4000-8000-0000000000a4') = 1, 'una sola ficha enlazada y sin error';
+  raise notice 'OK vincular en cualquier orden';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'
