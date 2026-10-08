@@ -125,6 +125,13 @@ function PestanaDatos({ cliente, onFoto }: { cliente: Cliente; onFoto: () => voi
         <Dato etiqueta="DNI / NIE">{cliente.dni}</Dato>
         <Dato etiqueta="Teléfono">{cliente.telefono}</Dato>
         <Dato etiqueta="Correo electrónico">{cliente.email}</Dato>
+        <Dato etiqueta="Cuenta en la app">
+          {!cliente.userId
+            ? <span className="text-ink-soft">⏳ Sin enlazar: aún no se ha registrado con este correo. Si ya lo hizo con otro, pon aquí ese mismo correo y se enlaza sola.</span>
+            : cliente.activo
+              ? <span>✅ Enlazada: entra en la app con este correo</span>
+              : <span className="text-ink-soft">Enlazada, pero la ficha está de baja: no puede entrar hasta que se reactive</span>}
+        </Dato>
         <Dato etiqueta="Dirección">{cliente.direccion}</Dato>
         <Dato etiqueta="Fecha de nacimiento">{cliente.fechaNacimiento ? fechaMedia(cliente.fechaNacimiento) : ''}</Dato>
         {premiosDe(db, cliente.id) && <Dato etiqueta="Cliente del mes">🏆 {premiosDe(db, cliente.id)}</Dato>}
