@@ -466,6 +466,23 @@ export function borrarPago(ctx: Ctx, args: { id: Id }): Resultado<void> {
   return ok(auditar({ ...db, pagos: db.pagos.filter((p) => p.id !== args.id) }, sesion, ahora, 'BORRAR_PAGO', 'pago', pago.id, `${nombreCliente(db, pago.clienteId)}: ${pago.concepto}`), undefined);
 }
 
+/**
+ * Vuelve a generar las reservas de horario fijo que falten de un contrato (clases
+ * futuras de sus franjas con plaza). Útil si al contratar no se apuntó a ninguna clase
+ * (franja sin clases o completa) o tras cambios en el horario. Devuelve cuántas crea.
+ */
+export function rehacerReservasFijas(ctx: Ctx, args: { contratoId: Id }): Resultado<{ creadas: number }> {
+  const { db, sesion, ahora } = ctx;
+  if (!tienePermiso(sesion, 'RESERVAS_GESTIONAR') && !tienePermiso(sesion, 'CLIENTES_EDITAR')) return fallo('No tienes permiso para: RESERVAS_GESTIONAR');
+  const contrato = db.contratos.find((c) => c.id === args.contratoId);
+  if (!contrato) return fallo('El contrato no existe.');
+  if (contrato.modalidad !== 'FIJO' || contrato.estado !== 'ACTIVO') return fallo('Solo para contratos activos de horario fijo.');
+  const hoy = aISODate(ahora);
+  const nuevas = generarReservasAutomaticas(contrato, db.clases.filter((c) => c.fecha >= hoy), db.reservas, () => nuevoId('res'), ahora.toISOString());
+  const nuevo: Db = { ...db, reservas: db.reservas.concat(nuevas) };
+  return ok(auditar(nuevo, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${nuevas.length} reservas generadas`), { creadas: nuevas.length });
+}
+
 export function finalizarContrato(ctx: Ctx, args: { contratoId: Id; cancelarReservasFuturas: boolean }): Resultado<void> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'CLIENTES_EDITAR');

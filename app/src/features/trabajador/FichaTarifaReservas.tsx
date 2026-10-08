@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, Pencil, Tag } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, Pencil, RefreshCw, Tag } from 'lucide-react';
+import { useStore } from '@/data/store';
 import type { Categoria, Cliente, Contrato, MetodoPago, Modalidad, Oferta, Reserva, Tarifa } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import { DIAS_SEMANA_LABEL, fechaCorta, fechaLarga, hoyISO, sumarDias, sumarMeses } from '@/domain/fechas';
@@ -32,6 +33,17 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
   const historial = contratosDeCliente(db, cliente.id).filter((c) => c.id !== contrato?.id);
   const previstas = contrato && contrato.modalidad === 'FIJO' ? sesionesPrevistas(contrato, db.plantillas, db.config).total : null;
   const reservasFuturas = finalizar ? db.reservas.filter((r) => r.contratoId === finalizar.id && r.estado === 'RESERVADA' && (db.clases.find((c) => c.id === r.claseId)?.fecha ?? '') >= hoy).length : 0;
+
+  const [rehaciendo, setRehaciendo] = useState(false);
+  const rehacer = async () => {
+    if (!contrato || rehaciendo) return;
+    setRehaciendo(true);
+    const r = await ejecutar('rehacerReservasFijas', { contratoId: contrato.id });
+    setRehaciendo(false);
+    if (!r.ok) return toast.error(r.error);
+    if (r.valor.creadas === 0) toast.info('No faltaba ninguna reserva. Si el alumno sigue sin salir en alguna clase, es que esa clase está completa o no existe (revisa la franja en Horarios).');
+    else toast.ok(`Hecho: se han apuntado ${r.valor.creadas === 1 ? '1 clase que faltaba' : `${r.valor.creadas} clases que faltaban`}.`);
+  };
 
   const confirmarFin = async () => {
     if (!finalizar) return;
@@ -75,6 +87,12 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
                     );
                   })}
                 </ul>
+                {(puede('RESERVAS_GESTIONAR') || puede('CLIENTES_EDITAR')) && (
+                  <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-sm text-ink-muted">¿No sale en alguna clase del calendario? Vuelve a generar las reservas que falten.</p>
+                    <Boton variante="secundario" tamano="sm" onClick={() => void rehacer()} cargando={rehaciendo}><RefreshCw className="h-4 w-4" /> Rehacer reservas fijas</Boton>
+                  </div>
+                )}
               </div>
             )}
             {puede('CLIENTES_EDITAR') && (
@@ -194,6 +212,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
   // Importes de cada cuota cambiados a mano (posición → texto). Se descartan si cambia el plan.
   const [ajustes, setAjustes] = useState<Record<number, string>>({});
   const [primeroCobrado, setPrimeroCobrado] = useState(false);
+  const [guardando, setGuardando] = useState(false);
   const tarifa: Tarifa | undefined = tarifas.find((t) => t.id === tarifaId);
   const fin = finManual ?? (tarifa ? fechaFinPorDefecto(tarifa, inicio, sumarMeses) : inicio);
   const esRecurrente = tarifa?.tipo === 'RECURRENTE';
@@ -212,6 +231,8 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
     const cuotas = plan.map((q, i) => ({ ...q, importeCentimos: aCentimos(importesPlan[i]) }));
     if (cuotas.some((q) => q.importeCentimos == null)) return toast.error('Revisa los importes del plan de cobros.');
     if (primeroCobrado && !metodo) return toast.error('Elige la forma de pago para apuntar el primer cobro.');
+    if (guardando) return; // un segundo toque no crea otra contratación
+    setGuardando(true);
     const r = await ejecutar('crearContrato', {
       contrato: {
         clienteId: cliente.id, tarifaId: tarifa.id, fechaInicio: inicio, fechaFin: fin, modalidad: modalidadReal,
@@ -223,7 +244,17 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
         estado: i === 0 && primeroCobrado ? 'PAGADO' : 'PENDIENTE', metodo: i === 0 && primeroCobrado ? metodo || null : null, pagadoEl: null,
       })),
     });
-    if (r.ok) { toast.ok('Contratación creada. Las reservas de horario fijo y el plan de cobros se han generado.'); onCerrar(); } else toast.error(r.error);
+    setGuardando(false);
+    if (!r.ok) return toast.error(r.error);
+    if (modalidadReal === 'FIJO') {
+      // Reservas que ha creado el servidor para este contrato (la instantánea ya está recargada).
+      const n = useStore.getState().db.reservas.filter((x) => x.contratoId === r.valor.id && x.estado === 'RESERVADA').length;
+      if (n === 0) toast.error('Contratación creada, pero no se ha podido apuntar al alumno a ninguna clase: puede que las franjas elegidas no tengan clases creadas o estén completas. Revísalo en el calendario y usa "Rehacer reservas fijas" en su pestaña Tarifa.');
+      else toast.ok(`Contratación creada: apuntado a ${n === 1 ? '1 clase' : `${n} clases`} hasta el ${fechaMedia(fin)}. Los días anteriores a hoy no se apuntan.`);
+    } else {
+      toast.ok('Contratación creada. El plan de cobros se ha generado.');
+    }
+    onCerrar();
   };
 
   return (
@@ -261,7 +292,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
         </div>
 
         <AreaTexto etiqueta="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" className="min-h-[4rem]" />
-        <Boton ancho onClick={guardar}>Crear contratación</Boton>
+        <Boton ancho onClick={() => void guardar()} cargando={guardando}>Crear contratación</Boton>
       </div>
     </Hoja>
   );
