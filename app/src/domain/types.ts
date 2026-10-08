@@ -268,6 +268,11 @@ export interface Clase {
   motivoCancelacion: string | null;
   canceladaEl: ISOInstant | null;
   canceladaPor: Id | null;
+  /**
+   * Plazas ocupadas según el servidor (solo en Supabase, vista ocupacion_clases). Un alumno
+   * solo recibe sus propias reservas, así que contar las reservas cargadas se queda corto.
+   */
+  ocupadas?: number;
 }
 
 export type OrigenReserva =

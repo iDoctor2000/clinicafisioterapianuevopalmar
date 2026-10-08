@@ -1086,4 +1086,27 @@ do $$ begin
 end $$;
 
 \echo
+\echo '== 30. Ocupación de las clases visible para los alumnos (0018)'
+select pruebas.sistema();
+do $$
+declare v_clase uuid;
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), public._hoy() + 2, '12:00', 55, pruebas.id('tra_ana'), 6, true) returning id into v_clase;
+  insert into public.reservas (clase_id, cliente_id, origen, creado_por) values (v_clase, pruebas.id('cliente_a'), 'MANUAL', null);
+  perform pruebas.guardar('cl_ocupacion', v_clase::text);
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('b');
+do $$
+begin
+  assert (select count(*) from public.reservas where clase_id = pruebas.id('cl_ocupacion')) = 0, 'B no ve las reservas de A';
+  assert (select ocupadas from public.ocupacion_clases where clase_id = pruebas.id('cl_ocupacion')) = 1, 'pero sí cuántas plazas están ocupadas';
+  raise notice 'OK ocupación de las clases';
+end $$;
+commit;
+select pruebas.sistema();
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'
