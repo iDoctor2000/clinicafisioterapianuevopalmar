@@ -177,6 +177,11 @@ const impl: Impl = {
     return () => undefined;
   },
 
+  async rehacerReservasFijas(args) {
+    const n = await rpc<number>('generar_reservas_automaticas', { p_contrato_id: args.contratoId });
+    return () => ({ creadas: Number(n) || 0 });
+  },
+
   async finalizarContrato(args) {
     await rpc('finalizar_contrato', { p_contrato_id: args.contratoId, p_cancelar_reservas_futuras: args.cancelarReservasFuturas });
     return () => undefined;
