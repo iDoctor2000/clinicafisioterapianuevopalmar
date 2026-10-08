@@ -148,6 +148,7 @@ const impl: Impl = {
         concepto: q.concepto, importe_centimos: q.importeCentimos, vence_el: q.venceEl, estado: q.estado, metodo: q.metodo,
         pagado_el: q.estado === 'PAGADO' ? q.pagadoEl ?? new Date().toISOString() : null,
       })),
+      p_incluir_pasadas: !!args.incluirPasadas,
     });
     return (db) => db.contratos.find((x) => x.id === id) ?? { ...c, id, estado: 'ACTIVO', creadoEl: new Date().toISOString(), creadoPor: 'sistema' };
   },
@@ -157,6 +158,7 @@ const impl: Impl = {
     await rpc('editar_contrato', {
       p_contrato_id: args.contratoId, p_fecha_fin: k.fechaFin, p_franjas: k.franjasFijas.map((f) => f.plantillaId), p_notas: k.notas,
       p_oferta: k.oferta, p_importe_centimos: k.importeCentimos, p_metodo_pago: k.metodoPago, p_sesiones_restantes: k.sesionesRestantes,
+      p_incluir_pasadas: !!k.incluirPasadas,
     });
     return (db) => db.contratos.find((x) => x.id === args.contratoId)!;
   },
@@ -180,6 +182,20 @@ const impl: Impl = {
   async rehacerReservasFijas(args) {
     const n = await rpc<number>('generar_reservas_automaticas', { p_contrato_id: args.contratoId });
     return () => ({ creadas: Number(n) || 0 });
+  },
+
+  async rehacerTodasReservasFijas(_args, sesion) {
+    if (sesion.tipo !== 'TRABAJADOR' || sesion.rol !== 'ADMIN') throw new Error('Solo el administrador puede rehacer las reservas de todos.');
+    const r = comprobar(await servidor().from('contratos').select('id').eq('modalidad', 'FIJO').eq('estado', 'ACTIVO'));
+    const ids = ((r ?? []) as { id: string }[]).map((c) => c.id);
+    let contratos = 0;
+    let creadas = 0;
+    // De cinco en cinco para no saturar la conexión del móvil.
+    for (let i = 0; i < ids.length; i += 5) {
+      const lote = await Promise.all(ids.slice(i, i + 5).map((id) => rpc<number>('generar_reservas_automaticas', { p_contrato_id: id })));
+      for (const n of lote) { if (Number(n) > 0) { contratos += 1; creadas += Number(n); } }
+    }
+    return () => ({ contratos, creadas });
   },
 
   async finalizarContrato(args) {

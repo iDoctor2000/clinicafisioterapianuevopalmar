@@ -45,3 +45,36 @@ describe('rehacerReservasFijas', () => {
     expect(rehacerReservasFijas({ db: db0, sesion: sesionDe(db0, 'tra-laura'), ahora }, { contratoId: libre.id })).toEqual({ ok: false, error: 'Solo para contratos activos de horario fijo.' });
   });
 });
+
+describe('rehacerTodasReservasFijas', () => {
+  it('repasa todos los contratos fijos activos y solo el administrador puede', async () => {
+    const { rehacerTodasReservasFijas } = await import('@/data/comandos');
+    const db0 = crearSeed();
+    const fijos = db0.contratos.filter((c) => c.modalidad === 'FIJO' && c.estado === 'ACTIVO');
+    const futuras = db0.reservas.filter((x) => x.estado === 'RESERVADA' && x.origen === 'AUTOMATICA' && fijos.some((c) => c.id === x.contratoId) && (db0.clases.find((c) => c.id === x.claseId)?.fecha ?? '') >= hoy);
+    const sinEllas: Db = { ...db0, reservas: db0.reservas.filter((x) => !futuras.includes(x)) };
+    const r = rehacerTodasReservasFijas({ db: sinEllas, sesion: sesionDe(db0, 'tra-jose'), ahora }, {});
+    expect(r.ok && r.valor.creadas).toBe(futuras.length);
+    expect(r.ok && r.valor.contratos).toBeGreaterThan(0);
+    const otra = rehacerTodasReservasFijas({ db: db0, sesion: sesionDe(db0, 'tra-jose'), ahora }, {});
+    expect(otra.ok && otra.valor).toEqual({ contratos: 0, creadas: 0 });
+    expect(rehacerTodasReservasFijas({ db: db0, sesion: sesionDe(db0, 'tra-laura'), ahora }, {}).ok).toBe(false);
+  });
+});
+
+describe('clases pasadas al contratar (demo, como en el servidor)', () => {
+  it('por defecto apunta desde hoy; con incluirPasadas, también desde la fecha de inicio', async () => {
+    const { crearContrato } = await import('@/data/comandos');
+    const { sumarDias } = await import('@/domain/fechas');
+    const db0 = crearSeed();
+    const cliente = db0.clientes.find((c) => !db0.contratos.some((k) => k.clienteId === c.id && k.estado === 'ACTIVO')) ?? db0.clientes[0];
+    const franja = db0.plantillas.find((p) => p.activa)!;
+    const inicio = sumarDias(hoy, -14);
+    const contrato = { clienteId: cliente.id, tarifaId: 'tar-dir2', fechaInicio: inicio, fechaFin: sumarDias(hoy, 30), modalidad: 'FIJO' as const, franjasFijas: [{ plantillaId: franja.id }], sesionesRestantes: null, actividadesPermitidasIds: [], notas: '', oferta: 'NINGUNA' as const, importeCentimos: null, metodoPago: null };
+    const pasadas = (db: Db, id: string) => db.reservas.filter((r) => r.contratoId === id && (db.clases.find((c) => c.id === r.claseId)?.fecha ?? '') < hoy).length;
+    const sin = crearContrato({ db: db0, sesion: sesionDe(db0, 'tra-jose'), ahora }, { contrato });
+    expect(sin.ok && pasadas(sin.db, sin.valor.id)).toBe(0);
+    const con = crearContrato({ db: db0, sesion: sesionDe(db0, 'tra-jose'), ahora }, { contrato, incluirPasadas: true });
+    expect(con.ok && pasadas(con.db, con.valor.id)).toBeGreaterThan(0);
+  });
+});

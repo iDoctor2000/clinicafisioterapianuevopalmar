@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, CalendarOff, Building2, DatabaseBackup, ExternalLink, Eye, EyeOff, FileSpreadsheet, History, ImagePlus, Images, Plus, Save, Settings, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarOff, Building2, DatabaseBackup, ExternalLink, Eye, EyeOff, FileSpreadsheet, History, ImagePlus, Images, Plus, RefreshCw, Save, Settings, Trash2 } from 'lucide-react';
 import type { DiaCierre, PortadaImagen } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
 import { useModo } from '@/data/store';
@@ -30,6 +30,7 @@ export function Ajustes() {
         <div className="lg:col-span-2"><CentroPilates /></div>
         <div className="lg:col-span-2"><FotosPortada /></div>
         <div className="lg:col-span-2"><Sorpresas /></div>
+        <div className="lg:col-span-2"><ReservasFijas /></div>
         <div className="lg:col-span-2"><CopiasSeguridad /></div>
         <div className="lg:col-span-2"><Auditoria /></div>
         <div className="lg:col-span-2"><Diagnostico /></div>
@@ -322,6 +323,32 @@ function Auditoria() {
 // ---------------------------------------------------------------------------
 // Copias de seguridad
 // ---------------------------------------------------------------------------
+
+/** Vuelve a apuntar a todos los alumnos de horario fijo a las clases futuras que les falten. */
+function ReservasFijas() {
+  const { db, ejecutar } = useTrabajador();
+  const [trabajando, setTrabajando] = useState(false);
+  const fijos = db.contratos.filter((c) => c.modalidad === 'FIJO' && c.estado === 'ACTIVO').length;
+  const rehacer = async () => {
+    if (trabajando) return;
+    setTrabajando(true);
+    const r = await ejecutar('rehacerTodasReservasFijas', {});
+    setTrabajando(false);
+    if (!r.ok) return toast.error(r.error);
+    if (r.valor.creadas === 0) toast.ok(`Todo en orden: los ${fijos} alumnos de horario fijo ya estaban apuntados a todas sus clases futuras con plaza.`);
+    else toast.ok(`Hecho: se han apuntado ${r.valor.creadas} clases que faltaban, de ${r.valor.contratos} ${r.valor.contratos === 1 ? 'alumno' : 'alumnos'}.`);
+  };
+  return (
+    <Tarjeta className="p-4 sm:p-6">
+      <Seccion titulo={<span className="flex items-center gap-2"><RefreshCw className="h-5 w-5 text-ink-muted" /> Reservas de horario fijo</span>}>
+        <p className="text-sm text-ink-soft mb-4">
+          Si en el Calendario falta algún alumno fijo en clases futuras, este botón repasa los {fijos} contratos de horario fijo activos y apunta a cada alumno a las clases de sus franjas que le falten (solo desde hoy y si hay plaza). No duplica ni toca nada que ya esté bien.
+        </p>
+        <Boton onClick={() => void rehacer()} cargando={trabajando}><RefreshCw className="h-5 w-5" /> Rehacer las reservas fijas de todos</Boton>
+      </Seccion>
+    </Tarjeta>
+  );
+}
 
 const URL_COPIAS = 'https://github.com/iDoctor2000/clinicafisioterapianuevopalmar/actions/workflows/copia-seguridad.yml';
 

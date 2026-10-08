@@ -1109,4 +1109,39 @@ commit;
 select pruebas.sistema();
 
 \echo
+\echo '== 31. Apuntar también a las clases pasadas (0019)'
+select pruebas.sistema();
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  ('e0000000-0000-4000-8000-0000000000c1', 'Paula', 'Pasadas', '77777777P', 'paula@test.local', '600 000 201'),
+  ('e0000000-0000-4000-8000-0000000000c2', 'Pedro', 'Futuras', '78888888P', 'pedro@test.local', '600 000 202');
+-- Una clase de la franja de los miércoles 09:00, hace una semana.
+insert into public.clases (plantilla_id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas)
+select p.id, p.actividad_id, public._hoy() - 7, p.hora_inicio, p.duracion_min, p.monitor_id, p.plazas
+  from public.plantillas_clase p where p.id = pruebas.id('pl_mie_0900')
+on conflict (plantilla_id, fecha) do nothing;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$
+declare v_con uuid; v_pasada uuid; v_futuras integer;
+begin
+  select id into v_pasada from public.clases where plantilla_id = pruebas.id('pl_mie_0900') and fecha = current_date - 7;
+  -- Sin pedir las pasadas: solo desde hoy.
+  v_con := public.crear_contrato('e0000000-0000-4000-8000-0000000000c2', pruebas.id('tar_dir2'), current_date - 10, null, 'FIJO', array[pruebas.id('pl_mie_0900')]);
+  assert not exists (select 1 from public.reservas where clase_id = v_pasada and cliente_id = 'e0000000-0000-4000-8000-0000000000c2'), 'por defecto no se apunta a clases pasadas';
+  -- Pidiéndolas: también la de hace una semana.
+  v_con := public.crear_contrato('e0000000-0000-4000-8000-0000000000c1', pruebas.id('tar_dir2'), current_date - 10, null, 'FIJO', array[pruebas.id('pl_mie_0900')], p_incluir_pasadas => true);
+  assert exists (select 1 from public.reservas where clase_id = v_pasada and cliente_id = 'e0000000-0000-4000-8000-0000000000c1' and estado = 'RESERVADA' and origen = 'AUTOMATICA'), 'con p_incluir_pasadas se apunta a la clase pasada';
+  select count(*) into v_futuras from public.reservas r join public.clases c on c.id = r.clase_id where r.contrato_id = v_con and c.fecha >= current_date;
+  assert v_futuras > 0, 'y a las futuras como siempre';
+  -- Editar después pidiendo las pasadas también las recupera (Pedro).
+  select id into v_con from public.contratos where cliente_id = 'e0000000-0000-4000-8000-0000000000c2' and estado = 'ACTIVO';
+  perform public.editar_contrato(v_con, (current_date + 60)::date, array[pruebas.id('pl_mie_0900')], '', 'NINGUNA', null, null, null, true);
+  assert exists (select 1 from public.reservas where clase_id = v_pasada and cliente_id = 'e0000000-0000-4000-8000-0000000000c2'), 'editar con p_incluir_pasadas apunta a la clase pasada';
+  raise notice 'OK clases pasadas';
+end $$;
+commit;
+select pruebas.sistema();
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'
