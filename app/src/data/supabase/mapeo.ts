@@ -331,8 +331,11 @@ export function dePlantilla(p: PlantillaClase): FilaPlantillaClase {
   };
 }
 
-export function aClase(f: FilaClase): Clase {
+export interface FilaOcupacionClase { clase_id: string; fecha: string; ocupadas: number }
+
+export function aClase(f: FilaClase, ocupadas?: number): Clase {
   return {
+    ...(ocupadas !== undefined ? { ocupadas } : {}),
     id: f.id, plantillaId: f.plantilla_id, actividadId: f.actividad_id, fecha: aFecha(f.fecha), horaInicio: aHora(f.hora_inicio), duracionMin: f.duracion_min,
     monitorId: f.monitor_id ?? '', plazas: f.plazas, estado: f.estado, extraordinaria: f.extraordinaria, claseAlternativaId: f.clase_alternativa_id,
     motivoCancelacion: f.motivo_cancelacion, canceladaEl: aInstanteONull(f.cancelado_el), canceladaPor: f.cancelado_por,

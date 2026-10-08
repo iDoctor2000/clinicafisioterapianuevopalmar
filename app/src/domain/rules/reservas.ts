@@ -15,8 +15,16 @@ export function plazasOcupadas(claseId: string, reservas: Pick<Reserva, 'claseId
   return reservas.filter((r) => r.claseId === claseId && r.estado === 'RESERVADA').length;
 }
 
-export function plazasLibres(clase: Pick<Clase, 'id' | 'plazas'>, reservas: Pick<Reserva, 'claseId' | 'estado'>[]): number {
-  return Math.max(0, clase.plazas - plazasOcupadas(clase.id, reservas));
+/**
+ * Plazas ocupadas de una clase: las reservas activas cargadas o, si es mayor, la cifra del
+ * servidor (`clase.ocupadas`): un alumno no recibe las reservas de los demás.
+ */
+export function ocupacionDe(clase: Pick<Clase, 'id' | 'ocupadas'>, reservas: Pick<Reserva, 'claseId' | 'estado'>[]): number {
+  return Math.max(clase.ocupadas ?? 0, plazasOcupadas(clase.id, reservas));
+}
+
+export function plazasLibres(clase: Pick<Clase, 'id' | 'plazas' | 'ocupadas'>, reservas: Pick<Reserva, 'claseId' | 'estado'>[]): number {
+  return Math.max(0, clase.plazas - ocupacionDe(clase, reservas));
 }
 
 /** Una reserva "consume" cupo si está activa o se canceló sin derecho a recuperación. */

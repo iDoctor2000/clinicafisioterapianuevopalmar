@@ -1,6 +1,6 @@
 /** Consultas de solo lectura sobre la instantánea de datos. */
 import type { Actividad, Clase, Cliente, Contrato, Id, ISODate, PortadaImagen, Recuperacion, Reserva, Tarifa, Trabajador } from '@/domain/types';
-import { plazasLibres } from '@/domain/rules';
+import { ocupacionDe, plazasLibres } from '@/domain/rules';
 import { aISODate, estaEntre } from '@/domain/fechas';
 import type { Db } from './db';
 
@@ -15,7 +15,7 @@ export interface ClaseVista {
 
 export function vistaClase(db: Db, clase: Clase): ClaseVista {
   const reservas = db.reservas.filter((r) => r.claseId === clase.id);
-  const ocupadas = reservas.filter((r) => r.estado === 'RESERVADA').length;
+  const ocupadas = ocupacionDe(clase, reservas);
   return {
     clase,
     actividad: db.actividades.find((a) => a.id === clase.actividadId)!,
