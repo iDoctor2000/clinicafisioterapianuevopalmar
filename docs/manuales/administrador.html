@@ -603,6 +603,7 @@
         <tr><td><code>supabase/migrations/0014_logros.sql</code></td><td>Medallas y cumpleaños (fecha de nacimiento).</td></tr>
         <tr><td><code>supabase/migrations/0015_copias_seguridad.sql</code></td><td>Copias de seguridad (ya aplicada).</td></tr>
         <tr><td><code>supabase/migrations/0016_cliente_del_mes.sql</code></td><td>Reto del mes, cliente del mes y Ajustes → Sorpresas.</td></tr>
+        <tr><td><code>supabase/migrations/0017_vincular_fichas.sql</code></td><td>Enlaza la cuenta del alumno con su ficha aunque se registrara antes de que le crearais la ficha.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
     <li><strong>Dominio y correo:</strong> <code>www.fisioterapianuevopalmar.com</code> está contratado en Strato, a nombre de la clínica, y allí sigue el correo del centro (por eso se mantiene ese contrato). La web se sirve desde GitHub. No cambies los registros DNS A, AAAA ni el CNAME de www, o la web dejará de verse; tampoco los registros MX, o dejará de llegar el correo.</li>
@@ -641,7 +642,7 @@
   <h2>Problemas típicos y cómo salir de ellos</h2>
   <dl class="faq">
     <dt>Un cliente entra y le sale "Tu usuario aún no está dado de alta en el centro".</dt>
-    <dd>El correo con el que entra no coincide con el de su ficha. Corrige el correo en Clientes → su ficha → Editar datos, y que vuelva a entrar.</dd>
+    <dd>El correo con el que entra no coincide con el de su ficha, o todavía no tiene ficha. Mira el correo que sale en su pantalla y compáralo con el de su ficha (Clientes → su ficha → Editar datos). Corrígelo o crea la ficha con ese mismo correo, y que pulse "Volver a intentar". Da igual que se registrara antes o después de crearle la ficha: se enlazan solas en cuanto el correo coincide. Si aun así no entra, revisa que la ficha esté activa (no dada de baja).</dd>
 
     <dt>Un trabajador entra y le sale la app de cliente.</dt>
     <dd>Lo mismo: su correo en Equipo no coincide. Corrígelo.</dd>
