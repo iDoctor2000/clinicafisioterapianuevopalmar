@@ -45,3 +45,19 @@ describe('rehacerReservasFijas', () => {
     expect(rehacerReservasFijas({ db: db0, sesion: sesionDe(db0, 'tra-laura'), ahora }, { contratoId: libre.id })).toEqual({ ok: false, error: 'Solo para contratos activos de horario fijo.' });
   });
 });
+
+describe('rehacerTodasReservasFijas', () => {
+  it('repasa todos los contratos fijos activos y solo el administrador puede', async () => {
+    const { rehacerTodasReservasFijas } = await import('@/data/comandos');
+    const db0 = crearSeed();
+    const fijos = db0.contratos.filter((c) => c.modalidad === 'FIJO' && c.estado === 'ACTIVO');
+    const futuras = db0.reservas.filter((x) => x.estado === 'RESERVADA' && x.origen === 'AUTOMATICA' && fijos.some((c) => c.id === x.contratoId) && (db0.clases.find((c) => c.id === x.claseId)?.fecha ?? '') >= hoy);
+    const sinEllas: Db = { ...db0, reservas: db0.reservas.filter((x) => !futuras.includes(x)) };
+    const r = rehacerTodasReservasFijas({ db: sinEllas, sesion: sesionDe(db0, 'tra-jose'), ahora }, {});
+    expect(r.ok && r.valor.creadas).toBe(futuras.length);
+    expect(r.ok && r.valor.contratos).toBeGreaterThan(0);
+    const otra = rehacerTodasReservasFijas({ db: db0, sesion: sesionDe(db0, 'tra-jose'), ahora }, {});
+    expect(otra.ok && otra.valor).toEqual({ contratos: 0, creadas: 0 });
+    expect(rehacerTodasReservasFijas({ db: db0, sesion: sesionDe(db0, 'tra-laura'), ahora }, {}).ok).toBe(false);
+  });
+});

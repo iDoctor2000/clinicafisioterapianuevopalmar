@@ -483,6 +483,25 @@ export function rehacerReservasFijas(ctx: Ctx, args: { contratoId: Id }): Result
   return ok(auditar(nuevo, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${nuevas.length} reservas generadas`), { creadas: nuevas.length });
 }
 
+/** Lo mismo para todos los contratos activos de horario fijo (administrador). */
+export function rehacerTodasReservasFijas(ctx: Ctx, _args: Record<string, never>): Resultado<{ contratos: number; creadas: number }> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'TRABAJADOR' || sesion.rol !== 'ADMIN') return fallo('Solo el administrador puede rehacer las reservas de todos.');
+  const hoy = aISODate(ahora);
+  let reservas = db.reservas;
+  let contratos = 0;
+  let creadas = 0;
+  for (const c of db.contratos) {
+    if (c.modalidad !== 'FIJO' || c.estado !== 'ACTIVO') continue;
+    const nuevas = generarReservasAutomaticas(c, db.clases.filter((x) => x.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString());
+    if (nuevas.length === 0) continue;
+    reservas = reservas.concat(nuevas);
+    contratos += 1;
+    creadas += nuevas.length;
+  }
+  return ok(auditar({ ...db, reservas }, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'sistema', '-', `${creadas} reservas generadas en ${contratos} contratos`), { contratos, creadas });
+}
+
 export function finalizarContrato(ctx: Ctx, args: { contratoId: Id; cancelarReservasFuturas: boolean }): Resultado<void> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'CLIENTES_EDITAR');

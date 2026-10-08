@@ -182,6 +182,20 @@ const impl: Impl = {
     return () => ({ creadas: Number(n) || 0 });
   },
 
+  async rehacerTodasReservasFijas(_args, sesion) {
+    if (sesion.tipo !== 'TRABAJADOR' || sesion.rol !== 'ADMIN') throw new Error('Solo el administrador puede rehacer las reservas de todos.');
+    const r = comprobar(await servidor().from('contratos').select('id').eq('modalidad', 'FIJO').eq('estado', 'ACTIVO'));
+    const ids = ((r ?? []) as { id: string }[]).map((c) => c.id);
+    let contratos = 0;
+    let creadas = 0;
+    // De cinco en cinco para no saturar la conexión del móvil.
+    for (let i = 0; i < ids.length; i += 5) {
+      const lote = await Promise.all(ids.slice(i, i + 5).map((id) => rpc<number>('generar_reservas_automaticas', { p_contrato_id: id })));
+      for (const n of lote) { if (Number(n) > 0) { contratos += 1; creadas += Number(n); } }
+    }
+    return () => ({ contratos, creadas });
+  },
+
   async finalizarContrato(args) {
     await rpc('finalizar_contrato', { p_contrato_id: args.contratoId, p_cancelar_reservas_futuras: args.cancelarReservasFuturas });
     return () => undefined;
