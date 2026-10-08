@@ -372,7 +372,7 @@ export function guardarCliente(ctx: Ctx, args: { cliente: Omit<Cliente, 'id'> & 
 /** Cuota o cobro que se crea junto con el contrato (plan de cobros). */
 export type CobroNuevo = Pick<Pago, 'concepto' | 'importeCentimos' | 'venceEl' | 'estado' | 'metodo' | 'pagadoEl'>;
 
-export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 'creadoEl' | 'creadoPor' | 'estado'>; cobros?: CobroNuevo[] }): Resultado<Contrato> {
+export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 'creadoEl' | 'creadoPor' | 'estado'>; cobros?: CobroNuevo[]; incluirPasadas?: boolean }): Resultado<Contrato> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'CLIENTES_EDITAR');
   if (e) return fallo(e);
@@ -385,7 +385,9 @@ export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 
   // Un cliente solo tiene un contrato activo: los anteriores se finalizan.
   const contratos = db.contratos.map((c) => (c.clienteId === contrato.clienteId && c.estado === 'ACTIVO' ? { ...c, estado: 'FINALIZADO' as const } : c)).concat(contrato);
   let nuevo: Db = { ...db, contratos };
-  const reservas = nuevo.reservas.concat(generarReservasAutomaticas(contrato, nuevo.clases, nuevo.reservas, () => nuevoId('res'), ahora.toISOString()));
+  // Como en el servidor: desde hoy, salvo que se pidan también las clases pasadas desde el inicio.
+  const hoy = aISODate(ahora);
+  const reservas = nuevo.reservas.concat(generarReservasAutomaticas(contrato, nuevo.clases.filter((c) => args.incluirPasadas || c.fecha >= hoy), nuevo.reservas, () => nuevoId('res'), ahora.toISOString()));
   const pagos = (args.cobros ?? []).map((q): Pago => ({
     ...q, id: nuevoId('pag'), contratoId: contrato.id, clienteId: contrato.clienteId, creadoEl: ahora.toISOString(),
     pagadoEl: q.estado === 'PAGADO' ? q.pagadoEl ?? ahora.toISOString() : null,
@@ -404,6 +406,8 @@ export interface CambiosContrato {
   metodoPago: MetodoPago | null;
   /** Solo bonos: corregir las sesiones que quedan. */
   sesionesRestantes: number | null;
+  /** Horario fijo con inicio anterior a hoy: apuntar también a las clases ya pasadas desde el inicio. */
+  incluirPasadas?: boolean;
 }
 
 /**
@@ -436,7 +440,7 @@ export function editarContrato(ctx: Ctx, args: { contratoId: Id; cambios: Cambio
     return !!c && c.fecha >= hoy && (!c.plantillaId || !franjas.has(c.plantillaId) || c.fecha > contrato.fechaFin);
   };
   let reservas = db.reservas.filter((r) => !sobra(r));
-  reservas = reservas.concat(generarReservasAutomaticas(contrato, db.clases.filter((c) => c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()));
+  reservas = reservas.concat(generarReservasAutomaticas(contrato, db.clases.filter((c) => args.cambios.incluirPasadas || c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()));
   const nuevo: Db = { ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas };
   return ok(auditar(nuevo, sesion, ahora, 'EDITAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: fin ${contrato.fechaFin}`), contrato);
 }

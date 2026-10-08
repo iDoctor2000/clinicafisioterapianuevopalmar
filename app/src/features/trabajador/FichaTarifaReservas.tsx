@@ -213,6 +213,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
   const [ajustes, setAjustes] = useState<Record<number, string>>({});
   const [primeroCobrado, setPrimeroCobrado] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [incluirPasadas, setIncluirPasadas] = useState(false);
   const tarifa: Tarifa | undefined = tarifas.find((t) => t.id === tarifaId);
   const fin = finManual ?? (tarifa ? fechaFinPorDefecto(tarifa, inicio, sumarMeses) : inicio);
   const esRecurrente = tarifa?.tipo === 'RECURRENTE';
@@ -239,6 +240,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
         franjasFijas: modalidadReal === 'FIJO' ? franjas.map((plantillaId) => ({ plantillaId })) : [], sesionesRestantes: tarifa.bono?.sesiones ?? null,
         actividadesPermitidasIds: [], notas: notas.trim(), oferta, importeCentimos, metodoPago: metodo || null,
       },
+      incluirPasadas: modalidadReal === 'FIJO' && inicio < hoy && incluirPasadas,
       cobros: cuotas.map((q, i) => ({
         concepto: q.concepto, importeCentimos: q.importeCentimos!, venceEl: q.venceEl,
         estado: i === 0 && primeroCobrado ? 'PAGADO' : 'PENDIENTE', metodo: i === 0 && primeroCobrado ? metodo || null : null, pagadoEl: null,
@@ -250,7 +252,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
       // Reservas que ha creado el servidor para este contrato (la instantánea ya está recargada).
       const n = useStore.getState().db.reservas.filter((x) => x.contratoId === r.valor.id && x.estado === 'RESERVADA').length;
       if (n === 0) toast.error('Contratación creada, pero no se ha podido apuntar al alumno a ninguna clase: puede que las franjas elegidas no tengan clases creadas o estén completas. Revísalo en el calendario y usa "Rehacer reservas fijas" en su pestaña Tarifa.');
-      else toast.ok(`Contratación creada: apuntado a ${n === 1 ? '1 clase' : `${n} clases`} hasta el ${fechaMedia(fin)}. Los días anteriores a hoy no se apuntan.`);
+      else toast.ok(`Contratación creada: apuntado a ${n === 1 ? '1 clase' : `${n} clases`} hasta el ${fechaMedia(fin)}${inicio < hoy ? (incluirPasadas ? `, incluidas las pasadas desde el ${fechaMedia(inicio)}` : '. Los días anteriores a hoy no se apuntan') : ''}.`);
     } else {
       toast.ok('Contratación creada. El plan de cobros se ha generado.');
     }
@@ -276,6 +278,10 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
           </div>
         )}
         {tarifa && esRecurrente && modalidad === 'FIJO' && <SelectorFranjas tarifa={tarifa} franjas={franjas} setFranjas={setFranjas} inicio={inicio} fin={fin} />}
+        {tarifa && esRecurrente && modalidad === 'FIJO' && inicio < hoy && (
+          <Interruptor activo={incluirPasadas} onCambio={setIncluirPasadas} etiqueta={`Apuntar también a las clases pasadas desde el ${fechaMedia(inicio)}`}
+            descripcion="Solo si de verdad ha venido: esas clases contarán como hechas (medallas, reto del mes) y podréis pasar lista de esos días. Si no, queda apuntado desde hoy." />
+        )}
         {tarifa?.tipo === 'BONO' && tarifa.bono && <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3">Bono de <strong>{tarifa.bono.sesiones} sesiones</strong> de {CATEGORIA_LABEL[tarifa.bono.categoria].toLowerCase()}, válido hasta el {fechaMedia(fin)}.</p>}
 
         <div className="border-t border-ink/10 pt-4 space-y-4">
@@ -306,6 +312,8 @@ function HojaEditarContratacion({ contrato, tarifa, onCerrar }: { contrato: Cont
   const [sesiones, setSesiones] = useState(String(contrato.sesionesRestantes ?? 0));
   const [pago, setPago] = useState<DatosPago>({ oferta: contrato.oferta ?? 'NINGUNA', importe: aTextoEuros(contrato.importeCentimos ?? null), metodo: contrato.metodoPago ?? '' });
   const esFijo = contrato.modalidad === 'FIJO';
+  const [incluirPasadas, setIncluirPasadas] = useState(false);
+  const hoy = hoyISO();
 
   const guardar = async () => {
     if (fin < contrato.fechaInicio) return toast.error('La fecha de fin debe ser posterior al inicio.');
@@ -318,9 +326,10 @@ function HojaEditarContratacion({ contrato, tarifa, onCerrar }: { contrato: Cont
         fechaFin: fin, franjasFijas: franjas.map((plantillaId) => ({ plantillaId })), notas: notas.trim(),
         oferta: pago.oferta, importeCentimos: importe, metodoPago: pago.metodo || null,
         sesionesRestantes: tarifa.tipo === 'BONO' ? Math.max(0, Number(sesiones) || 0) : null,
+        incluirPasadas: esFijo && contrato.fechaInicio < hoy && incluirPasadas,
       },
     });
-    if (r.ok) { toast.ok(esFijo ? 'Contratación actualizada. Las reservas fijas futuras se han rehecho.' : 'Contratación actualizada.'); onCerrar(); } else toast.error(r.error);
+    if (r.ok) { toast.ok(esFijo ? (incluirPasadas ? 'Contratación actualizada. Se han rehecho las reservas fijas, incluidas las de los días pasados desde el inicio.' : 'Contratación actualizada. Las reservas fijas futuras se han rehecho.') : 'Contratación actualizada.'); onCerrar(); } else toast.error(r.error);
   };
 
   return (
@@ -333,6 +342,10 @@ function HojaEditarContratacion({ contrato, tarifa, onCerrar }: { contrato: Cont
         </div>
         {esFijo && <SelectorFranjas tarifa={tarifa} franjas={franjas} setFranjas={setFranjas} inicio={contrato.fechaInicio} fin={fin} />}
         {esFijo && <p className="text-sm text-ink-muted -mt-2">Al guardar, las reservas automáticas futuras se rehacen con estas franjas. Las clases pasadas y las reservas hechas a mano no se tocan.</p>}
+        {esFijo && contrato.fechaInicio < hoy && (
+          <Interruptor activo={incluirPasadas} onCambio={setIncluirPasadas} etiqueta={`Apuntar también a las clases pasadas desde el ${fechaMedia(contrato.fechaInicio)}`}
+            descripcion="Para dejar reflejados los días en que ya venía antes de darle de alta en la app. Solo apunta a las clases que le falten de sus franjas; cuentan como hechas." />
+        )}
         <div className="border-t border-ink/10 pt-4 space-y-4">
           <h3 className="font-semibold text-lg">Pago</h3>
           <CamposPago mensual={tarifa.tipo === 'RECURRENTE'} datos={pago} onCambio={setPago} />
