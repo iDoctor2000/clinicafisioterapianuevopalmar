@@ -66,6 +66,14 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
+      # Resumen de actividad sin datos personales (solo cifras). Si falla, no afecta a la copia.
+      - name: Resumen del día (sin datos personales)
+        continue-on-error: true
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash scripts/copias/resumen-diario.sh
+
       # GitHub desactiva las tareas programadas de un repositorio público tras 60 días sin cambios.
       - name: Mantener activa la tarea programada
         if: github.event_name == 'schedule'
