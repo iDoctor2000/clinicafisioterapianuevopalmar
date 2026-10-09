@@ -20,6 +20,10 @@ Piezas:
 - `supabase/migrations/0015_copias_seguridad.sql`: tabla donde se anota cada copia.
 - `supabase/tests/prueba_copias.sh`: prueba completa en local (copiar → estropear → restaurar → comparar; y catástrofe total en una base nueva).
 
+## Resumen diario de actividad
+
+Después de cada copia nocturna, la misma tarea saca un resumen de las últimas 24 horas **solo con cifras, sin nombres ni datos personales**: movimientos (reservas, contrataciones, asistencias…), alumnos que han iniciado sesión y comprobaciones de salud (si se ha ejecutado el mantenimiento nocturno, clases con más alumnos que plazas, contratos de horario fijo sin clases futuras). Se ve en GitHub → **Actions → Copia de seguridad diaria** → la ejecución del día → **Summary**. Lo hace `scripts/copias/resumen-diario.sh`; si fallara, la copia se hace igual.
+
 ## Puesta en marcha (una sola vez)
 
 1. **Supabase → SQL Editor**: ejecutar `supabase/migrations/0015_copias_seguridad.sql`.
