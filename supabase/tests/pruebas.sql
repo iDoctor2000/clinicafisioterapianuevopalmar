@@ -833,7 +833,7 @@ begin
     on conflict do nothing;
   update public.plantillas_clase set hora_inicio = '12:15' where id = v_pl;
   perform set_config('request.jwt.claim.sub', current_setting('pruebas.u_admin'), false);
-  v_conservadas := public.plantilla_aplicar_cambios(v_pl);
+  v_conservadas := (public.plantilla_aplicar_cambios(v_pl) ->> 'conservadas')::integer;
   perform set_config('request.jwt.claim.sub', '', false);
   assert v_conservadas = 1, format('se conserva la clase con reserva manual (conservadas = %s)', v_conservadas);
   select count(*) into v_despues from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy;
@@ -929,7 +929,7 @@ begin
   assert v_clase is not null, 'hay una clase con reserva manual (bloque 24)';
   update public.plantillas_clase set actividad_id = pruebas.id('act_reformer'), plazas = 1 where id = v_pl;
   perform set_config('request.jwt.claim.sub', current_setting('pruebas.u_admin'), false);
-  v_conservadas := public.plantilla_aplicar_cambios(v_pl);
+  v_conservadas := (public.plantilla_aplicar_cambios(v_pl) ->> 'conservadas')::integer;
   perform set_config('request.jwt.claim.sub', '', false);
   assert v_conservadas >= 1, 'se conserva la clase con alumnos';
   assert (select actividad_id from public.clases where id = v_clase) = pruebas.id('act_reformer'), 'la clase conservada toma la actividad nueva';
@@ -1142,6 +1142,100 @@ begin
 end $$;
 commit;
 select pruebas.sistema();
+
+\echo
+\echo '== 32. Quitar una franja cancela sus clases; los festivos no se recuperan (0020)'
+select pruebas.sistema();
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  ('e0000000-0000-4000-8000-0000000000d1', 'Diana', 'Franja', '79999999D', 'diana@test.local', '600 000 301'),
+  ('e0000000-0000-4000-8000-0000000000d2', 'Dario', 'Festivo', '70000000D', 'dario@test.local', '600 000 302');
+-- Franja nueva (sábados 12:00) con sus clases, y Diana apuntada a mano a la próxima.
+insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
+values ('d0000000-0000-4000-8000-0000000000d1', pruebas.id('act_suelo'), 6, '12:00', 55, pruebas.id('tra_ana'), 8);
+select public._generar_clases(public._hoy(), public._hoy() + 21);
+do $$
+declare v_clase uuid;
+begin
+  select id into v_clase from public.clases where plantilla_id = 'd0000000-0000-4000-8000-0000000000d1' and fecha >= public._hoy() order by fecha limit 1;
+  insert into public.reservas (clase_id, cliente_id, origen, creado_por) values (v_clase, 'e0000000-0000-4000-8000-0000000000d1', 'MANUAL', null);
+  perform pruebas.guardar('cl_franja_quitada', v_clase::text);
+end $$;
+-- Se desactiva la franja.
+update public.plantillas_clase set activa = false where id = 'd0000000-0000-4000-8000-0000000000d1';
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$
+declare v jsonb;
+begin
+  v := public.plantilla_aplicar_cambios('d0000000-0000-4000-8000-0000000000d1');
+  assert (v ->> 'canceladas')::int = 1 and (v ->> 'afectados')::int = 1, 'se cancela la clase con alumnos: ' || v::text;
+  assert jsonb_array_length(v -> 'avisos') = 1, 'y se crea su aviso';
+  assert (select estado from public.clases where id = pruebas.id('cl_franja_quitada')) = 'CANCELADA', 'la clase queda cancelada';
+  assert not exists (select 1 from public.clases where plantilla_id = 'd0000000-0000-4000-8000-0000000000d1' and estado = 'PROGRAMADA' and fecha >= current_date),
+    'no queda ninguna clase de la franja para reservar';
+  assert exists (select 1 from public.recuperaciones where cliente_id = 'e0000000-0000-4000-8000-0000000000d1' and motivo = 'CANCELACION_CENTRO'),
+    'la alumna recibe su recuperación';
+end $$;
+commit;
+
+-- Festivo cancelado a mano: sin recuperación (pero con aviso).
+select pruebas.sistema();
+do $$
+declare v_clase uuid;
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), public._hoy() + 30, '13:00', 55, pruebas.id('tra_ana'), 8, true) returning id into v_clase;
+  insert into public.reservas (clase_id, cliente_id, origen, creado_por) values (v_clase, 'e0000000-0000-4000-8000-0000000000d2', 'MANUAL', null);
+  insert into public.dias_cierre (fecha, motivo) values (public._hoy() + 30, 'Festivo de prueba') on conflict (fecha) do nothing;
+  perform pruebas.guardar('cl_festivo', v_clase::text);
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.cancelar_clase(pruebas.id('cl_festivo'), 'Festivo', null, true);
+do $$
+begin
+  assert not exists (select 1 from public.recuperaciones r join public.reservas x on x.id = r.reserva_origen_id where x.clase_id = pruebas.id('cl_festivo')),
+    'un festivo cancelado a mano no da recuperación';
+  assert exists (select 1 from public.avisos where destino_clase_id = pruebas.id('cl_festivo') and cuerpo like '%no se recupera%'), 'pero se avisa de que no se recupera';
+end $$;
+commit;
+
+-- Día de cierre guardado en Ajustes: sus clases se cancelan en el momento, sin recuperación.
+select pruebas.sistema();
+do $$
+declare v_clase uuid;
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), public._hoy() + 31, '13:00', 55, pruebas.id('tra_ana'), 8, true) returning id into v_clase;
+  insert into public.reservas (clase_id, cliente_id, origen, creado_por) values (v_clase, 'e0000000-0000-4000-8000-0000000000d2', 'MANUAL', null);
+  insert into public.dias_cierre (fecha, motivo) values (public._hoy() + 31, 'Puente') on conflict (fecha) do nothing;
+  perform pruebas.guardar('cl_cierre', v_clase::text);
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('b');
+select pruebas.espera_error('select public.cancelar_clases_cierre()', '%Solo el administrador%');
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$
+declare v jsonb;
+begin
+  v := public.cancelar_clases_cierre();
+  assert (v ->> 'canceladas')::int >= 1, 'cancela las clases de los días de cierre: ' || v::text;
+  assert (select estado from public.clases where id = pruebas.id('cl_cierre')) = 'CANCELADA', 'la clase del cierre queda cancelada';
+  assert (select estado from public.reservas where clase_id = pruebas.id('cl_cierre')) = 'CANCELADA_CENTRO', 'su reserva pasa a cancelada por el centro';
+  assert not exists (select 1 from public.recuperaciones r join public.reservas x on x.id = r.reserva_origen_id where x.clase_id = pruebas.id('cl_cierre')),
+    'sin recuperación';
+  assert exists (select 1 from public.avisos where destino_clase_id = pruebas.id('cl_cierre')), 'con aviso';
+end $$;
+commit;
+select pruebas.sistema();
+-- La tarea nocturna sigue funcionando con el cambio.
+do $$ begin assert (public.mantenimiento_diario() ? 'clases_canceladas_por_cierre'), 'mantenimiento nocturno'; raise notice 'OK franjas quitadas y festivos'; end $$;
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

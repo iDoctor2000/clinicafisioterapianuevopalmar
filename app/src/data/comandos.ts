@@ -241,7 +241,18 @@ export function cancelarClase(ctx: Ctx, args: { claseId: Id; motivo: string; cla
   const ea = exigirClaseMia(db, sesion, clase);
   if (ea) return fallo(ea);
   if (clase.estado === 'CANCELADA') return fallo('La clase ya está cancelada.');
+  const r = cancelarClaseInterna(db, sesion, ahora, clase, args.motivo, args.claseAlternativaId, args.avisar);
+  return ok(r.db, { afectados: r.afectados });
+}
+
+/**
+ * Cancela una clase por el centro (sin comprobar permisos; espejo de _cancelar_clase, 0020):
+ * devuelve lo gastado (bono, recuperación usada), da recuperación salvo en día de cierre
+ * (los festivos no se recuperan) y, si se pide, avisa a los alumnos.
+ */
+function cancelarClaseInterna(db: Db, sesion: Sesion, ahora: Date, clase: Clase, motivo: string, claseAlternativaId: Id | null, avisar: boolean): { db: Db; afectados: number; avisoId: Id | null } {
   const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
+  const festivo = db.config.diasCierre.some((d) => d.fecha === clase.fecha);
   const afectadas = db.reservas.filter((r) => r.claseId === clase.id && r.estado === 'RESERVADA');
   const nuevasRec: Recuperacion[] = [];
   let contratos = db.contratos;
@@ -255,36 +266,49 @@ export function cancelarClase(ctx: Ctx, args: { claseId: Id; motivo: string; cla
       contratos = contratos.map((c) => (c.id === r.contratoId ? { ...c, sesionesRestantes: (c.sesionesRestantes ?? 0) + 1 } : c));
       continue;
     }
-    if (r.origen === 'CLASE_SUELTA') continue;
+    if (r.origen === 'CLASE_SUELTA' || festivo) continue;
     const contrato = r.contratoId ? db.contratos.find((c) => c.id === r.contratoId) ?? null : null;
     const tarifa = contrato ? db.tarifas.find((t) => t.id === contrato.tarifaId) ?? null : null;
     nuevasRec.push({
       id: nuevoId('rec'), clienteId: r.clienteId, contratoId: contrato?.id ?? null, reservaOrigenId: r.id, categoriaOrigen: actividad.categoria,
       categoriasPermitidas: categoriasPermitidasRecuperacion(actividad.categoria, tarifa), motivo: 'CANCELACION_CENTRO', estado: 'DISPONIBLE',
       caducaEl: caducidadRecuperacion(contrato, clase.fecha, db.config), usadaEnReservaId: null, creadaEl: ahora.toISOString(), creadaPor: sesion.userId,
-      nota: `Clase cancelada por el centro: ${args.motivo}`,
+      nota: `Clase cancelada por el centro: ${motivo}`,
     });
   }
   let nuevo: Db = {
     ...db,
     contratos,
     recuperaciones: [...recuperaciones, ...nuevasRec],
-    clases: db.clases.map((c) => (c.id === clase.id ? { ...c, estado: 'CANCELADA', motivoCancelacion: args.motivo, claseAlternativaId: args.claseAlternativaId, canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : c)),
+    clases: db.clases.map((c) => (c.id === clase.id ? { ...c, estado: 'CANCELADA', motivoCancelacion: motivo, claseAlternativaId, canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : c)),
     reservas: db.reservas.map((r) => (r.claseId === clase.id && r.estado === 'RESERVADA' ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : r)),
   };
-  if (args.avisar && afectadas.length > 0) {
-    const alt = args.claseAlternativaId ? db.clases.find((c) => c.id === args.claseAlternativaId) : null;
-    const altTxt = alt ? ` Se realizará una clase alternativa el ${alt.fecha} a las ${alt.horaInicio}: puedes reservarla con la recuperación que te hemos añadido.` : ' Te hemos añadido una recuperación para que la uses cuando quieras.';
+  let avisoId: Id | null = null;
+  if (avisar && afectadas.length > 0) {
+    const alt = claseAlternativaId ? db.clases.find((c) => c.id === claseAlternativaId) : null;
+    const altTxt = festivo ? ' Es día de cierre: esta clase no se recupera.'
+      : alt ? ` Se realizará una clase alternativa el ${alt.fecha} a las ${alt.horaInicio}: puedes reservarla con la recuperación que te hemos añadido.`
+      : nuevasRec.length > 0 ? ' Te hemos añadido una recuperación para que la uses cuando quieras.' : '';
     const aviso: Aviso = {
-      id: nuevoId('avi'), titulo: `Clase cancelada: ${actividad.nombre} ${clase.fecha} ${clase.horaInicio}`,
-      cuerpo: `${args.motivo ? args.motivo + '.' : 'La clase queda cancelada.'}${altTxt}`,
+      id: nuevoId('avi'), titulo: `Clase cancelada: ${actividad.nombre} ${clase.fecha.slice(8, 10)}/${clase.fecha.slice(5, 7)} ${clase.horaInicio}`,
+      cuerpo: `${motivo ? motivo + '.' : 'La clase queda cancelada.'}${altTxt}`,
       destino: { tipo: 'CLASE', claseId: clase.id }, destinatariosIds: Array.from(new Set(afectadas.map((r) => r.clienteId))), importante: true,
       publicadoEl: ahora.toISOString(), publicadoPor: sesion.userId,
     };
     nuevo = { ...nuevo, avisos: [aviso, ...nuevo.avisos] };
+    avisoId = aviso.id;
   }
-  nuevo = auditar(nuevo, sesion, ahora, 'CANCELAR_CLASE', 'clase', clase.id, `${descClase(db, clase)} · ${afectadas.length} afectados · ${args.motivo}`);
-  return ok(nuevo, { afectados: afectadas.length });
+  nuevo = auditar(nuevo, sesion, ahora, 'CANCELAR_CLASE', 'clase', clase.id, `${descClase(db, clase)} · ${afectadas.length} afectados · ${motivo}${festivo ? ' (festivo, sin recuperación)' : ''}`);
+  return { db: nuevo, afectados: afectadas.length, avisoId };
+}
+
+/** Clases futuras de una franja con alumnos que dejarían de impartirse con estos datos (activa / vigencia). */
+export function clasesQueSeCancelarian(db: Db, p: Pick<PlantillaClase, 'id' | 'activa' | 'vigenciaDesde' | 'vigenciaHasta'>, hoy: ISODate): { clases: Clase[]; alumnos: number } {
+  const fuera = (c: Clase) => !p.activa || (!!p.vigenciaDesde && c.fecha < p.vigenciaDesde) || (!!p.vigenciaHasta && c.fecha > p.vigenciaHasta);
+  const conAlumnos = (c: Clase) => db.reservas.some((r) => r.claseId === c.id && r.estado === 'RESERVADA' && r.origen !== 'AUTOMATICA');
+  const clases = db.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy && fuera(c) && conAlumnos(c));
+  const ids = new Set(clases.map((c) => c.id));
+  return { clases, alumnos: db.reservas.filter((r) => ids.has(r.claseId) && r.estado === 'RESERVADA').length };
 }
 
 export function crearClaseExtraordinaria(ctx: Ctx, args: { actividadId: Id; fecha: ISODate; horaInicio: string; duracionMin: number; monitorId: Id; plazas: number }): Resultado<Clase> {
@@ -305,7 +329,7 @@ export function crearClaseExtraordinaria(ctx: Ctx, args: { actividadId: Id; fech
  * automáticas (horario fijo, que se regeneran) y se conservan las que tienen reservas de
  * clientes o del centro. Devuelve cuántas se han conservado para avisar al administrador.
  */
-export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id } }): Resultado<{ plantilla: PlantillaClase; conservadas: number }> {
+export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id } }): Resultado<{ plantilla: PlantillaClase; conservadas: number; canceladas: number; afectados: number; avisoIds: Id[] }> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'HORARIOS_GESTIONAR');
   if (e) return fallo(e);
@@ -314,6 +338,9 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
   const existe = db.plantillas.some((x) => x.id === p.id);
   let nuevo: Db = { ...db, plantillas: existe ? db.plantillas.map((x) => (x.id === p.id ? p : x)) : [...db.plantillas, p] };
   let conservadas = 0;
+  let canceladas = 0;
+  let afectados = 0;
+  const avisoIds: Id[] = [];
   if (existe) {
     const hoy = aISODate(ahora);
     const soloAutomatica = (r: Reserva) => r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA';
@@ -329,10 +356,19 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
       clases: nuevo.clases.filter((c) => !borrables.has(c.id)).map((c) => (conservar.has(c.id) ? { ...c, actividadId: p.actividadId, monitorId: p.monitorId, duracionMin: p.duracionMin, plazas: Math.max(p.plazas, ocupadas(c.id)) } : c)),
       reservas: nuevo.reservas.filter((r) => !borrables.has(r.claseId)),
     };
+    // 0020: las que tienen alumnos y la franja ya no se imparte ese día se cancelan avisando (con recuperación).
+    for (const c of clasesQueSeCancelarian(nuevo, p, hoy).clases) {
+      const r = cancelarClaseInterna(nuevo, sesion, ahora, c, 'Esta clase deja de impartirse', null, true);
+      nuevo = r.db;
+      canceladas += 1;
+      afectados += r.afectados;
+      if (r.avisoId) avisoIds.push(r.avisoId);
+    }
+    conservadas -= canceladas;
   }
   nuevo = generarClasesPendientes(nuevo, ahora);
-  const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas` : `${p.diaSemana} ${p.horaInicio}`;
-  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas });
+  const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas; ${canceladas} canceladas` : `${p.diaSemana} ${p.horaInicio}`;
+  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas, canceladas, afectados, avisoIds });
 }
 
 /** Genera las clases (y reservas automáticas) que falten hasta 2 meses vista. Se ejecuta a diario en producción. */

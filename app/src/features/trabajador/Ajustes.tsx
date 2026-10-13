@@ -130,7 +130,7 @@ function Cierres() {
   };
   const guardar = async () => {
     const r = await ejecutar('actualizarConfig', { config: { diasCierre: lista } });
-    if (r.ok) toast.ok(`Días de cierre guardados (${lista.length}). Las clases de esos días quedan canceladas sin penalizar.`); else toast.error(`No se han guardado los días de cierre. ${r.error}`);
+    if (r.ok) toast.ok(`Días de cierre guardados (${lista.length}). Las clases de esos días se han cancelado y se ha avisado a los alumnos. Los festivos no se recuperan.`); else toast.error(`No se han guardado los días de cierre. ${r.error}`);
     setConfirmar(false);
   };
   const nuevosFuturos = lista.filter((d) => d.fecha >= hoy && !db.config.diasCierre.some((x) => x.fecha === d.fecha));
@@ -138,7 +138,7 @@ function Cierres() {
   return (
     <Tarjeta className="p-4 sm:p-6">
       <Seccion titulo="Días de cierre y festivos">
-        <p className="text-sm text-ink-muted mb-3">Esos días no se generan clases. Si ya existían, se cancelan y las reservas quedan canceladas por el centro sin penalizar (el periodo del contrato ya descuenta los cierres).</p>
+        <p className="text-sm text-ink-muted mb-3">Esos días no hay clases. Si ya existían, se cancelan al guardar y se avisa a los alumnos apuntados. <strong className="text-ink">Los festivos no se recuperan</strong>: solo se devuelve lo gastado en esa clase (sesión de bono o recuperación usada).</p>
         <ul className="divide-y divide-ink/5 rounded-2xl border border-ink/10 mb-3 max-h-64 overflow-y-auto">
           {lista.length === 0 && <li className="p-4 text-center text-ink-muted">No hay días de cierre.</li>}
           {lista.map((d) => (
@@ -157,7 +157,7 @@ function Cierres() {
         <div className="flex justify-end mt-4"><Boton onClick={() => (clasesAfectadas > 0 ? setConfirmar(true) : guardar())} disabled={!cambiado}><Save className="h-5 w-5" /> Guardar cierres</Boton></div>
       </Seccion>
       <Confirmacion abierta={confirmar} onCerrar={() => setConfirmar(false)} titulo="Confirmar días de cierre" textoConfirmar="Guardar y cancelar clases" peligro onConfirmar={guardar}>
-        <p>Hay <strong className="text-ink">{clasesAfectadas} clase{clasesAfectadas === 1 ? '' : 's'}</strong> programada{clasesAfectadas === 1 ? '' : 's'} en los nuevos días de cierre. Se cancelarán y sus reservas pasarán a "canceladas por el centro" sin penalizar a nadie.</p>
+        <p>Hay <strong className="text-ink">{clasesAfectadas} clase{clasesAfectadas === 1 ? '' : 's'}</strong> programada{clasesAfectadas === 1 ? '' : 's'} en los nuevos días de cierre. Se cancelarán ahora y se avisará a sus alumnos. No se da recuperación (los festivos no se recuperan), pero sí se devuelve lo gastado en esa clase.</p>
       </Confirmacion>
     </Tarjeta>
   );
