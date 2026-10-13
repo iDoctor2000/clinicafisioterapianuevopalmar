@@ -255,6 +255,7 @@ function HojaCancelarClase({ abierta, onCerrar, claseId, afectados }: { abierta:
   const clase = db.clases.find((c) => c.id === claseId);
   if (!clase) return null;
   const alternativas = alternativasPara(db, clase, hoyISO());
+  const cierre = db.config.diasCierre.find((d) => d.fecha === clase.fecha);
   const confirmar = async () => {
     const r = await ejecutar('cancelarClase', { claseId, motivo: motivo.trim(), claseAlternativaId: alternativa || null, avisar });
     if (r.ok) { toast.ok(`Clase cancelada. ${r.valor.afectados} alumno${r.valor.afectados === 1 ? '' : 's'} afectado${r.valor.afectados === 1 ? '' : 's'}.`); onCerrar(); } else toast.error(r.error);
@@ -262,7 +263,7 @@ function HojaCancelarClase({ abierta, onCerrar, claseId, afectados }: { abierta:
   return (
     <Hoja abierta={abierta} onCerrar={onCerrar} titulo="Cancelar clase">
       <div className="space-y-4">
-        <div className="rounded-2xl bg-clay/10 p-3 text-sm text-ink-soft flex gap-2"><AlertTriangle className="h-5 w-5 text-clay shrink-0" /><span><strong className="text-ink">{afectados} alumno{afectados === 1 ? '' : 's'}</strong> con plaza. Cada uno recibirá una recuperación (o se le devolverá la sesión de bono) sin penalización.</span></div>
+        <div className="rounded-2xl bg-clay/10 p-3 text-sm text-ink-soft flex gap-2"><AlertTriangle className="h-5 w-5 text-clay shrink-0" /><span><strong className="text-ink">{afectados} alumno{afectados === 1 ? '' : 's'}</strong> con plaza. {cierre ? <>Es día de cierre ({cierre.motivo}): <strong className="text-ink">los festivos no se recuperan</strong>, solo se devuelve lo gastado en esta clase (sesión de bono o recuperación usada).</> : 'Cada uno recibirá una recuperación (o se le devolverá la sesión de bono) sin penalización.'}</span></div>
         <AreaTexto etiqueta="Motivo" placeholder="Ej.: baja del monitor, avería en la sala…" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
         <Seleccion etiqueta="Clase alternativa (opcional)" ayuda="Misma actividad en los próximos 14 días" value={alternativa} onChange={(e) => setAlternativa(e.target.value)}>
           <option value="">Sin alternativa</option>

@@ -358,13 +358,13 @@
   <p><strong>Calendario</strong> → <span class="btn">Nueva clase extraordinaria</span>. Queda marcada como "Extraordinaria" y los alumnos la pueden reservar como cualquier otra. Recuerda que un sábado con clases de Pilates no abre la clínica de fisioterapia: su horario es independiente.</p>
 
   <h3>Caso 4 · Quitar una clase fija del horario</h3>
-  <p>En Horarios, abre la franja y desmarca <strong>Franja activa</strong> (o pon una fecha en <em>Vigente hasta</em>). Sus clases futuras sin reservas de alumnos desaparecen; las que tengan reservas se conservan para que las canceles tú avisando. No borres franjas: así se conserva el historial.</p>
+  <p>En Horarios, abre la franja y desmarca <strong>Franja activa</strong> (o pon una fecha en <em>Vigente hasta</em>) y guarda. Sus clases futuras sin alumnos desaparecen. Si alguna tiene alumnos apuntados, antes de guardar la app te dice cuántas clases y alumnos son y, al confirmar con <span class="btn">Guardar y cancelar clases</span>, las cancela: cada alumno recibe un aviso y una recuperación. No hace falta cancelarlas a mano. No borres franjas: así se conserva el historial.</p>
 
   <h3>Caso 5 · Horario de verano o cambio temporal</h3>
   <p>Crea las franjas nuevas con <em>Vigente desde</em> y <em>Vigente hasta</em> (por ejemplo, del 1 de julio al 31 de agosto) y pon <em>Vigente hasta</em> el 30 de junio en las franjas normales. Las clases se generan solas con cada horario en su periodo.</p>
 
   <h3>Caso 6 · Vacaciones, festivos y cierres</h3>
-  <p>Eso no se hace en Horarios sino en <strong>Ajustes → Días de cierre y festivos</strong> (capítulo 13): añades los días y la app cancela las clases de esos días, avisa a los alumnos y les devuelve la clase como recuperación.</p>
+  <p>Eso no se hace en Horarios sino en <strong>Ajustes → Días de cierre y festivos</strong> (capítulo 13): añades los días y, al guardar, la app cancela las clases de esos días y avisa a los alumnos. <strong>Los festivos no se recuperan</strong>: solo se devuelve lo gastado en esa clase (una sesión de bono o una recuperación que hubieran usado).</p>
 
   <h3>Caso 7 · Una actividad nueva en el horario</h3>
   <p>Primero créala en <strong>Tarifas → Actividades</strong> (capítulo 8), con su nombre, duración, texto e icono. Después crea su franja en Horarios. La actividad aparece en la web en cuanto la guardas.</p>
@@ -448,7 +448,7 @@
   <p>Dirección, teléfono, WhatsApp (con prefijo y sin espacios, por ejemplo 34620600591; vacío si no hay), Instagram y correo del centro de Pilates. <strong>Aparecen en la web pública</strong>, en la sección de Pilates y en la ventana "Pedir cita", en cuanto guardas. Los datos de la clínica de fisioterapia (Avenida de Burgos, 968 885 931, horario) se cambian desde el editor de la web.</p>
 
   <h3>Días de cierre y festivos</h3>
-  <p>Añade los días (o rangos) en que el centro cierra, con un motivo. Esos días no se generan clases. Si ya había clases creadas con reservas, al guardar la app te pide confirmación con <span class="btn">Guardar y cancelar clases</span>: las cancela, avisa a los clientes y les devuelve la clase como recuperación.</p>
+  <p>Añade los días (o rangos) en que el centro cierra, con un motivo. Esos días no se generan clases. Si ya había clases creadas con reservas, al guardar la app te pide confirmación con <span class="btn">Guardar y cancelar clases</span>: las cancela en ese momento y avisa a los clientes. <strong>Los festivos no se recuperan</strong>, ni marcándolos aquí ni cancelando la clase a mano (si cancelas a mano una clase de un día de cierre, la app te lo recuerda). Lo único que se devuelve es lo gastado en esa clase: una sesión de bono o una recuperación usada.</p>
 
   <h3>Fotos de la portada</h3>
   <p>Son las fotos del carrusel que ven los clientes al entrar en la app. Toca <span class="btn">Subir una foto</span> (horizontales quedan mejor), ponles un pie de foto si quieres, ordénalas con <em>Subir</em> y <em>Bajar</em> y quita las que sobren con <em>Borrar</em>. Sin fotos, la portada no muestra carrusel.</p>
@@ -606,6 +606,7 @@
         <tr><td><code>supabase/migrations/0017_vincular_fichas.sql</code></td><td>Enlaza la cuenta del alumno con su ficha aunque se registrara antes de que le crearais la ficha.</td></tr>
         <tr><td><code>supabase/migrations/0018_ocupacion_clases.sql</code></td><td>Los alumnos ven bien las plazas libres de cada clase (antes solo contaban su propia reserva).</td></tr>
         <tr><td><code>supabase/migrations/0019_reservas_pasadas.sql</code></td><td>Casilla "Apuntar también a las clases pasadas" al crear o editar una contratación con fecha de inicio anterior a hoy.</td></tr>
+        <tr><td><code>supabase/migrations/0020_horario_y_festivos.sql</code></td><td>Al quitar una franja, sus clases con alumnos se cancelan solas (aviso y recuperación). Los festivos no se recuperan, se cancelen como se cancelen.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
     <li><strong>Dominio y correo:</strong> <code>www.fisioterapianuevopalmar.com</code> está contratado en Strato, a nombre de la clínica, y allí sigue el correo del centro (por eso se mantiene ese contrato). La web se sirve desde GitHub. No cambies los registros DNS A, AAAA ni el CNAME de www, o la web dejará de verse; tampoco los registros MX, o dejará de llegar el correo.</li>

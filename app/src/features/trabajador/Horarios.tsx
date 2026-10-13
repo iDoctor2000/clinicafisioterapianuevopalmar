@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { CalendarClock, Info, Plus } from 'lucide-react';
 import { duracionActividad, type DiaSemana, type PlantillaClase } from '@/domain/types';
-import { DIAS_SEMANA_CORTO, DIAS_SEMANA_LABEL, horaFin } from '@/domain/fechas';
+import { DIAS_SEMANA_CORTO, DIAS_SEMANA_LABEL, hoyISO, horaFin } from '@/domain/fechas';
+import { clasesQueSeCancelarian } from '@/data/comandos';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { monitores, ocupacionFijaDePlantilla, plantillasPorDia } from './consultas';
-import { Encabezado, PuntoColor, Segmentado } from './comunes';
+import { Confirmacion, Encabezado, PuntoColor, Segmentado } from './comunes';
 
 const DIAS: DiaSemana[] = [1, 2, 3, 4, 5, 6, 7];
 
@@ -24,7 +25,7 @@ export function Horarios() {
         titulo="Horarios" subtitulo={`${db.plantillas.filter((p) => p.activa).length} franjas activas a la semana${limitado ? ' · solo tus franjas (solo lectura)' : ''}`}
         acciones={puedeEditar && <Boton tamano="sm" onClick={() => abrir('NUEVA')}><Plus className="h-5 w-5" /> Nueva franja</Boton>}
       />
-      <div className="mb-4 flex items-start gap-2 rounded-2xl bg-beige-100 text-ink px-4 py-3 text-sm"><Info className="h-5 w-5 shrink-0" /><span>Las clases de las próximas 10 semanas se generan automáticamente a partir de este horario. Los cambios afectan a las clases que aún no existen.</span></div>
+      <div className="mb-4 flex items-start gap-2 rounded-2xl bg-beige-100 text-ink px-4 py-3 text-sm"><Info className="h-5 w-5 shrink-0" /><span>Las clases de las próximas 10 semanas se generan automáticamente a partir de este horario. Los cambios se aplican también a las clases ya creadas: si quitas una franja, sus clases con alumnos se cancelan avisándoles.</span></div>
 
       {db.plantillas.length === 0 && <Vacio icono={CalendarClock} titulo="Sin horario" texto="Crea la primera franja semanal." />}
 
@@ -81,11 +82,21 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
   const [f, setF] = useState<Omit<PlantillaClase, 'id'>>(
     plantilla ?? { actividadId: acts[0]?.id ?? '', diaSemana: diaInicial, horaInicio: '10:00', duracionMin: duracionActividad(acts[0]), monitorId: mons[0]?.id ?? '', plazas: 8, activa: true, vigenciaDesde: null, vigenciaHasta: null },
   );
-  const guardar = async () => {
+  const [confirmar, setConfirmar] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  // Clases futuras con alumnos que se cancelarían al guardar (franja desactivada o fuera de vigencia).
+  const aCancelar = plantilla ? clasesQueSeCancelarian(db, { ...f, id: plantilla.id }, hoyISO()) : { clases: [], alumnos: 0 };
+  const guardar = async (confirmado = false) => {
     if (!f.actividadId || !f.monitorId || !f.horaInicio) return toast.error('Completa actividad, hora y monitor.');
+    if (!confirmado && aCancelar.clases.length > 0) return setConfirmar(true);
+    if (guardando) return;
+    setGuardando(true);
     const r = await ejecutar('guardarPlantilla', { plantilla: { ...f, id: plantilla?.id, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) } });
+    setGuardando(false);
+    setConfirmar(false);
     if (r.ok) {
       if (!plantilla) toast.ok('Franja creada. Se han generado sus clases.');
+      else if (r.valor.canceladas > 0) toast.ok(`Franja actualizada. ${r.valor.canceladas === 1 ? 'Se ha cancelado 1 clase' : `Se han cancelado ${r.valor.canceladas} clases`} con alumnos; ${r.valor.afectados === 1 ? 'el alumno ha recibido' : `los ${r.valor.afectados} alumnos han recibido`} aviso y recuperación.`);
       else if (r.valor.conservadas > 0) toast.info(`Franja actualizada en el calendario. ${r.valor.conservadas === 1 ? 'Una clase con alumnos apuntados mantiene' : `${r.valor.conservadas} clases con alumnos apuntados mantienen`} su día y hora para no descolocarles; la actividad, el monitor y las plazas sí se han cambiado.`);
       else toast.ok('Franja actualizada. Sus clases futuras ya tienen el nuevo horario.');
       onCerrar();
@@ -115,9 +126,13 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
           <Entrada etiqueta="Vigente desde" ayuda="Opcional" type="date" value={f.vigenciaDesde ?? ''} onChange={(e) => setF({ ...f, vigenciaDesde: e.target.value || null })} />
           <Entrada etiqueta="Vigente hasta" ayuda="Opcional" type="date" value={f.vigenciaHasta ?? ''} onChange={(e) => setF({ ...f, vigenciaHasta: e.target.value || null })} />
         </div>
-        <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Franja activa" descripcion="Si se desactiva, no se generan nuevas clases." /></div>
-        <Boton ancho onClick={guardar}>{plantilla ? 'Guardar cambios' : 'Crear franja'}</Boton>
+        <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Franja activa" descripcion="Si se desactiva, sus clases futuras se cancelan (los alumnos apuntados reciben aviso y recuperación)." /></div>
+        <Boton ancho onClick={() => void guardar()} cargando={guardando}>{plantilla ? 'Guardar cambios' : 'Crear franja'}</Boton>
       </div>
+      <Confirmacion abierta={confirmar} onCerrar={() => setConfirmar(false)} titulo="Se cancelarán clases" textoConfirmar="Guardar y cancelar clases" peligro onConfirmar={() => void guardar(true)}>
+        <p>Con estos cambios, <strong className="text-ink">{aCancelar.clases.length === 1 ? '1 clase' : `${aCancelar.clases.length} clases`}</strong> con alumnos apuntados dejan de impartirse ({aCancelar.alumnos === 1 ? '1 alumno' : `${aCancelar.alumnos} alumnos`}).</p>
+        <p>Se cancelarán y cada alumno recibirá un aviso y una recuperación.</p>
+      </Confirmacion>
     </Hoja>
   );
 }

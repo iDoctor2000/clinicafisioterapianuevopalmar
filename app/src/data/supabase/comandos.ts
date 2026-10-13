@@ -19,6 +19,7 @@ import { mensajeError, servidor } from './cliente';
 import { borrarFoto } from './fotos';
 import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePago, dePlantilla, dePortadaImagen, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
 import { borrarImagenPortada } from './portada';
+import { invocarEnvioPush } from './push';
 
 export type ResultadoRemoto<T = unknown> = { ok: true; valor: (db: Db) => T } | { ok: false; error: string };
 
@@ -40,6 +41,13 @@ async function rpc<T = unknown>(nombre: string, params: Record<string, unknown>)
 }
 
 /** Crea las clases que falten hasta el horizonte (el demo lo hace en cada cambio de horario). */
+/** Notificaciones al móvil de avisos creados en el servidor (sin bloquear ni fallar el comando). */
+function enviarPushAvisos(ids: string[]): void {
+  for (const avisoId of ids) {
+    invocarEnvioPush({ avisoId }).catch((e) => console.warn('[push] No se han podido enviar las notificaciones del aviso:', mensajeError(e)));
+  }
+}
+
 async function regenerarClases(): Promise<void> {
   const hoy = aISODate(new Date());
   await rpc('generar_clases', { p_desde: hoy, p_hasta: sumarDias(hoy, DIAS_HORIZONTE) });
@@ -114,10 +122,14 @@ const impl: Impl = {
     const existe = !!args.plantilla.id;
     const p = { ...args.plantilla, id: args.plantilla.id ?? nuevoUuid() };
     comprobar(await servidor().from('plantillas_clase').upsert(dePlantilla(p)));
-    // Al editar, el servidor recrea las clases futuras de la franja (0011_horario_cambios.sql).
-    const conservadas = existe ? await rpc<number>('plantilla_aplicar_cambios', { p_plantilla_id: p.id }) : 0;
+    // Al editar, el servidor recrea las clases futuras de la franja (0011) y, si la franja se
+    // desactiva o termina su vigencia, cancela las que tienen alumnos avisándoles (0020).
+    // Antes de la 0020 devolvía solo un número (las conservadas): se aceptan las dos formas.
+    const res = existe ? await rpc<number | { conservadas: number; canceladas: number; afectados: number; avisos: string[] }>('plantilla_aplicar_cambios', { p_plantilla_id: p.id }) : 0;
+    const r = typeof res === 'object' && res ? res : { conservadas: Number(res) || 0, canceladas: 0, afectados: 0, avisos: [] as string[] };
     await regenerarClases();
-    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: conservadas ?? 0 });
+    enviarPushAvisos(r.avisos ?? []);
+    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, avisoIds: r.avisos ?? [] });
   },
 
   // -------------------------------------------------------------------------
@@ -310,6 +322,13 @@ const impl: Impl = {
       comprobar(await sb.from('dias_cierre').delete().not('fecha', 'is', null));
       const filas = deDiasCierre(args.config.diasCierre);
       if (filas.length > 0) comprobar(await sb.from('dias_cierre').insert(filas));
+      // 0020: las clases de esos días se cancelan ya (sin recuperación: los festivos no se recuperan) y se avisa.
+      try {
+        const res = await rpc<{ avisos?: string[] }>('cancelar_clases_cierre', {});
+        enviarPushAvisos(res?.avisos ?? []);
+      } catch (e) {
+        console.warn('[supabase] No se han podido cancelar ya las clases de los días de cierre (lo hará la tarea nocturna):', mensajeError(e));
+      }
       // Cancelar las clases ya programadas en los nuevos cierres lo hace mantenimiento_diario (pg_cron);
       // generamos las clases que falten para que el calendario quede coherente ya.
       try {
