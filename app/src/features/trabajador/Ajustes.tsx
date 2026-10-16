@@ -170,6 +170,7 @@ const ACCION_TEXTO: Record<string, string> = {
   CREAR_ACTIVIDAD: 'Actividad creada', EDITAR_ACTIVIDAD: 'Actividad editada', CREAR_TRABAJADOR: 'Trabajador creado', EDITAR_TRABAJADOR: 'Trabajador editado', CONFIG: 'Configuración',
   FOTO_CLIENTE: 'Foto de cliente', QUITAR_FOTO_CLIENTE: 'Foto de cliente quitada', CONSENTIMIENTO: 'Consentimiento', CONSENTIMIENTO_PAPEL: 'Consentimiento en papel',
   CREAR_PORTADA: 'Foto de portada añadida', EDITAR_PORTADA: 'Foto de portada editada', BORRAR_PORTADA: 'Foto de portada borrada', ORDENAR_PORTADA: 'Portada reordenada',
+  LISTA_ESPERA: 'Lista de espera', ELIMINAR_FRANJA: 'Franja eliminada',
 };
 
 // ---------------------------------------------------------------------------

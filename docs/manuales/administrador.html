@@ -72,6 +72,7 @@
   <table>
     <tr><th style="width:40%">Quiero…</th><th>Dónde</th><th style="width:14%">Capítulo</th></tr>
     <tr><td>Cambiar la hora, el monitor o las plazas de una clase fija de la semana</td><td>App → Horarios → tocar la franja → editar → Guardar</td><td>9</td></tr>
+    <tr><td>Quitar una clase fija del horario para siempre</td><td>App → Horarios → tocar la franja → Eliminar franja del horario</td><td>9</td></tr>
     <tr><td>Que una clase de un día concreto cambie de hora</td><td>App → Calendario → la clase → Cancelar clase (con alternativa) + Nueva clase extraordinaria</td><td>9</td></tr>
     <tr><td>Abrir una clase extra (un sábado, un taller)</td><td>App → Calendario → Nueva clase extraordinaria</td><td>5 y 9</td></tr>
     <tr><td>Cancelar una clase y avisar a los alumnos</td><td>App → Calendario → la clase → Cancelar clase</td><td>5</td></tr>
@@ -172,7 +173,8 @@
   <ul>
     <li><strong>Pasar lista:</strong> botones <em>Asiste</em> / <em>No asiste</em> junto a cada alumno (explicado con detalle en el capítulo siguiente).</li>
     <li><strong>Añadir alumno:</strong> busca a la persona y elige <em>Con su tarifa</em> (aplica sus reglas), <em>Manual</em> (sin descontar nada) o <em>Clase suelta</em> (paga en recepción).</li>
-    <li><strong>Quitar alumno:</strong> sin penalizar; se le devuelve la clase como recuperación.</li>
+    <li><strong>Quitar alumno:</strong> sin penalizar; se le devuelve la clase como recuperación. Si hay lista de espera, la plaza es para el primero de la lista (la app te lo dice antes de confirmar).</li>
+    <li><strong>Lista de espera:</strong> en las clases completas, quién espera plaza y en qué orden. Entran solos cuando alguien deja la plaza, hasta 2 horas antes de la clase; también puedes quitar a alguien de la lista. Está explicado con detalle en el manual del monitor (capítulo 8).</li>
     <li><strong>Cancelar clase:</strong> con motivo y alternativa opcional. Avisa a todos los apuntados y les genera una recuperación.</li>
     <li><strong>Cancelaciones:</strong> desplegable con quién canceló y si fue a tiempo o tarde.</li>
   </ul>
@@ -238,7 +240,7 @@
     <li>Abre su ficha → pestaña <strong>Tarifa</strong> → <span class="btn">Nueva contratación</span>.</li>
     <li>Elige la tarifa y la fecha de inicio. La fecha de fin se calcula sola (bonos: según su validez; tarifas mensuales: 3 meses, que puedes cambiar).</li>
     <li>Fíjate en que <strong>cada tarifa da acceso solo a su categoría</strong>: las de "Clases dirigidas" a suelo, funcional, geronto, yoga, barre…; las de "Reformer + Torre" a Reformer; el Pack mixto a una de cada. En la lista de franjas, las que la tarifa no incluye salen en gris con "No incluida" y un aviso debajo lo explica. Si una franja de Reformer "no sale", no es un fallo del horario: es que la tarifa elegida no la incluye.</li>
-    <li>Elige la <strong>modalidad</strong>: <em>Horario fijo</em> (siempre las mismas clases, por ejemplo lunes y miércoles a las 10:00; marca las franjas y la app le reserva esas clases automáticamente cada semana) o <em>Turno libre</em> (el cliente reserva cada vez la clase que quiera).</li>
+    <li>Elige la <strong>modalidad</strong>: <em>Horario fijo</em> (siempre las mismas clases, por ejemplo lunes y miércoles a las 10:00; marca las franjas y la app le reserva esas clases automáticamente cada semana) o <em>Turno libre</em> (el cliente reserva cada vez la clase que quiera). Junto a cada franja ves <strong>cuántas de sus plazas ya tienen alumno fijo</strong> (por ejemplo "6/8 fijos"). Si está <span style="color:#b4473f;font-weight:600">Completa</span>, la app avisa pero te deja marcarla igualmente: tú decides si hay sitio (por ejemplo, porque alguien va a dejarla).</li>
     <li>En el apartado <strong>Pago</strong> elige la <strong>oferta</strong> (ninguna, trimestral o familiar), el <strong>importe</strong> y la <strong>forma de pago</strong> (efectivo, tarjeta, Bizum, transferencia o domiciliación). Con la oferta trimestral, los importes del cartel (por ejemplo 65 € / 65 € / 0 €) se rellenan solos.</li>
     <li>Debajo sale el <strong>plan de cobros</strong>: un cobro por mes (o uno solo si es un bono). Puedes cambiar cualquier importe. Si el cliente paga en ese momento, activa <em>El primer pago se cobra ahora</em>.</li>
     <li>Toca <span class="btn">Crear contratación</span>. Si ya tenía una tarifa, la anterior se finaliza sola y queda en el historial.</li>
@@ -358,7 +360,16 @@
   <p><strong>Calendario</strong> → <span class="btn">Nueva clase extraordinaria</span>. Queda marcada como "Extraordinaria" y los alumnos la pueden reservar como cualquier otra. Recuerda que un sábado con clases de Pilates no abre la clínica de fisioterapia: su horario es independiente.</p>
 
   <h3>Caso 4 · Quitar una clase fija del horario</h3>
-  <p>En Horarios, abre la franja y desmarca <strong>Franja activa</strong> (o pon una fecha en <em>Vigente hasta</em>) y guarda. Sus clases futuras sin alumnos desaparecen. Si alguna tiene alumnos apuntados, antes de guardar la app te dice cuántas clases y alumnos son y, al confirmar con <span class="btn">Guardar y cancelar clases</span>, las cancela: cada alumno recibe un aviso y una recuperación. No hace falta cancelarlas a mano. No borres franjas: así se conserva el historial.</p>
+  <p>Hay dos formas, según si es para siempre o no:</p>
+  <ul>
+    <li><strong>Desactivarla</strong> (temporal o por si acaso): abre la franja, desmarca <strong>Franja activa</strong> (o pon una fecha en <em>Vigente hasta</em>) y guarda. La franja sigue en Horarios, en gris, y la puedes volver a activar.</li>
+    <li><strong>Eliminarla</strong> (para siempre): abre la franja y toca <span class="btn claro">Eliminar franja del horario</span>. Desaparece de Horarios y de los selectores de franjas. Las clases ya dadas se conservan en el historial de cada alumno.</li>
+  </ul>
+  <p>En los dos casos pasa lo mismo con sus clases futuras: las que no tienen alumnos desaparecen, y si alguna tiene alumnos apuntados la app te dice cuántas clases y alumnos son antes de confirmar y, al confirmar, las cancela: cada alumno recibe un aviso y una recuperación. No hace falta cancelarlas a mano.</p>
+  <div class="caja ojo">
+    <div class="t">"No se puede eliminar: la tienen como clase fija…"</div>
+    <p>No se puede eliminar una franja mientras algún alumno la tenga como clase fija en una contratación activa: la app te dice quiénes son. Primero cámbiales el horario fijo (su ficha → Tarifa → Editar contratación) o espera a que termine su contrato. Mientras tanto, puedes desactivarla.</p>
+  </div>
 
   <h3>Caso 5 · Horario de verano o cambio temporal</h3>
   <p>Crea las franjas nuevas con <em>Vigente desde</em> y <em>Vigente hasta</em> (por ejemplo, del 1 de julio al 31 de agosto) y pon <em>Vigente hasta</em> el 30 de junio en las franjas normales. Las clases se generan solas con cada horario en su periodo.</p>
@@ -607,6 +618,7 @@
         <tr><td><code>supabase/migrations/0018_ocupacion_clases.sql</code></td><td>Los alumnos ven bien las plazas libres de cada clase (antes solo contaban su propia reserva).</td></tr>
         <tr><td><code>supabase/migrations/0019_reservas_pasadas.sql</code></td><td>Casilla "Apuntar también a las clases pasadas" al crear o editar una contratación con fecha de inicio anterior a hoy.</td></tr>
         <tr><td><code>supabase/migrations/0020_horario_y_festivos.sql</code></td><td>Al quitar una franja, sus clases con alumnos se cancelan solas (aviso y recuperación). Los festivos no se recuperan, se cancelen como se cancelen.</td></tr>
+        <tr><td><code>supabase/migrations/0021_lista_espera_y_franjas.sql</code></td><td>Lista de espera de las clases completas (entran solos al liberarse una plaza), botón "Eliminar franja del horario" y avisos push del sistema. Con esta, además, hay que volver a publicar la función de notificaciones: <code>supabase functions deploy enviar-push</code>.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
     <li><strong>Dominio y correo:</strong> <code>www.fisioterapianuevopalmar.com</code> está contratado en Strato, a nombre de la clínica, y allí sigue el correo del centro (por eso se mantiene ese contrato). La web se sirve desde GitHub. No cambies los registros DNS A, AAAA ni el CNAME de www, o la web dejará de verse; tampoco los registros MX, o dejará de llegar el correo.</li>
@@ -657,7 +669,13 @@
     <dd>Comprueba que la franja está activa en Horarios y que esos días no están en Días de cierre. Las clases se generan por la noche; si acabas de crear la franja, espera a mañana.</dd>
 
     <dt>Un cliente no puede reservar.</dt>
-    <dd>Mira el mensaje que le sale: sin tarifa activa, tarifa caducada, actividad no incluida, bono agotado, sin plazas o fuera de la ventana de reserva. Cada caso se arregla en su ficha o en Ajustes.</dd>
+    <dd>Mira el mensaje que le sale: sin tarifa activa, tarifa caducada, actividad no incluida, bono agotado, sin plazas o fuera de la ventana de reserva. Cada caso se arregla en su ficha o en Ajustes. Si es por plazas, puede apuntarse a la lista de espera.</dd>
+
+    <dt>Un alumno ha aparecido en una clase sin que nadie lo apuntara.</dt>
+    <dd>Estaba en la lista de espera de esa clase y alguien dejó la plaza: ha entrado solo (con su tarifa, o cambiando otra clase suya de esa semana) y ha recibido un aviso. Queda en el registro de cambios como "Lista de espera". La lista solo actúa hasta 2 horas antes de la clase.</dd>
+
+    <dt>No me deja eliminar una franja del horario.</dt>
+    <dd>Algún alumno la tiene como clase fija en una contratación activa (la app te dice quiénes). Cámbiales las franjas fijas en su ficha o espera a que termine su contrato; mientras, puedes desactivarla (caso 4 del capítulo 9).</dd>
 
     <dt>Un cliente sale con "Pago pendiente" pero ya ha pagado.</dt>
     <dd>Falta apuntarlo: en su ficha → Tarifa → tarjeta Cobros, toca <em>Cobrar</em> en ese mes. La etiqueta desaparece al momento.</dd>

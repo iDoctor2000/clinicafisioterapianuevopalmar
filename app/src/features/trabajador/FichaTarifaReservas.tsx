@@ -11,7 +11,7 @@ import { aCentimos, aTextoEuros, importeSugerido, planDeCobros } from '@/domain/
 import { AreaTexto, Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
-import { contratosDeCliente, plantillaVista, resumenCliente, reservasDeClienteSeparadas } from './consultas';
+import { contratosDeCliente, ocupacionFijaDePlantilla, plantillaVista, resumenCliente, reservasDeClienteSeparadas } from './consultas';
 import { ChipAsistencia, ChipEstadoReserva, ChipOrigen, Confirmacion, Dato, PuntoColor, Segmentado, fechaMedia, may } from './comunes';
 import { CamposPago, PlanCobros, TarjetaCobros, textoPago, type DatosPago } from './Cobros';
 
@@ -143,7 +143,7 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
 }
 
 /** Lista de franjas del horario para elegir las fijas de un contrato (las no incluidas en la tarifa, en gris). */
-function SelectorFranjas({ tarifa, franjas, setFranjas, inicio, fin }: { tarifa: Tarifa; franjas: string[]; setFranjas: (f: string[]) => void; inicio: string; fin: string }) {
+function SelectorFranjas({ tarifa, franjas, setFranjas, inicio, fin, contratoActual }: { tarifa: Tarifa; franjas: string[]; setFranjas: (f: string[]) => void; inicio: string; fin: string; contratoActual?: Contrato | null }) {
   const { db } = useTrabajador();
   const cupoPorCat = useMemo(() => new Map(tarifa.cupos.map((c) => [c.categoria, c.sesionesSemana])), [tarifa]);
   const totalFranjas = Array.from(cupoPorCat.values()).reduce((a, b) => a + b, 0);
@@ -151,16 +151,23 @@ function SelectorFranjas({ tarifa, franjas, setFranjas, inicio, fin }: { tarifa:
   // Se listan todas las franjas activas (y las ya elegidas aunque ya no lo estén): las de categorías
   // que la tarifa no incluye van en gris, con el motivo, para que nadie piense que "falta" una clase.
   const plantillas = db.plantillas
-    .filter((p) => p.activa || franjas.includes(p.id))
+    .filter((p) => (p.activa && !p.eliminadaEl) || franjas.includes(p.id))
     .sort((a, b) => a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio));
   const incluida = (plantillaId: string) => cupoPorCat.has(categoriaDe(plantillaId));
   const nombreCat = (c: Categoria) => (c === 'REFORMER' ? 'Reformer' : CATEGORIA_LABEL[c].toLowerCase());
   const categoriasFuera = (['DIRIGIDA', 'REFORMER'] as Categoria[]).filter((c) => !cupoPorCat.has(c) && plantillas.some((p) => categoriaDe(p.id) === c));
   const elegidasPorCat = (cat: Categoria) => franjas.filter((f) => categoriaDe(f) === cat).length;
+  // Plazas fijas ya ocupadas por otros contratos (0021): se avisa si la franja está llena, pero se permite (el centro decide).
+  const fijosDe = (p: { id: string; plazas: number }) => {
+    const n = ocupacionFijaDePlantilla(db, p.id) - (contratoActual && contratoActual.franjasFijas.some((f) => f.plantillaId === p.id) ? 1 : 0);
+    return { fijos: n, llena: n >= p.plazas };
+  };
   const alternar = (id: string) => {
     if (franjas.includes(id)) return setFranjas(franjas.filter((f) => f !== id));
     const cat = categoriaDe(id);
     if (elegidasPorCat(cat) >= (cupoPorCat.get(cat) ?? 0)) return toast.info(`Esta tarifa incluye ${cupoPorCat.get(cat)} sesión/es semanales de ${CATEGORIA_LABEL[cat].toLowerCase()}. Desmarca otra franja primero.`);
+    const p = db.plantillas.find((x) => x.id === id);
+    if (p && fijosDe(p).llena) toast.info(`Ojo: esta franja ya tiene sus ${p.plazas} plazas fijas ocupadas. Se añade igualmente, pero revisa que haya sitio.`);
     setFranjas([...franjas, id]);
   };
   const previstas = sesionesPrevistas({ fechaInicio: inicio, fechaFin: fin, franjasFijas: franjas.map((plantillaId) => ({ plantillaId })) }, db.plantillas, db.config).total;
@@ -176,7 +183,8 @@ function SelectorFranjas({ tarifa, franjas, setFranjas, inicio, fin }: { tarifa:
             <label key={p.id} className={cn('flex items-center gap-3 p-3', dentro || activa ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed', activa ? 'bg-beige-50' : dentro && 'hover:bg-sand')}>
               <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={activa} disabled={!dentro && !activa} onChange={() => alternar(p.id)} />
               <PuntoColor color={v.actividad?.color ?? '#999'} />
-              <span className="flex-1 min-w-0"><span className="font-semibold">{DIAS_SEMANA_LABEL[p.diaSemana]} {p.horaInicio}</span><span className="block text-sm text-ink-muted truncate">{v.actividad?.nombre} · {v.monitor?.nombre} · {p.plazas} plazas</span></span>
+              <span className="flex-1 min-w-0"><span className="font-semibold">{DIAS_SEMANA_LABEL[p.diaSemana]} {p.horaInicio}</span><span className="block text-sm text-ink-muted truncate">{v.actividad?.nombre} · {v.monitor?.nombre} · <span className={cn(fijosDe(p).llena && 'text-rose font-semibold')}>{fijosDe(p).fijos}/{p.plazas} fijos</span></span></span>
+              {dentro && fijosDe(p).llena && <span className="text-xs font-semibold text-rose shrink-0">Completa</span>}
               {!dentro && <span className="text-xs font-semibold text-ink-muted shrink-0">No incluida</span>}
               {dentro && !p.activa && <span className="text-xs font-semibold text-ink-muted shrink-0">Franja desactivada</span>}
             </label>
@@ -340,7 +348,7 @@ function HojaEditarContratacion({ contrato, tarifa, onCerrar }: { contrato: Cont
           <Entrada etiqueta="Fecha de fin" type="date" value={fin} min={contrato.fechaInicio} onChange={(e) => setFin(e.target.value)} />
           {tarifa.tipo === 'BONO' && <Entrada etiqueta="Sesiones que quedan" type="number" min={0} value={sesiones} onChange={(e) => setSesiones(e.target.value)} />}
         </div>
-        {esFijo && <SelectorFranjas tarifa={tarifa} franjas={franjas} setFranjas={setFranjas} inicio={contrato.fechaInicio} fin={fin} />}
+        {esFijo && <SelectorFranjas tarifa={tarifa} franjas={franjas} setFranjas={setFranjas} inicio={contrato.fechaInicio} fin={fin} contratoActual={contrato} />}
         {esFijo && <p className="text-sm text-ink-muted -mt-2">Al guardar, las reservas automáticas futuras se rehacen con estas franjas. Las clases pasadas y las reservas hechas a mano no se tocan.</p>}
         {esFijo && contrato.fechaInicio < hoy && (
           <Interruptor activo={incluirPasadas} onCambio={setIncluirPasadas} etiqueta={`Apuntar también a las clases pasadas desde el ${fechaMedia(contrato.fechaInicio)}`}

@@ -12,7 +12,7 @@ import { ejecutarRemoto } from './supabase/comandos';
 import * as auth from './supabase/auth';
 import { registrar } from '@/lib/diagnostico';
 import { activarTiempoReal } from './supabase/tiempoReal';
-import { invocarEnvioPush } from './supabase/push';
+import { enviarPushPendientes, invocarEnvioPush } from './supabase/push';
 
 export type Modo = 'DEMO' | 'SUPABASE';
 
@@ -96,6 +96,12 @@ const despuesDe: { [K in NombreComando]?: (args: ArgsComando<K>, valor: ValorCom
     if (aviso) enviarPushDeAviso(aviso.id);
     else console.warn('[push] No se ha encontrado el aviso de la clase cancelada; no se envían notificaciones.');
   },
+  // Acciones que pueden liberar una plaza: si alguien entra desde la lista de espera, la base de
+  // datos deja su aviso pendiente y aquí se manda por push (0021).
+  cancelarReserva: () => { void enviarPushPendientes(); },
+  quitarAlumno: () => { void enviarPushPendientes(); },
+  guardarPlantilla: () => { void enviarPushPendientes(); },
+  eliminarPlantilla: () => { void enviarPushPendientes(); },
 };
 
 const crearEstado: StateCreator<Estado> = (set, get) => {
@@ -110,6 +116,8 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
     const sesion = auth.sesionDesdeUsuario(usuario, db);
     registrar('arranque', `Datos cargados del servidor (${Math.round(performance.now() - t0)} ms)`, { usuario: usuario.email, sesion: sesion ? { tipo: sesion.tipo, nombre: sesion.nombre } : 'sin ficha vinculada', clases: db.clases.length, reservas: db.reservas.length });
     set({ db, usuarioAuth: usuario, sesion, errorCarga: null });
+    // Por si la noche anterior (o un cambio hecho desde otro sitio) dejó avisos de la lista de espera sin mandar.
+    if (sesion) void enviarPushPendientes();
   };
 
   const activarEscucha = () => {

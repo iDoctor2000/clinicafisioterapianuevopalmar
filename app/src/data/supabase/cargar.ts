@@ -14,10 +14,11 @@ import { aISODate } from '@/domain/fechas';
 import { DB_VERSION, type Db } from '../db';
 import { mensajeError, servidor } from './cliente';
 import {
-  aActividad, aAuditoria, aAviso, aClase, aCliente, aConfig, aContrato, aLectura, aPago, aPlantilla, aRecuperacion, aReserva, aTarifa,
+  aActividad, aAuditoria, aAviso, aClase, aCliente, aConfig, aContrato, aEntradaListaEspera, aLectura, aPago, aPlantilla, aRecuperacion, aReserva, aTarifa,
   aPortadaImagen, aPremioMes, aTrabajador, aTrabajadorDesdeMonitor, derivarUsuarios,
   type FilaActividad, type FilaAuditoria, type FilaAviso, type FilaAvisoDestinatario, type FilaAvisoLectura, type FilaClase, type FilaCliente,
-  type FilaClienteClinica, type FilaConfigCentro, type FilaContrato, type FilaContratoFranja, type FilaDiaCierre, type FilaPago, type FilaMonitor,
+  type FilaClienteClinica, type FilaConfigCentro, type FilaContrato, type FilaContratoFranja, type FilaDiaCierre, type FilaListaEspera, type FilaMiListaEspera,
+  type FilaPago, type FilaMonitor,
   type FilaOcupacionClase, type FilaPlantillaClase, type FilaPortadaImagen, type FilaPremioMes, type FilaRecuperacion, type FilaReserva, type FilaTarifa,
   type FilaTarifaCupo, type FilaTrabajador, type FilaTrabajadorPermiso,
 } from './mapeo';
@@ -81,7 +82,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
 
   const [
     cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, ocupacion, contratos, franjas, pagos,
-    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios,
+    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios, listaEspera, miListaEspera,
   ] = await Promise.all([
     leerPaginado<FilaDiaCierre>('dias_cierre', de('dias_cierre', 'fecha')),
     leerPaginado<FilaActividad>('actividades', de('actividades', 'orden', 'nombre', 'id')),
@@ -111,13 +112,17 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     leerPaginado<FilaPortadaImagen>('portada_imagenes', de('portada_imagenes', 'orden', 'id'), 1),
     // Cliente del mes (0016). RLS: el personal todos; cada alumno los suyos y los que el ganador hizo públicos.
     leerPaginado<FilaPremioMes>('premios_mes', (d, h) => sb.from('premios_mes').select('*', { count: 'exact' }).order('mes', { ascending: false }).range(d, h) as unknown as Consulta<FilaPremioMes>, 1),
+    // Lista de espera (0021). RLS: el personal las de su ámbito; cada alumno las suyas (y su posición, por la vista).
+    leerPaginado<FilaListaEspera>('lista_espera', de('lista_espera', 'clase_id', 'creado_el', 'id'), 2),
+    leerPaginado<FilaMiListaEspera>('mi_lista_espera', de('mi_lista_espera', 'clase_id'), 1),
   ]);
 
   const clinicaPorCliente = new Map(clinicas.map((c) => [c.cliente_id, c]));
   const listaClientes = clientes.map((c) => aCliente(c, clinicaPorCliente.get(c.id)));
   // Un trabajador ve la tabla `trabajadores`; un cliente solo la vista `monitores`.
   const listaTrabajadores = trabajadores.length > 0 ? trabajadores.map((t) => aTrabajador(t, permisos)) : monitores.map(aTrabajadorDesdeMonitor);
-  const ocupadasPorClase = new Map(ocupacion.map((o) => [o.clase_id, o.ocupadas]));
+  const ocupadasPorClase = new Map(ocupacion.map((o) => [o.clase_id, o]));
+  const posicionPorEntrada = new Map(miListaEspera.map((m) => [m.id, m.posicion]));
 
   return {
     version: DB_VERSION,
@@ -128,7 +133,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     contratos: contratos.map((c) => aContrato(c, franjas)),
     pagos: pagos.map(aPago),
     plantillas: plantillas.map(aPlantilla),
-    clases: clases.map((c) => aClase(c, ocupadasPorClase.get(c.id))),
+    clases: clases.map((c) => aClase(c, ocupadasPorClase.get(c.id)?.ocupadas, ocupadasPorClase.get(c.id)?.en_espera)),
     reservas: reservas.map(aReserva),
     recuperaciones: recuperaciones.map(aRecuperacion),
     avisos: avisos.map((a) => aAviso(a, destinatarios)),
@@ -138,5 +143,6 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     auditoria: auditoria.map(aAuditoria),
     portada: portada.map(aPortadaImagen),
     premios: premios.map(aPremioMes),
+    listaEspera: listaEspera.map((e) => aEntradaListaEspera(e, posicionPorEntrada.get(e.id))),
   };
 }

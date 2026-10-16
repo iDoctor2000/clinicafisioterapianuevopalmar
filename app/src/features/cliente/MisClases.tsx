@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Ticket, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Hourglass, RefreshCw, Ticket, X } from 'lucide-react';
 import { addMonths, endOfISOWeek, endOfMonth, format, parseISO, startOfISOWeek, startOfMonth } from 'date-fns';
 import type { ISODate } from '@/domain/types';
 import { aISODate, diasEntre, fechaLarga, hoyISO, mesLargo } from '@/domain/fechas';
 import { recuperacionesDeCliente, reservasDeCliente, type ReservaVista } from '@/data/selectores';
-import { Boton, Chip, Tarjeta, Vacio } from '@/ui';
+import { Boton, Chip, Tarjeta, Vacio, toast } from '@/ui';
+import { useStore } from '@/data/store';
 import { cn } from '@/lib/cn';
 import { useCliente } from './useCliente';
-import { cap, clasesPrevistas, diaMes, periodoTexto, reservasFuturas, reservasPasadas, textoCategorias } from './consultas';
+import { cap, clasesPrevistas, diaMes, esperasFuturas, periodoTexto, reservasFuturas, reservasPasadas, textoCategorias } from './consultas';
 import { ESTADO_RECUPERACION, puntoEstado, type ChipInfo } from './estados';
 import { BarraProgreso, Encabezado, HojaCancelar, Pestanas, TarjetaReserva } from './comun';
 
@@ -27,6 +28,12 @@ export function MisClases() {
   const todas = reservasDeCliente(db, cliente.id);
   const futuras = reservasFuturas(db, cliente.id, ahora);
   const pasadas = reservasPasadas(db, cliente.id, ahora);
+  const esperas = esperasFuturas(db, cliente.id, ahora);
+  const ejecutar = useStore((s) => s.ejecutar);
+  const salirDeLista = async (claseId: string) => {
+    const r = await ejecutar('salirListaEspera', { claseId });
+    if (r.ok) toast.ok('Ya no estás en la lista de espera.'); else toast.error(r.error);
+  };
 
   // Rango de meses que se puede recorrer: todo el periodo del contrato y todas las reservas.
   const fechasRef = [hoy, contrato?.fechaInicio, contrato?.fechaFin, todas[0]?.clase.fecha, todas[todas.length - 1]?.clase.fecha].filter((f): f is string => !!f);
@@ -116,6 +123,29 @@ export function MisClases() {
               <Leyenda color="bg-ink/30" texto="No asististe" />
             </div>
           </Tarjeta>
+
+          {pestana === 'PROXIMAS' && !diaSel && esperas.length > 0 && (
+            <section className="mb-5">
+              <h2 className="text-xl mb-3">En lista de espera</h2>
+              <ul className="space-y-3">
+                {esperas.map((e) => (
+                  <li key={e.entrada.id}>
+                    <Tarjeta className="p-4 border-sky/40">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Hourglass className="h-5 w-5 text-sky shrink-0" />
+                        <p className="font-semibold text-lg">{e.vista.actividad.nombre}</p>
+                        <Chip tono="azul" className="ml-auto">{e.posicion}º en la lista</Chip>
+                      </div>
+                      <p className="text-ink-soft">{cap(fechaLarga(e.vista.clase.fecha))} a las {e.vista.clase.horaInicio}</p>
+                      {e.cambio && <p className="text-sm text-ink-muted mt-1">A cambio de tu clase de {e.cambio.actividad.nombre} del {fechaLarga(e.cambio.clase.fecha)} a las {e.cambio.clase.horaInicio}.</p>}
+                      <p className="text-sm text-ink-muted mt-1">Si se libera una plaza entrarás automáticamente y te avisaremos.</p>
+                      <Boton variante="suave" ancho className="mt-3" onClick={() => void salirDeLista(e.vista.clase.id)}>Salir de la lista</Boton>
+                    </Tarjeta>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="text-xl truncate">{diaSel ? cap(fechaLarga(diaSel)) : pestana === 'PROXIMAS' ? 'Próximas clases' : 'Clases pasadas'}</h2>

@@ -91,6 +91,19 @@ select line from (
   union all select 19, '| Clases con más alumnos que plazas | ' || (select count(*) from ocupacion where n > plazas) || case when (select count(*) from ocupacion where n > plazas) > 0 then ' ⚠️' else '' end || ' |'
   union all select 20, '| Contratos de horario fijo sin ninguna clase futura apuntada | ' || (select count(*) from fijos_sin_reservas) || case when (select count(*) from fijos_sin_reservas) > 0 then ' ⚠️' else '' end || ' |'
   union all select 21, '| Cobros pendientes ya vencidos | ' || (select count(*) from public.pagos where estado = 'PENDIENTE' and vence_el < (select d from hoy)) || ' |'
+  union all select 22, '| Cambios de la base de datos (migraciones) | ' || (
+      with m(n, ok) as (values
+        ('0014', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clientes' and column_name = 'fecha_nacimiento')),
+        ('0015', to_regclass('public.copias_seguridad') is not null),
+        ('0016', to_regclass('public.premios_mes') is not null),
+        ('0017', exists (select 1 from pg_trigger where tgname = 'clientes_vincular_usuario')),
+        ('0018', to_regclass('public.ocupacion_clases') is not null),
+        ('0019', to_regprocedure('public._generar_reservas_automaticas(uuid, boolean)') is not null),
+        ('0020', to_regprocedure('public._cancelar_clases_cierre()') is not null),
+        ('0021', to_regclass('public.lista_espera') is not null))
+      select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
+                  else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
+        from m) || ' |'
 ) t where line is not null order by o, line;
 commit;
 SQL

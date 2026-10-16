@@ -156,6 +156,7 @@
     <li><strong>Cabecera:</strong> actividad, fecha, hora, duración, monitor y plazas (ocupadas / total).</li>
     <li><strong>Lista de alumnos apuntados</strong>, con su foto o inicial. Junto a cada uno, los botones de asistencia y, si tienes permiso de reservas, el de quitarlo de la clase.</li>
     <li><strong>Botón "Añadir alumno"</strong>, si tienes permiso de reservas (capítulo 8).</li>
+    <li><strong>Lista de espera</strong>, si la clase está completa o hay alguien esperando: quién espera plaza, por orden (capítulo 8).</li>
     <li><strong>Cancelaciones</strong>: un desplegable con quién ha cancelado esa clase y si fue recuperable o no.</li>
     <li><strong>Cancelar clase</strong>, solo si tienes el permiso de crear y cancelar clases (capítulo 9).</li>
   </ul>
@@ -214,6 +215,13 @@
   <p>Si la persona no aparece en el buscador, es que no está dada de alta como cliente. Eso lo hace recepción o la administración.</p>
   <h3>Quitar a alguien de la clase</h3>
   <p>Toca el icono de quitar junto a su nombre y confirma con <span class="btn">Quitar alumno</span>. Al quitarlo tú, el alumno <strong>no se penaliza</strong>: si tenía tarifa, se le devuelve como recuperación. Úsalo cuando el alumno te avisa en persona de que no puede venir.</p>
+  <h3>La lista de espera</h3>
+  <p>Cuando una clase está completa, los alumnos pueden apuntarse a la <strong>lista de espera</strong> desde su app. En la ficha de la clase ves quién espera, en qué orden y de qué forma entraría: <em>con su tarifa</em> (reserva normal) o <em>a cambio de otra clase suya de esa semana</em> (su reserva antigua pasa a esta clase).</p>
+  <ul>
+    <li><strong>Entran solos.</strong> Si alguien deja la plaza (lo cancela el alumno o lo quitas tú), entra automáticamente el primero de la lista y recibe un aviso. Al quitar a un alumno, la app te recuerda quién va a entrar.</li>
+    <li><strong>Hasta 2 horas antes.</strong> Más cerca de la clase la lista ya no actúa sola: si se libera una plaza y quieres darla a alguien de la lista, apúntalo con <span class="btn">Añadir alumno</span>.</li>
+    <li><strong>Quitar de la lista.</strong> Con el permiso de reservas puedes quitar a alguien de la lista (icono junto a su nombre). No se le avisa.</li>
+  </ul>
 </section>
 
 <section class="cap">
@@ -306,6 +314,8 @@
     <dd>Tiene un mes sin pagar cuya fecha ya ha llegado. Si te paga a ti y tienes el permiso de modificar fichas, apúntalo en su ficha → Tarifa → Cobros → Cobrar. Si no, díselo a recepción.</dd>
     <dt>Han cambiado mi clase en Horarios y un día concreto sigue a la hora de antes.</dt>
     <dd>Las clases que ya tenían alumnos apuntados mantienen su día y hora para no descolocarles; la actividad, el monitor y las plazas sí se actualizan. Si hay que moverla, lo hace la administración.</dd>
+    <dt>Ha aparecido un alumno en la clase sin que nadie lo apuntara.</dt>
+    <dd>Estaba en la lista de espera y se liberó una plaza: ha entrado solo y se le ha avisado. Lo ves en el registro con "Lista de espera".</dd>
     <dt>He entrado y me sale la app de cliente.</dt>
     <dd>Has entrado con un correo que no es el de tu ficha de trabajador. Que lo revisen en Equipo.</dd>
     <dt>¿Se guardan los cambios solos?</dt>
