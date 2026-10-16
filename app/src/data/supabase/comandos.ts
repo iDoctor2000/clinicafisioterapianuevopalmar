@@ -80,6 +80,24 @@ const impl: Impl = {
     return () => undefined;
   },
 
+  // -------------------------------------------------------------------------
+  // Lista de espera (0021)
+  // -------------------------------------------------------------------------
+  async apuntarListaEspera(args) {
+    const r = await rpc<{ id: string; posicion: number }>('apuntar_lista_espera', { p_clase_id: args.claseId, p_reserva_cambio_id: args.reservaCambioId ?? null });
+    return () => ({ id: r.id, posicion: Number(r.posicion) || 1 });
+  },
+
+  async salirListaEspera(args) {
+    await rpc('salir_lista_espera', { p_clase_id: args.claseId });
+    return () => undefined;
+  },
+
+  async quitarDeListaEspera(args) {
+    await rpc('quitar_de_lista_espera', { p_id: args.id });
+    return () => undefined;
+  },
+
   async registrarAsistencia(args) {
     await rpc('registrar_asistencia', { p_reserva_id: args.reservaId, p_asistencia: args.asistencia });
     return () => undefined;
@@ -130,6 +148,12 @@ const impl: Impl = {
     await regenerarClases();
     enviarPushAvisos(r.avisos ?? []);
     return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, avisoIds: r.avisos ?? [] });
+  },
+
+  async eliminarPlantilla(args) {
+    const r = await rpc<{ borradas: number; canceladas: number; afectados: number; avisos: string[] }>('eliminar_plantilla', { p_plantilla_id: args.plantillaId });
+    enviarPushAvisos(r?.avisos ?? []);
+    return () => ({ borradas: Number(r?.borradas) || 0, canceladas: Number(r?.canceladas) || 0, afectados: Number(r?.afectados) || 0, avisoIds: r?.avisos ?? [] });
   },
 
   // -------------------------------------------------------------------------

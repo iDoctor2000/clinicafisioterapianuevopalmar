@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, DoorClosed, Info, User, Users } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, DoorClosed, Hourglass, Info, User, Users } from 'lucide-react';
 import { useStore } from '@/data/store';
-import { clasesDelDia, recuperacionesDisponiblesDe, vistaClase, type ClaseVista, type ReservaVista } from '@/data/selectores';
+import { recuperacionesDisponiblesDe, vistaClase, type ClaseVista, type ReservaVista } from '@/data/selectores';
 import { CATEGORIA_LABEL } from '@/domain/types';
 import type { ISODate } from '@/domain/types';
 import { DIAS_SEMANA_CORTO, diaSemanaDe, fechaLarga, horaFin, hoyISO, inicioSemana, sumarDias } from '@/domain/fechas';
@@ -11,9 +11,10 @@ import { Boton, Chip, Hoja, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { IconoActividad } from '@/features/comun/IconoActividad';
 import { useCliente } from './useCliente';
-import { actividadIncluida, cap, evaluarReservaDe, recuperacionCubre, reservaActivaEn, vistaReserva } from './consultas';
+import { actividadIncluida, cap, clasesVisiblesDelDia, enEsperaDe, evaluarReservaDe, evaluarReservaSinPlazas, listaEsperaDisponible, miEntradaEnLista, opcionesDeCambio, posicionEnLista, recuperacionCubre, reservaActivaEn, vistaReserva } from './consultas';
 import { Encabezado, HojaCancelar, Nota, Pestanas, PuntoActividad } from './comun';
 import { HorarioSemana } from './HorarioSemana';
+import { HORAS_CIERRE_LISTA_ESPERA } from '@/domain/rules';
 
 const DIAS_TIRA = 14;
 const MAX_SEMANAS = 8;
@@ -33,7 +34,7 @@ export function Horario() {
   const dias = useMemo(() => Array.from({ length: DIAS_TIRA }, (_, i) => sumarDias(inicio, i)), [inicio]);
   const limiteInicio = sumarDias(hoy, MAX_SEMANAS * 7 - DIAS_TIRA);
   const limiteFin = sumarDias(limiteInicio, DIAS_TIRA - 1);
-  const clases = clasesDelDia(db, fecha);
+  const clases = clasesVisiblesDelDia(db, cliente.id, fecha);
   const cierre = db.config.diasCierre.find((d) => d.fecha === fecha) ?? null;
   const recuperaciones = recuperacionesDisponiblesDe(db, cliente.id, hoy);
 
@@ -69,6 +70,8 @@ export function Horario() {
   /** Fila de una clase (lista diaria y semanal): misma lógica de chips y atenuado. */
   const filaClase = (v: ClaseVista, compacta = false): ReactNode => {
     const mia = reservaActivaEn(db, cliente.id, v.clase.id);
+    const espera = miEntradaEnLista(db, cliente.id, v.clase.id);
+    const enEspera = enEsperaDe(db, v.clase);
     const cancelada = v.clase.estado === 'CANCELADA';
     const incluida = actividadIncluida(tarifa, contrato, v.actividad) || recuperacionCubre(recuperaciones, v.actividad.categoria);
     const alternativa = v.clase.claseAlternativaId ? db.clases.find((c) => c.id === v.clase.claseAlternativaId) ?? null : null;
@@ -91,8 +94,9 @@ export function Horario() {
               {cancelada ? <Chip tono="rojo">Cancelada</Chip>
                 : mia ? <Chip tono="beige">Tienes plaza</Chip>
                 : pasada ? <Chip tono="gris">Ya ha empezado</Chip>
+                : espera ? <Chip tono="azul">En lista de espera ({posicionEnLista(db, espera)}º)</Chip>
                 : v.libres > 0 ? <Chip tono={v.libres <= 2 ? 'ambar' : 'gris'}>{v.libres === 1 ? '1 plaza libre' : `${v.libres} plazas libres`}</Chip>
-                : <Chip tono="rojo">Completa</Chip>}
+                : <Chip tono="rojo">Completa{enEspera > 0 ? ` · ${enEspera} en espera` : ''}</Chip>}
               {!incluida && !cancelada && !mia && <Chip tono="gris">{compacta ? 'No incluida' : 'No incluida en tu tarifa'}</Chip>}
             </div>
           </div>
@@ -181,7 +185,7 @@ export function Horario() {
       {vista === 'SEMANA' && (
         <HorarioSemana
           fecha={fecha} hoy={hoy} desde={hoy} hasta={limiteFin} cierres={db.config.diasCierre}
-          clasesDe={(d) => clasesDelDia(db, d)} renderClase={(v) => filaClase(v, true)}
+          clasesDe={(d) => clasesVisiblesDelDia(db, cliente.id, d)} renderClase={(v) => filaClase(v, true)}
           puedeAnterior={puedeSemanaAnterior} puedeSiguiente={puedeSemanaSiguiente}
           onAnterior={() => moverSemanaNatural(-1)} onSiguiente={() => moverSemanaNatural(1)}
         />
@@ -208,10 +212,38 @@ export function Horario() {
 
 function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { vista: ClaseVista; ahora: Date; onCerrar: () => void; onReservar: () => void; onCancelar: () => void }) {
   const { db, cliente } = useCliente();
+  const ejecutar = useStore((s) => s.ejecutar);
   const { clase, actividad, monitor, libres } = vista;
   const mia = reservaActivaEn(db, cliente.id, clase.id);
   const ev = mia ? null : evaluarReservaDe(db, cliente.id, clase.id, ahora);
   const recuperaciones = recuperacionesDisponiblesDe(db, cliente.id, hoyISO(ahora));
+  // Lista de espera (0021): solo si la clase está completa y faltan más de 2 horas.
+  const espera = miEntradaEnLista(db, cliente.id, clase.id);
+  const enEspera = enEsperaDe(db, clase);
+  const ofrecerLista = listaEsperaDisponible(db, cliente.id, vista, ahora);
+  const evSinPlazas = ofrecerLista && !espera ? evaluarReservaSinPlazas(db, cliente.id, clase.id, ahora) : null;
+  const opciones = ofrecerLista && !espera ? opcionesDeCambio(db, cliente.id, clase.id, ahora) : [];
+  const [modo, setModo] = useState<'NORMAL' | 'CAMBIO'>(evSinPlazas && !evSinPlazas.ok && opciones.some((o) => !o.motivo) ? 'CAMBIO' : 'NORMAL');
+  const [cambioId, setCambioId] = useState<string>(opciones.find((o) => !o.motivo)?.vista.reserva.id ?? '');
+  const [enviando, setEnviando] = useState(false);
+  const puedeApuntarse = modo === 'NORMAL' ? !!evSinPlazas?.ok : !!cambioId;
+
+  const apuntarse = async () => {
+    if (enviando) return;
+    setEnviando(true);
+    const r = await ejecutar('apuntarListaEspera', { claseId: clase.id, reservaCambioId: modo === 'CAMBIO' ? cambioId : null });
+    setEnviando(false);
+    if (r.ok) toast.ok(`Estás en la lista de espera (posición ${r.valor.posicion}). Te avisaremos si entras.`);
+    else toast.error(r.error);
+  };
+  const salir = async () => {
+    if (enviando) return;
+    setEnviando(true);
+    const r = await ejecutar('salirListaEspera', { claseId: clase.id });
+    setEnviando(false);
+    if (r.ok) toast.ok('Ya no estás en la lista de espera.');
+    else toast.error(r.error);
+  };
 
   let viaTexto: string | null = null;
   if (ev?.ok) {
@@ -228,22 +260,66 @@ function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { 
         <li className="flex items-center gap-2"><Clock className="h-5 w-5 text-beige-600 shrink-0" /> De {clase.horaInicio} a {horaFin(clase.horaInicio, clase.duracionMin)} ({clase.duracionMin} min)</li>
         {monitor && <li className="flex items-center gap-2"><User className="h-5 w-5 text-beige-600 shrink-0" /> Con {monitor.nombre} {monitor.apellidos}</li>}
         <li className="flex items-center gap-2"><Users className="h-5 w-5 text-beige-600 shrink-0" /> {clase.estado === 'CANCELADA' ? 'Clase cancelada' : libres > 0 ? `Plazas libres: ${libres} de ${clase.plazas}` : `Completa (${clase.plazas} plazas)`}</li>
+        {clase.estado !== 'CANCELADA' && enEspera > 0 && <li className="flex items-center gap-2"><Hourglass className="h-5 w-5 text-beige-600 shrink-0" /> {enEspera === 1 ? '1 persona en lista de espera' : `${enEspera} personas en lista de espera`}</li>}
       </ul>
       {actividad.descripcion && <p className="text-ink-soft mt-3 leading-snug">{actividad.descripcion}</p>}
 
       <div className="mt-4">
         {mia ? (
           <Nota tono="ok">Tienes plaza en esta clase{mia.origen === 'RECUPERACION' ? ' (con una recuperación)' : mia.origen === 'BONO' ? ' (de tu bono)' : ''}.</Nota>
+        ) : espera ? (
+          <Nota tono="info">Estás en la lista de espera (posición {posicionEnLista(db, espera)}). Si se libera una plaza, entrarás automáticamente y te avisaremos{espera.reservaCambioId ? '; tu otra clase de esa semana se cambiará por esta' : ''}.</Nota>
         ) : ev?.ok ? (
           <Nota tono="ok">{viaTexto}</Nota>
-        ) : ev ? (
+        ) : ev && ev.codigo === 'SIN_PLAZAS' && clase.estado === 'PROGRAMADA' && !ofrecerLista ? (
+          <Nota tono="aviso">La clase está completa. La lista de espera se cierra {HORAS_CIERRE_LISTA_ESPERA} horas antes de la clase: si te interesa, pregunta en recepción.</Nota>
+        ) : ev && !ofrecerLista ? (
           <Nota tono="aviso">{ev.motivo}</Nota>
         ) : null}
       </div>
 
+      {ofrecerLista && !espera && (
+        <div className="mt-4 rounded-2xl bg-sand p-4 space-y-3">
+          <p className="font-semibold flex items-center gap-2"><Hourglass className="h-5 w-5 text-beige-600" /> Clase completa: apúntate a la lista de espera</p>
+          <p className="text-sm text-ink-soft leading-snug">Si alguien deja su plaza, entra el primero de la lista automáticamente y recibe un aviso. La lista funciona hasta {HORAS_CIERRE_LISTA_ESPERA} horas antes de la clase.</p>
+          <div className="grid gap-2" role="radiogroup" aria-label="Cómo entrar">
+            <label className={cn('flex items-start gap-3 rounded-xl bg-white p-3 cursor-pointer border', modo === 'NORMAL' ? 'border-brand-500' : 'border-transparent')}>
+              <input type="radio" name="modo-espera" className="mt-1 h-5 w-5 accent-brand-500" checked={modo === 'NORMAL'} onChange={() => setModo('NORMAL')} />
+              <span className="min-w-0">
+                <span className="font-semibold block">Reservar con mi tarifa</span>
+                <span className="text-sm text-ink-soft block">{evSinPlazas?.ok ? (evSinPlazas.via === 'RECUPERACION' ? 'Se usaría una de tus recuperaciones.' : evSinPlazas.mensaje) : evSinPlazas?.motivo}</span>
+              </span>
+            </label>
+            {opciones.length > 0 && (
+              <label className={cn('flex items-start gap-3 rounded-xl bg-white p-3 cursor-pointer border', modo === 'CAMBIO' ? 'border-brand-500' : 'border-transparent')}>
+                <input type="radio" name="modo-espera" className="mt-1 h-5 w-5 accent-brand-500" checked={modo === 'CAMBIO'} onChange={() => setModo('CAMBIO')} />
+                <span className="min-w-0 flex-1">
+                  <span className="font-semibold block">A cambio de otra clase mía de esa semana</span>
+                  <span className="text-sm text-ink-soft block">Si entro, mi reserva antigua pasa a esta clase (no gasto nada).</span>
+                  {modo === 'CAMBIO' && (
+                    <span className="grid gap-1.5 mt-2">
+                      {opciones.map((o) => (
+                        <label key={o.vista.reserva.id} className={cn('flex items-start gap-2 text-sm rounded-lg px-2 py-1.5', o.motivo ? 'opacity-60' : 'cursor-pointer hover:bg-sand')}>
+                          <input type="radio" name="cambio" className="mt-0.5 h-4 w-4 accent-brand-500" disabled={!!o.motivo} checked={cambioId === o.vista.reserva.id} onChange={() => setCambioId(o.vista.reserva.id)} />
+                          <span><span className="font-semibold">{o.vista.actividad.nombre}</span>, {fechaLarga(o.vista.clase.fecha)} a las {o.vista.clase.horaInicio}{o.motivo && <span className="block text-ink-muted">{o.motivo}</span>}</span>
+                        </label>
+                      ))}
+                    </span>
+                  )}
+                </span>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="mt-5 grid gap-2">
         {mia ? (
           <Boton variante="secundario" tamano="lg" ancho onClick={onCancelar}>Cancelar mi plaza</Boton>
+        ) : espera ? (
+          <Boton variante="secundario" tamano="lg" ancho cargando={enviando} onClick={() => void salir()}>Salir de la lista de espera</Boton>
+        ) : ofrecerLista ? (
+          <Boton tamano="lg" ancho disabled={!puedeApuntarse} cargando={enviando} onClick={() => void apuntarse()}>Apuntarme a la lista de espera</Boton>
         ) : (
           <Boton tamano="lg" ancho disabled={!ev?.ok} onClick={onReservar}>Reservar</Boton>
         )}

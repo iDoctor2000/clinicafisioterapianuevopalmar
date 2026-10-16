@@ -1237,5 +1237,255 @@ select pruebas.sistema();
 -- La tarea nocturna sigue funcionando con el cambio.
 do $$ begin assert (public.mantenimiento_diario() ? 'clases_canceladas_por_cierre'), 'mantenimiento nocturno'; raise notice 'OK franjas quitadas y festivos'; end $$;
 
+\echo '== 33. Lista de espera y eliminar franjas (0021)'
+select pruebas.sistema();
+select pruebas.guardar('u_l1', '20000000-0000-4000-8000-0000000000e1');
+select pruebas.guardar('u_l2', '20000000-0000-4000-8000-0000000000e2');
+select pruebas.guardar('cliente_l1', 'e0000000-0000-4000-8000-0000000000e1');
+select pruebas.guardar('cliente_l2', 'e0000000-0000-4000-8000-0000000000e2');
+insert into auth.users (id, email) values (pruebas.id('u_l1'), 'lola@test.local'), (pruebas.id('u_l2'), 'luis@test.local');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_id) values
+  (pruebas.id('cliente_l1'), 'Lola', 'Espera', '71111111L', 'lola@test.local', '600 000 401', pruebas.id('u_l1')),
+  (pruebas.id('cliente_l2'), 'Luis', 'Espera', '72222222L', 'luis@test.local', '600 000 402', pruebas.id('u_l2'));
+select pruebas.como('admin');
+select pruebas.guardar('con_l1', public.crear_contrato(pruebas.id('cliente_l1'), pruebas.id('tar_dir2'), public._hoy(), null, 'LIBRE')::text);
+select pruebas.guardar('con_l2', public.crear_contrato(pruebas.id('cliente_l2'), pruebas.id('tar_dir2'), public._hoy(), null, 'LIBRE')::text);
+select pruebas.sistema();
+-- Clase X (miércoles 20:00 de la semana de pruebas, 1 plaza) llena con Carlos; clase Y con plazas libres.
+do $$
+declare v_x uuid; v_y uuid; v_res uuid;
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), pruebas.fecha('lunes') + 2, '20:00', 55, pruebas.id('tra_ana'), 1, true) returning id into v_x;
+  insert into public.reservas (clase_id, cliente_id, origen) values (v_x, pruebas.id('cliente_c'), 'MANUAL') returning id into v_res;
+  perform pruebas.guardar('res_c_x', v_res::text);
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), pruebas.fecha('lunes') + 2, '21:00', 55, pruebas.id('tra_ana'), 5, true) returning id into v_y;
+  perform pruebas.guardar('cl_x', v_x::text);
+  perform pruebas.guardar('cl_y', v_y::text);
+end $$;
+
+-- Apuntarse: Lola (1ª), Luis (2º). Reglas de entrada.
+begin;
+set local role authenticated;
+select pruebas.como('l1');
+do $$
+declare r jsonb;
+begin
+  r := public.apuntar_lista_espera(pruebas.id('cl_x'));
+  assert (r->>'posicion')::int = 1, 'Lola es la primera: ' || r::text;
+  r := public.apuntar_lista_espera(pruebas.id('cl_x'));
+  assert (r->>'posicion')::int = 1, 'apuntarse dos veces no duplica: ' || r::text;
+  assert (select count(*) from public.lista_espera) = 1, 'RLS: Lola solo ve su entrada';
+  assert (select posicion from public.mi_lista_espera where clase_id = pruebas.id('cl_x')) = 1, 'vista mi_lista_espera';
+  assert (select en_espera from public.ocupacion_clases where clase_id = pruebas.id('cl_x')) = 1, 'ocupacion_clases.en_espera';
+end $$;
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_y')), 'Quedan plazas libres%');
+select pruebas.espera_error(format('delete from public.lista_espera where clase_id = %L', pruebas.id('cl_x')), 'permission denied%');
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('l2');
+do $$
+declare r jsonb;
+begin
+  r := public.apuntar_lista_espera(pruebas.id('cl_x'));
+  assert (r->>'posicion')::int = 2, 'Luis es el segundo: ' || r::text;
+  assert (select count(*) from public.lista_espera) = 1, 'RLS: Luis solo ve su entrada';
+end $$;
+-- No se puede usar como cambio una reserva ajena.
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L, %L)', pruebas.id('cl_x'), pruebas.id('res_c_x')), 'La reserva que quieres cambiar no es tuya.');
+commit;
+-- Berta (horario fijo, sin recuperaciones) no puede apuntarse sin cambio; el personal no se apunta.
+select pruebas.sistema();
+update public.recuperaciones set estado = 'CADUCADA' where cliente_id = pruebas.id('cliente_b') and estado = 'DISPONIBLE';
+begin;
+set local role authenticated;
+select pruebas.como('b');
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_x')), 'Tienes horario fijo.%');
+select pruebas.como('admin');
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_x')), 'Solo los alumnos%');
+do $$ begin assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x')) = 2, 'el personal ve toda la lista'; end $$;
+commit;
+
+-- Se libera la plaza de Carlos (cancelación por el centro) → entra Lola con su cupo; Luis pasa a ser el primero.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.cancelar_reserva(pruebas.id('res_c_x'), true);
+do $$
+declare v_aviso public.avisos%rowtype;
+begin
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_x') and cliente_id = pruebas.id('cliente_l1') and estado = 'RESERVADA' and origen = 'CLIENTE'),
+    'Lola entra desde la lista con su cupo semanal';
+  assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_x') and cliente_id = pruebas.id('cliente_l1')), 'Lola ya no está en la lista';
+  assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x')) = 1, 'Luis sigue esperando';
+  select a.* into v_aviso from public.avisos a join public.aviso_destinatarios d on d.aviso_id = a.id
+   where d.cliente_id = pruebas.id('cliente_l1') and a.titulo like '¡Tienes plaza!%';
+  assert v_aviso.id is not null and v_aviso.destino_tipo = 'CLIENTES', 'aviso a Lola';
+  assert exists (select 1 from public.auditoria where accion = 'LISTA_ESPERA' and detalle like 'Lola Espera entra desde la lista%'), 'auditoría';
+end $$;
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('l2');
+do $$ begin assert (select posicion from public.mi_lista_espera where clase_id = pruebas.id('cl_x')) = 1, 'Luis pasa a ser el primero'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert exists (select 1 from public.avisos_push_pendientes pp join public.avisos a on a.id = pp.aviso_id join public.aviso_destinatarios d on d.aviso_id = a.id
+                  where d.cliente_id = pruebas.id('cliente_l1') and a.titulo like '¡Tienes plaza!%'), 'el aviso queda pendiente de push (solo lo lee la función enviar-push)';
+end $$;
+
+-- Suben las plazas de la clase → entra Luis.
+select pruebas.sistema();
+update public.clases set plazas = 2 where id = pruebas.id('cl_x');
+do $$ begin
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_x') and cliente_id = pruebas.id('cliente_l2') and estado = 'RESERVADA'), 'Luis entra al subir las plazas';
+  assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x')) = 0, 'lista vacía';
+  raise notice 'OK promoción por cancelación y por subida de plazas';
+end $$;
+
+-- Cambio: Berta se apunta a la clase X2 (miércoles de la semana siguiente) a cambio de su jueves fijo de esa semana.
+do $$
+declare v_x2 uuid;
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), pruebas.fecha('lunes') + 9, '20:00', 55, pruebas.id('tra_ana'), 1, true) returning id into v_x2;
+  insert into public.reservas (clase_id, cliente_id, origen) values (v_x2, pruebas.id('cliente_c'), 'MANUAL');
+  perform pruebas.guardar('cl_x2', v_x2::text);
+  perform pruebas.guardar('res_b_jue2', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
+     where r.cliente_id = pruebas.id('cliente_b') and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_jue_1800') and c.fecha = pruebas.fecha('lunes') + 10));
+  perform pruebas.guardar('res_b_mar2', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
+     where r.cliente_id = pruebas.id('cliente_b') and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_mar_1800') and c.fecha = pruebas.fecha('lunes') + 15));
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('b');
+-- Otra semana: no vale como cambio.
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L, %L)', pruebas.id('cl_x2'), pruebas.id('res_b_mar2')), 'Solo se puede cambiar por una clase de la misma semana.%');
+do $$
+declare r jsonb;
+begin
+  r := public.apuntar_lista_espera(pruebas.id('cl_x2'), pruebas.id('res_b_jue2'));
+  assert (r->>'posicion')::int = 1, 'Berta se apunta a cambio de su jueves: ' || r::text;
+end $$;
+commit;
+select pruebas.sistema();
+do $$
+declare v_jue uuid := (select clase_id from public.reservas where id = pruebas.id('res_b_jue2'));
+begin
+  update public.reservas set estado = 'CANCELADA_CENTRO' where clase_id = pruebas.id('cl_x2') and cliente_id = pruebas.id('cliente_c');
+  assert (select clase_id from public.reservas where id = pruebas.id('res_b_jue2')) = pruebas.id('cl_x2'), 'la reserva del jueves se mueve a la clase nueva';
+  assert (select estado from public.reservas where id = pruebas.id('res_b_jue2')) = 'RESERVADA', 'y sigue reservada';
+  assert not exists (select 1 from public.reservas where clase_id = v_jue and cliente_id = pruebas.id('cliente_b') and estado = 'RESERVADA'), 'el jueves queda libre';
+  assert exists (select 1 from public.avisos a join public.aviso_destinatarios d on d.aviso_id = a.id
+                  where d.cliente_id = pruebas.id('cliente_b') and a.cuerpo like '%queda cambiada por esta%'), 'aviso del cambio';
+  assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x2')) = 0, 'lista vacía';
+  raise notice 'OK cambio de clase desde la lista de espera';
+end $$;
+
+-- Menos de 2 horas antes: ni apuntarse ni promover.
+do $$
+declare v_z uuid; v_t timestamp := public._ahora_local() + interval '1 hour';
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), v_t::date, v_t::time, 55, pruebas.id('tra_ana'), 1, true) returning id into v_z;
+  insert into public.reservas (clase_id, cliente_id, origen) values (v_z, pruebas.id('cliente_c'), 'MANUAL');
+  perform pruebas.guardar('cl_z', v_z::text);
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('l1');
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_z')), 'La lista de espera se cierra 2 horas antes de la clase.');
+commit;
+select pruebas.sistema();
+insert into public.lista_espera (clase_id, cliente_id) values (pruebas.id('cl_z'), pruebas.id('cliente_l1'));
+update public.reservas set estado = 'CANCELADA_CENTRO' where clase_id = pruebas.id('cl_z');
+do $$ begin
+  assert not exists (select 1 from public.reservas where clase_id = pruebas.id('cl_z') and cliente_id = pruebas.id('cliente_l1')), 'a menos de 2 horas no se promueve';
+  assert exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_z')), 'la entrada se queda (el centro gestiona a mano)';
+  raise notice 'OK sin promoción a menos de 2 horas';
+end $$;
+
+-- Salir de la lista (alumno) y quitar de la lista (personal). Una clase cancelada vacía su lista.
+do $$
+declare v_w uuid;
+begin
+  insert into public.clases (actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('act_suelo'), pruebas.fecha('lunes') + 4, '20:00', 55, pruebas.id('tra_ana'), 1, true) returning id into v_w;
+  insert into public.reservas (clase_id, cliente_id, origen) values (v_w, pruebas.id('cliente_c'), 'MANUAL');
+  perform pruebas.guardar('cl_w', v_w::text);
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('l1');
+select public.apuntar_lista_espera(pruebas.id('cl_w'));
+select public.salir_lista_espera(pruebas.id('cl_w'));
+do $$ begin assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_w')), 'Lola sale de la lista'; end $$;
+select public.apuntar_lista_espera(pruebas.id('cl_w'));
+select pruebas.espera_error(format('select public.quitar_de_lista_espera(%L)', (select id from public.lista_espera where clase_id = pruebas.id('cl_w'))), 'Solo para el personal.');
+select pruebas.como('admin');
+select public.quitar_de_lista_espera((select id from public.lista_espera where clase_id = pruebas.id('cl_w')));
+do $$ begin assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_w')), 'el personal quita a Lola'; end $$;
+select pruebas.como('l1');
+select public.apuntar_lista_espera(pruebas.id('cl_w'));
+select pruebas.como('admin');
+select public.cancelar_clase(pruebas.id('cl_w'), 'Prueba lista', null, true);
+do $$ begin
+  assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_w')), 'cancelar la clase vacía su lista';
+  assert not exists (select 1 from public.reservas where clase_id = pruebas.id('cl_w') and cliente_id = pruebas.id('cliente_l1')), 'y no mete a nadie';
+  raise notice 'OK salir, quitar y cancelar clase';
+end $$;
+commit;
+
+-- Mantenimiento nocturno: limpia listas de clases pasadas.
+select pruebas.sistema();
+do $$ begin assert (public.mantenimiento_diario() ? 'lista_espera_limpiada'), 'mantenimiento nocturno'; end $$;
+
+-- Eliminar franja: bloqueada por un contrato fijo; luego cancela con alumnos y borra las vacías.
+insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
+values ('d0000000-0000-4000-8000-0000000000e1', pruebas.id('act_suelo'), 6, '13:00', 55, pruebas.id('tra_ana'), 8);
+select public._generar_clases(public._hoy(), public._hoy() + 21);
+select pruebas.como('admin');
+select pruebas.guardar('con_l2_fijo', public.crear_contrato(pruebas.id('cliente_l2'), pruebas.id('tar_dir2'), public._hoy() + 60, null, 'FIJO', array['d0000000-0000-4000-8000-0000000000e1'::uuid])::text);
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.espera_error('select public.eliminar_plantilla(''d0000000-0000-4000-8000-0000000000e1'')', 'No se puede eliminar: la tienen como clase fija Luis Espera.%');
+select pruebas.como('l1');
+select pruebas.espera_error('select public.eliminar_plantilla(''d0000000-0000-4000-8000-0000000000e1'')', 'No tienes permiso para: HORARIOS_GESTIONAR');
+commit;
+select pruebas.sistema();
+update public.contratos set estado = 'FINALIZADO' where id = pruebas.id('con_l2_fijo');
+do $$
+declare v_clase uuid;
+begin
+  select id into v_clase from public.clases where plantilla_id = 'd0000000-0000-4000-8000-0000000000e1' and fecha >= public._hoy() order by fecha limit 1;
+  insert into public.reservas (clase_id, cliente_id, origen) values (v_clase, pruebas.id('cliente_l1'), 'MANUAL');
+  perform pruebas.guardar('cl_franja_elim', v_clase::text);
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$
+declare v jsonb;
+begin
+  v := public.eliminar_plantilla('d0000000-0000-4000-8000-0000000000e1');
+  assert (v ->> 'canceladas')::int = 1 and (v ->> 'afectados')::int = 1 and (v ->> 'borradas')::int >= 1, 'resultado: ' || v::text;
+  assert (select estado from public.clases where id = pruebas.id('cl_franja_elim')) = 'CANCELADA', 'la clase con alumna queda cancelada';
+  assert not exists (select 1 from public.clases where plantilla_id = 'd0000000-0000-4000-8000-0000000000e1' and estado = 'PROGRAMADA' and fecha >= current_date), 'no quedan clases futuras';
+  assert (select not activa and eliminada_el is not null from public.plantillas_clase where id = 'd0000000-0000-4000-8000-0000000000e1'), 'franja marcada como eliminada';
+  assert exists (select 1 from public.recuperaciones where cliente_id = pruebas.id('cliente_l1') and motivo = 'CANCELACION_CENTRO'), 'la alumna recibe recuperación';
+end $$;
+select pruebas.espera_error('select public.eliminar_plantilla(''d0000000-0000-4000-8000-0000000000e1'')', 'La franja ya está eliminada.');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (public.mantenimiento_diario() ->> 'clases_creadas')::int = 0 or not exists (select 1 from public.clases where plantilla_id = 'd0000000-0000-4000-8000-0000000000e1' and fecha > current_date and estado = 'PROGRAMADA'),
+    'la franja eliminada no vuelve a generar clases';
+  raise notice 'OK eliminar franja';
+end $$;
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'

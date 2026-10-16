@@ -6,6 +6,7 @@
  * Las funciones `a*` van de fila → dominio y las `de*` de dominio → fila.
  */
 import type {
+  EntradaListaEspera,
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, DiaSemana, EstadoClase,
   EstadoContrato, EstadoPago, EstadoRecuperacion, EstadoReserva, Id, InformacionClinica, LecturaAviso, MetodoPago, Modalidad, MotivoRecuperacion,
   Ambito, Oferta, OrigenReserva, Pago, Permiso, PlantillaClase, PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
@@ -76,6 +77,8 @@ export interface FilaClienteClinica {
 export interface FilaPlantillaClase {
   id: string; actividad_id: string; dia_semana: number; hora_inicio: string; duracion_min: number; monitor_id: string | null;
   plazas: number; activa: boolean; vigencia_desde: string | null; vigencia_hasta: string | null;
+  /** 0021 (ausente antes de esa migración). Solo se lee: la escribe eliminar_plantilla. */
+  eliminada_el?: string | null;
 }
 
 export interface FilaClase {
@@ -322,6 +325,7 @@ export function aPlantilla(f: FilaPlantillaClase): PlantillaClase {
     id: f.id, actividadId: f.actividad_id, diaSemana: f.dia_semana as DiaSemana, horaInicio: aHora(f.hora_inicio), duracionMin: f.duracion_min,
     monitorId: f.monitor_id ?? '', plazas: f.plazas, activa: f.activa,
     vigenciaDesde: f.vigencia_desde ? aFecha(f.vigencia_desde) : null, vigenciaHasta: f.vigencia_hasta ? aFecha(f.vigencia_hasta) : null,
+    ...(f.eliminada_el ? { eliminadaEl: aInstante(f.eliminada_el) } : {}),
   };
 }
 export function dePlantilla(p: PlantillaClase): FilaPlantillaClase {
@@ -331,11 +335,12 @@ export function dePlantilla(p: PlantillaClase): FilaPlantillaClase {
   };
 }
 
-export interface FilaOcupacionClase { clase_id: string; fecha: string; ocupadas: number }
+export interface FilaOcupacionClase { clase_id: string; fecha: string; ocupadas: number; en_espera?: number | null }
 
-export function aClase(f: FilaClase, ocupadas?: number): Clase {
+export function aClase(f: FilaClase, ocupadas?: number, enEspera?: number | null): Clase {
   return {
     ...(ocupadas !== undefined ? { ocupadas } : {}),
+    ...(typeof enEspera === 'number' ? { enEspera } : {}),
     id: f.id, plantillaId: f.plantilla_id, actividadId: f.actividad_id, fecha: aFecha(f.fecha), horaInicio: aHora(f.hora_inicio), duracionMin: f.duracion_min,
     monitorId: f.monitor_id ?? '', plazas: f.plazas, estado: f.estado, extraordinaria: f.extraordinaria, claseAlternativaId: f.clase_alternativa_id,
     motivoCancelacion: f.motivo_cancelacion, canceladaEl: aInstanteONull(f.cancelado_el), canceladaPor: f.cancelado_por,
@@ -443,6 +448,17 @@ export function aLectura(f: FilaAvisoLectura): LecturaAviso {
 // ---------------------------------------------------------------------------
 // Auditoría y usuarios
 // ---------------------------------------------------------------------------
+
+/** Tabla lista_espera (0021): el personal ve las de su ámbito; cada alumno las suyas. */
+export interface FilaListaEspera { id: string; clase_id: string; cliente_id: string; reserva_cambio_id: string | null; creado_el: string }
+/** Vista mi_lista_espera (0021): la posición del alumno autenticado en cada lista. */
+export interface FilaMiListaEspera { id: string; clase_id: string; posicion: number }
+export function aEntradaListaEspera(f: FilaListaEspera, posicion?: number): EntradaListaEspera {
+  return {
+    ...(posicion !== undefined ? { posicion } : {}),
+    id: f.id, claseId: f.clase_id, clienteId: f.cliente_id, reservaCambioId: f.reserva_cambio_id, creadaEl: aInstante(f.creado_el),
+  };
+}
 
 export interface FilaPremioMes {
   mes: string; cliente_id: string; clases: number; motivo: string; anunciado_el: string; publico: boolean | null; nombre_publico: string;

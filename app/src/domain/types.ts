@@ -248,6 +248,8 @@ export interface PlantillaClase {
   activa: boolean;
   vigenciaDesde: ISODate | null;
   vigenciaHasta: ISODate | null;
+  /** Franja eliminada del horario (0021): se conserva por el historial de sus clases, pero no se muestra. */
+  eliminadaEl?: ISOInstant | null;
 }
 
 export type EstadoClase = 'PROGRAMADA' | 'CANCELADA';
@@ -273,6 +275,20 @@ export interface Clase {
    * solo recibe sus propias reservas, así que contar las reservas cargadas se queda corto.
    */
   ocupadas?: number;
+  /** Alumnos en lista de espera según el servidor (solo en Supabase, vista ocupacion_clases). */
+  enEspera?: number;
+}
+
+/** Alumno esperando plaza en una clase completa (0021). */
+export interface EntradaListaEspera {
+  id: Id;
+  claseId: Id;
+  clienteId: Id;
+  /** Reserva propia que se cambiaría por esta clase si entra (null = reserva normal con su tarifa). */
+  reservaCambioId: Id | null;
+  creadaEl: ISOInstant;
+  /** Posición en la lista (1 = el siguiente en entrar). En Supabase la calcula el servidor para el propio alumno. */
+  posicion?: number;
 }
 
 export type OrigenReserva =

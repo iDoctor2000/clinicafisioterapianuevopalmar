@@ -30,12 +30,28 @@ export interface ResultadoEnvioPush {
 
 /**
  * Invoca la Edge Function `enviar-push`. Con `{ prueba: true }` envía solo al cliente
- * autenticado; con `{ avisoId }` a los destinatarios del aviso (requiere permiso de trabajador).
+ * autenticado; con `{ avisoId }` a los destinatarios del aviso (requiere permiso de trabajador);
+ * con `{ pendientes: true }` manda los avisos que ha generado la base de datos (lista de espera).
  */
-export async function invocarEnvioPush(body: { avisoId: string } | { prueba: true }): Promise<ResultadoEnvioPush> {
+export async function invocarEnvioPush(body: { avisoId: string } | { prueba: true } | { pendientes: true }): Promise<ResultadoEnvioPush> {
   const { data, error } = await servidor().functions.invoke<ResultadoEnvioPush>('enviar-push', { body });
   if (error) throw new Error(await mensajeErrorFuncion(error));
   return { enviadas: Number(data?.enviadas ?? 0), fallidas: Number(data?.fallidas ?? 0), borradas: Number(data?.borradas ?? 0) };
+}
+
+let enviandoPendientes: Promise<void> | null = null;
+/**
+ * Manda por push los avisos que ha creado la base de datos (lista de espera, 0021) y aún no se
+ * han enviado. Lo pide cualquier usuario al arrancar y tras las acciones que pueden liberar una
+ * plaza; no bloquea ni falla nunca (si no hay nada pendiente, no hace nada).
+ */
+export function enviarPushPendientes(): Promise<void> {
+  if (enviandoPendientes) return enviandoPendientes;
+  enviandoPendientes = invocarEnvioPush({ pendientes: true })
+    .then((r) => { if (r.enviadas > 0 || r.fallidas > 0) console.info('[push] Avisos pendientes enviados:', r); })
+    .catch((e) => console.warn('[push] No se han podido enviar los avisos pendientes:', e instanceof Error ? e.message : e))
+    .finally(() => { enviandoPendientes = null; });
+  return enviandoPendientes;
 }
 
 /** Los errores HTTP de `functions.invoke` traen la respuesta en `context`: leemos el `error` del JSON si lo hay. */

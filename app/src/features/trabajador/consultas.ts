@@ -1,7 +1,7 @@
 /** Consultas puras de la zona trabajador (sin efectos, sin React). */
 import { format, parseISO, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Actividad, Clase, Cliente, Contrato, DiaSemana, Id, ISODate, PlantillaClase, Reserva, Tarifa, Trabajador } from '@/domain/types';
+import type { Actividad, Clase, Cliente, Contrato, DiaSemana, EntradaListaEspera, Id, ISODate, PlantillaClase, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import type { Db } from '@/data/db';
 import { contratoActivoDe, recuperacionesDisponiblesDe, tarifaDe, vistaClase, type ClaseVista } from '@/data/selectores';
 import { aISODate, diasEntre, esPasada, estaEntre, inicioSemana, sumarDias } from '@/domain/fechas';
@@ -126,15 +126,48 @@ export function nombreTrabajador(db: Db, userIdOTrabajadorId: Id): string {
   return c ? `${c.nombre} ${c.apellidos}` : userIdOTrabajadorId;
 }
 
+/** Franjas del horario sin las eliminadas (0021): se conservan solo por el historial de sus clases. */
+export function plantillasVigentes(db: Db): PlantillaClase[] {
+  return db.plantillas.filter((p) => !p.eliminadaEl);
+}
+
 export function plantillasPorDia(db: Db): Record<DiaSemana, PlantillaClase[]> {
   const r: Record<DiaSemana, PlantillaClase[]> = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] };
-  for (const p of [...db.plantillas].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))) r[p.diaSemana].push(p);
+  for (const p of plantillasVigentes(db).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))) r[p.diaSemana].push(p);
   return r;
 }
 
 /** Franjas fijas de una plantilla ocupadas por contratos activos de horario fijo. */
 export function ocupacionFijaDePlantilla(db: Db, plantillaId: Id): number {
-  return db.contratos.filter((c) => c.estado === 'ACTIVO' && c.modalidad === 'FIJO' && c.franjasFijas.some((f) => f.plantillaId === plantillaId)).length;
+  return fijosDePlantilla(db, plantillaId).length;
+}
+
+/** Clientes con contrato activo de horario fijo en esa franja (los que impiden eliminarla). */
+export function fijosDePlantilla(db: Db, plantillaId: Id): Cliente[] {
+  const ids = db.contratos.filter((c) => c.estado === 'ACTIVO' && c.modalidad === 'FIJO' && c.franjasFijas.some((f) => f.plantillaId === plantillaId)).map((c) => c.clienteId);
+  return db.clientes.filter((c) => ids.includes(c.id)).sort((a, b) => `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`, 'es'));
+}
+
+/** Qué pasaría al eliminar una franja: clases futuras con alumnos (se cancelan) y vacías (se borran). */
+export function efectoEliminarPlantilla(db: Db, plantillaId: Id, ahora: Date): { conAlumnos: Clase[]; vacias: Clase[]; alumnos: number } {
+  const futuras = db.clases.filter((c) => c.plantillaId === plantillaId && c.estado === 'PROGRAMADA' && !esPasada(c.fecha, c.horaInicio, ahora));
+  const ocupadas = (c: Clase) => db.reservas.filter((r) => r.claseId === c.id && r.estado === 'RESERVADA').length;
+  const conAlumnos = futuras.filter((c) => ocupadas(c) > 0);
+  return { conAlumnos, vacias: futuras.filter((c) => ocupadas(c) === 0), alumnos: conAlumnos.reduce((n, c) => n + ocupadas(c), 0) };
+}
+
+export interface EsperaDeClase { entrada: EntradaListaEspera; cliente: Cliente | undefined; posicion: number; cambio: { clase: Clase; actividad: Actividad | undefined } | null }
+
+/** Lista de espera de una clase por orden de llegada, con el alumno y la clase que cambiaría. */
+export function listaEsperaDeClase(db: Db, claseId: Id): EsperaDeClase[] {
+  return db.listaEspera
+    .filter((e) => e.claseId === claseId)
+    .sort((a, b) => a.creadaEl.localeCompare(b.creadaEl) || a.id.localeCompare(b.id))
+    .map((entrada, i) => {
+      const reserva = entrada.reservaCambioId ? db.reservas.find((r) => r.id === entrada.reservaCambioId) : null;
+      const clase = reserva ? db.clases.find((c) => c.id === reserva.claseId) : null;
+      return { entrada, cliente: db.clientes.find((c) => c.id === entrada.clienteId), posicion: i + 1, cambio: clase ? { clase, actividad: db.actividades.find((a) => a.id === clase.actividadId) } : null };
+    });
 }
 
 // ---------------------------------------------------------------------------

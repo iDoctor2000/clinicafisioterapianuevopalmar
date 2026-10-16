@@ -4,6 +4,10 @@
  *   POST { avisoId: "<uuid>" }  → a los destinatarios del aviso que tengan `notificaciones_push = true`.
  *                                 Solo trabajadores con AVISOS_ENVIAR o CLASES_CREAR_CANCELAR (ADMIN siempre).
  *   POST { prueba: true }       → solo al cliente autenticado (todas sus suscripciones).
+ *   POST { pendientes: true }   → manda los avisos que ha creado la propia base de datos (lista de
+ *                                 espera, 0021) y están en `avisos_push_pendientes`. Cualquier usuario
+ *                                 autenticado puede pedirlo: la app lo hace al arrancar y tras cada
+ *                                 acción que puede liberar una plaza. Cada aviso se manda una sola vez.
  *
  * Cabecera `Authorization: Bearer <JWT del usuario>` (la pone `supabase.functions.invoke`).
  * Responde `{ enviadas, fallidas, borradas }`. Las suscripciones que el servicio push
@@ -121,6 +125,38 @@ async function borrarCaducadas(admin: SupabaseClient, ids: string[]): Promise<nu
   return ids.length;
 }
 
+interface ResultadoEnvio { enviadas: number; fallidas: number; borradas: number }
+
+/** Manda un aviso ya publicado a sus destinatarios con las notificaciones activadas. */
+async function enviarAviso(admin: SupabaseClient, avisoId: string): Promise<ResultadoEnvio | 'NO_EXISTE'> {
+  const { data: aviso, error: errorAviso } = await admin.from('avisos').select('id, titulo, cuerpo').eq('id', avisoId).maybeSingle();
+  if (errorAviso) throw new Error(errorAviso.message);
+  if (!aviso) return 'NO_EXISTE';
+
+  const { data: destinatarios, error: errorDest } = await admin.from('aviso_destinatarios').select('cliente_id').eq('aviso_id', avisoId);
+  if (errorDest) throw new Error(errorDest.message);
+  const idsDestino = (destinatarios ?? []).map((d) => d.cliente_id as string);
+  if (idsDestino.length === 0) return { enviadas: 0, fallidas: 0, borradas: 0 };
+
+  const { data: clientes, error: errorCli } = await admin
+    .from('clientes')
+    .select('id')
+    .in('id', idsDestino)
+    .eq('notificaciones_push', true)
+    .eq('activo', true);
+  if (errorCli) throw new Error(errorCli.message);
+  const suscripciones = await cargarSuscripciones(admin, (clientes ?? []).map((c) => c.id as string));
+
+  const r = await enviarATodas(suscripciones, {
+    titulo: String(aviso.titulo ?? 'Aviso del centro'),
+    cuerpo: resumen(String(aviso.cuerpo ?? '')),
+    url: RUTA_AVISOS,
+    etiqueta: `aviso-${avisoId}`,
+  });
+  const borradas = await borrarCaducadas(admin, r.caducadas);
+  return { enviadas: r.enviadas, fallidas: r.fallidas, borradas };
+}
+
 async function cargarSuscripciones(admin: SupabaseClient, clienteIds: string[]): Promise<FilaSuscripcion[]> {
   if (clienteIds.length === 0) return [];
   const { data, error } = await admin
@@ -138,7 +174,7 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get('Authorization') ?? '';
   if (!authHeader.startsWith('Bearer ')) return json({ error: 'Hace falta iniciar sesión.' }, 401);
 
-  let peticion: { avisoId?: unknown; prueba?: unknown };
+  let peticion: { avisoId?: unknown; prueba?: unknown; pendientes?: unknown };
   try {
     peticion = (await req.json()) as typeof peticion;
   } catch {
@@ -187,9 +223,31 @@ Deno.serve(async (req) => {
       return json({ enviadas: r.enviadas, fallidas: r.fallidas, borradas });
     }
 
+    // ── Pendientes: avisos creados por la base de datos (lista de espera) ─────
+    if (peticion.pendientes === true) {
+      // Se sacan de la tabla en la misma orden (borrar y devolver): si dos dispositivos lo piden
+      // a la vez, cada aviso lo manda solo uno de ellos.
+      const { data: pendientes, error } = await admin.from('avisos_push_pendientes').delete().not('aviso_id', 'is', null).select('aviso_id');
+      if (error) throw new Error(error.message);
+      const total: ResultadoEnvio = { enviadas: 0, fallidas: 0, borradas: 0 };
+      for (const fila of pendientes ?? []) {
+        try {
+          const r = await enviarAviso(admin, fila.aviso_id as string);
+          if (r === 'NO_EXISTE') continue;
+          total.enviadas += r.enviadas;
+          total.fallidas += r.fallidas;
+          total.borradas += r.borradas;
+        } catch (e) {
+          console.warn('[enviar-push] Aviso pendiente no enviado:', fila.aviso_id, (e as Error)?.message ?? e);
+          total.fallidas++;
+        }
+      }
+      return json({ ...total, avisos: (pendientes ?? []).length });
+    }
+
     // ── Aviso: a sus destinatarios, solo desde el personal con permiso ────────
     const avisoId = typeof peticion.avisoId === 'string' ? peticion.avisoId.trim() : '';
-    if (!avisoId) return json({ error: 'Indica avisoId o prueba.' }, 400);
+    if (!avisoId) return json({ error: 'Indica avisoId, pendientes o prueba.' }, 400);
 
     const { data: trabajador, error: errorTrab } = await admin
       .from('trabajadores')
@@ -202,32 +260,11 @@ Deno.serve(async (req) => {
     const autorizado = !!trabajador && (trabajador.rol === 'ADMIN' || permisos.some((p) => PERMISOS_ENVIO.includes(p)));
     if (!autorizado) return json({ error: 'No tienes permiso para enviar avisos.' }, 403);
 
-    const { data: aviso, error: errorAviso } = await admin.from('avisos').select('id, titulo, cuerpo').eq('id', avisoId).maybeSingle();
-    if (errorAviso) throw new Error(errorAviso.message);
-    if (!aviso) return json({ error: 'El aviso no existe.' }, 404);
-
-    const { data: destinatarios, error: errorDest } = await admin.from('aviso_destinatarios').select('cliente_id').eq('aviso_id', avisoId);
-    if (errorDest) throw new Error(errorDest.message);
-    const idsDestino = (destinatarios ?? []).map((d) => d.cliente_id as string);
-    if (idsDestino.length === 0) return json({ enviadas: 0, fallidas: 0, borradas: 0 });
-
-    const { data: clientes, error: errorCli } = await admin
-      .from('clientes')
-      .select('id')
-      .in('id', idsDestino)
-      .eq('notificaciones_push', true)
-      .eq('activo', true);
-    if (errorCli) throw new Error(errorCli.message);
-    const suscripciones = await cargarSuscripciones(admin, (clientes ?? []).map((c) => c.id as string));
-
-    const r = await enviarATodas(suscripciones, {
-      titulo: String(aviso.titulo ?? 'Aviso del centro'),
-      cuerpo: resumen(String(aviso.cuerpo ?? '')),
-      url: RUTA_AVISOS,
-      etiqueta: `aviso-${avisoId}`,
-    });
-    const borradas = await borrarCaducadas(admin, r.caducadas);
-    return json({ enviadas: r.enviadas, fallidas: r.fallidas, borradas });
+    const r = await enviarAviso(admin, avisoId);
+    if (r === 'NO_EXISTE') return json({ error: 'El aviso no existe.' }, 404);
+    // Si además estaba pendiente (no debería), que no se mande dos veces.
+    await admin.from('avisos_push_pendientes').delete().eq('aviso_id', avisoId);
+    return json(r);
   } catch (e) {
     console.error('[enviar-push]', e);
     return json({ error: e instanceof Error ? e.message : 'Error inesperado al enviar las notificaciones.' }, 500);

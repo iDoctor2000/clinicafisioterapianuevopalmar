@@ -5,7 +5,7 @@
  * (Supabase Edge Functions) sin cambios.
  */
 import type {
-  Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, Id, ISODate, MetodoPago, Oferta, Pago,
+  Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, EntradaListaEspera, Id, ISODate, MetodoPago, Oferta, Pago,
   PlantillaClase, PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
 } from '@/domain/types';
 import { tienePermiso } from '@/domain/types';
@@ -13,11 +13,11 @@ import {
   MENSAJE_AVISO_LIMITADO, MENSAJE_CLASE_AJENA, MENSAJE_CLASE_EXTRA_LIMITADA, MENSAJE_CLIENTE_AJENO, MENSAJE_HORARIO_LIMITADO, MENSAJE_SOLO_ADMIN_EQUIPO,
   esAlumnoMio, limitadoASusClases, puedeGestionarClase,
 } from '@/domain/ambito';
-import { aISODate, sumarDias } from '@/domain/fechas';
+import { aISODate, esPasada, sumarDias } from '@/domain/fechas';
 import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import {
   caducidadRecuperacion, categoriasPermitidasRecuperacion, clasificarCancelacion, evaluarReserva, generarClases,
-  generarReservasAutomaticas, plazasLibres, puedeCancelarCliente, puedeGenerarRecuperacion, caducarVencidas,
+  generarReservasAutomaticas, listaEsperaCerrada, motivoNoCambio, plazasLibres, puedeCancelarCliente, puedeGenerarRecuperacion, caducarVencidas,
 } from '@/domain/rules';
 import { indexar, nuevoId, type Db } from './db';
 import { portadaOrdenada } from './selectores';
@@ -169,7 +169,154 @@ export function cancelarReserva(ctx: Ctx, args: { reservaId: Id; forzarRecuperab
     }
   }
   nuevo = auditar(nuevo, sesion, ahora, 'CANCELAR_RESERVA', 'reserva', reserva.id, `${nombreCliente(db, reserva.clienteId)} · ${descClase(db, clase)} · ${estado} (${clasif.minutosAntelacion} min antelación)`);
+  // 0021: la plaza que se libera puede ser para alguien de la lista de espera.
+  nuevo = promoverListaEspera(nuevo, sesion, ahora, clase.id);
   return ok(nuevo, { recuperable });
+}
+
+// ---------------------------------------------------------------------------
+// Lista de espera (0021). Espejo de apuntar_lista_espera / _promover_lista_espera.
+// ---------------------------------------------------------------------------
+
+/** Entradas de la lista de espera de una clase, por orden de llegada. */
+function listaDeClase(db: Db, claseId: Id): EntradaListaEspera[] {
+  return db.listaEspera.filter((e) => e.claseId === claseId).sort((a, b) => a.creadaEl.localeCompare(b.creadaEl) || a.id.localeCompare(b.id));
+}
+
+function contextoCambio(db: Db, ahora: Date, reserva: Reserva | null, claseDestino: Clase) {
+  const claseOrigen = reserva ? db.clases.find((c) => c.id === reserva.claseId) ?? null : null;
+  return {
+    reserva, claseOrigen, claseDestino,
+    actividadOrigen: claseOrigen ? db.actividades.find((a) => a.id === claseOrigen.actividadId) ?? null : null,
+    actividadDestino: db.actividades.find((a) => a.id === claseDestino.actividadId)!,
+    contrato: reserva?.contratoId ? db.contratos.find((c) => c.id === reserva.contratoId) ?? null : null,
+    config: db.config, ahora,
+  };
+}
+
+/** El alumno se apunta a la lista de espera de una clase completa (opcionalmente a cambio de una reserva suya). */
+export function apuntarListaEspera(ctx: Ctx, args: { claseId: Id; reservaCambioId?: Id | null }): Resultado<{ id: Id; posicion: number }> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'CLIENTE') return fallo('Solo los alumnos pueden apuntarse a la lista de espera.');
+  const clienteId = sesion.clienteId;
+  const clase = db.clases.find((c) => c.id === args.claseId);
+  if (!clase) return fallo('La clase no existe.');
+  if (clase.estado !== 'PROGRAMADA') return fallo('Esta clase ha sido cancelada por el centro.');
+  if (listaEsperaCerrada(clase, ahora)) return fallo('La lista de espera se cierra 2 horas antes de la clase.');
+  if (db.reservas.some((r) => r.claseId === clase.id && r.clienteId === clienteId && r.estado === 'RESERVADA')) return fallo('Ya tienes plaza en esta clase.');
+  if (plazasLibres(clase, db.reservas) > 0) return fallo('Quedan plazas libres: puedes reservar directamente.');
+
+  const reservaCambioId = args.reservaCambioId ?? null;
+  if (reservaCambioId) {
+    const reserva = db.reservas.find((r) => r.id === reservaCambioId && r.clienteId === clienteId);
+    if (!reserva) return fallo('La reserva que quieres cambiar no es tuya.');
+    const motivo = motivoNoCambio(contextoCambio(db, ahora, reserva, clase));
+    if (motivo) return fallo(motivo);
+  } else {
+    // Sin cambio: tendría que poder reservar con su tarifa si hubiera plaza.
+    const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
+    const contrato = contratoActivo(db, clienteId, clase.fecha);
+    const tarifa = contrato ? db.tarifas.find((t) => t.id === contrato.tarifaId) ?? null : null;
+    const hoy = aISODate(ahora);
+    const ev = evaluarReserva({
+      ahora, config: db.config, contrato, tarifa, clase: { ...clase, ocupadas: 0 }, actividad,
+      reservasCliente: db.reservas.filter((r) => r.clienteId === clienteId), reservasClase: [],
+      recuperaciones: db.recuperaciones.filter((r) => r.clienteId === clienteId && r.estado === 'DISPONIBLE' && r.caducaEl >= hoy),
+      clasesPorId: indexar(db.clases), actividadesPorId: indexar(db.actividades),
+    });
+    if (!ev.ok) return fallo(ev.motivo);
+  }
+
+  const existente = db.listaEspera.find((e) => e.claseId === clase.id && e.clienteId === clienteId);
+  const entrada: EntradaListaEspera = existente
+    ? { ...existente, reservaCambioId }
+    : { id: nuevoId('esp'), claseId: clase.id, clienteId, reservaCambioId, creadaEl: ahora.toISOString() };
+  const listaEspera = existente ? db.listaEspera.map((e) => (e.id === entrada.id ? entrada : e)) : [...db.listaEspera, entrada];
+  const nuevo: Db = { ...db, listaEspera };
+  const posicion = listaDeClase(nuevo, clase.id).findIndex((e) => e.id === entrada.id) + 1;
+  const cambioTxt = reservaCambioId ? `, a cambio de ${descClase(db, db.clases.find((c) => c.id === db.reservas.find((r) => r.id === reservaCambioId)!.claseId)!)}` : '';
+  return ok(auditar(nuevo, sesion, ahora, 'LISTA_ESPERA', 'clase', clase.id, `${nombreCliente(db, clienteId)} se apunta (posición ${posicion}${cambioTxt}) · ${descClase(db, clase)}`), { id: entrada.id, posicion });
+}
+
+/** El alumno se quita de la lista de espera de una clase. */
+export function salirListaEspera(ctx: Ctx, args: { claseId: Id }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'CLIENTE') return fallo('Solo para alumnos.');
+  const entrada = db.listaEspera.find((e) => e.claseId === args.claseId && e.clienteId === sesion.clienteId);
+  if (!entrada) return ok(db, undefined);
+  const clase = db.clases.find((c) => c.id === args.claseId);
+  const nuevo: Db = { ...db, listaEspera: db.listaEspera.filter((e) => e.id !== entrada.id) };
+  return ok(auditar(nuevo, sesion, ahora, 'LISTA_ESPERA', 'clase', args.claseId, `${nombreCliente(db, sesion.clienteId)} sale de la lista · ${clase ? descClase(db, clase) : args.claseId}`), undefined);
+}
+
+/** El personal quita a un alumno de la lista de espera. */
+export function quitarDeListaEspera(ctx: Ctx, args: { id: Id }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'TRABAJADOR') return fallo('Solo para el personal.');
+  const e = exigir(sesion, 'RESERVAS_GESTIONAR');
+  if (e) return fallo(e);
+  const entrada = db.listaEspera.find((x) => x.id === args.id);
+  if (!entrada) return ok(db, undefined);
+  const clase = db.clases.find((c) => c.id === entrada.claseId);
+  if (clase) {
+    const ea = exigirClaseMia(db, sesion, clase);
+    if (ea) return fallo(ea);
+  }
+  const nuevo: Db = { ...db, listaEspera: db.listaEspera.filter((x) => x.id !== entrada.id) };
+  return ok(auditar(nuevo, sesion, ahora, 'LISTA_ESPERA', 'clase', entrada.claseId, `${nombreCliente(db, entrada.clienteId)} quitado de la lista por el personal · ${clase ? descClase(db, clase) : entrada.claseId}`), undefined);
+}
+
+/**
+ * Da las plazas libres de una clase a los primeros de su lista de espera (hasta 2 horas antes).
+ * Con "cambio" se mueve la reserva antigua; si no, se reserva con la tarifa (cupo, bono o recuperación).
+ * Quien no puede entrar recibe un aviso y sale de la lista; el turno pasa al siguiente.
+ */
+function promoverListaEspera(db: Db, sesion: Sesion, ahora: Date, claseId: Id): Db {
+  const clase = db.clases.find((c) => c.id === claseId);
+  if (!clase || clase.estado !== 'PROGRAMADA' || listaEsperaCerrada(clase, ahora)) return db;
+  const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
+  const titulo = (prefijo: string) => `${prefijo} ${actividad.nombre} ${clase.fecha.slice(8, 10)}/${clase.fecha.slice(5, 7)} ${clase.horaInicio}`;
+  let nuevo = db;
+  for (const e of listaDeClase(db, claseId)) {
+    if (plazasLibres(clase, nuevo.reservas) <= 0) break;
+    nuevo = { ...nuevo, listaEspera: nuevo.listaEspera.filter((x) => x.id !== e.id) };
+    let motivo: string | null = null;
+    let cuerpo = '';
+    let via = '';
+    if (e.reservaCambioId) {
+      const reserva = nuevo.reservas.find((r) => r.id === e.reservaCambioId && r.clienteId === e.clienteId) ?? null;
+      motivo = motivoNoCambio(contextoCambio(nuevo, ahora, reserva, clase));
+      if (!motivo && reserva) {
+        const origen = nuevo.clases.find((c) => c.id === reserva.claseId)!;
+        nuevo = { ...nuevo, reservas: nuevo.reservas.map((r) => (r.id === reserva.id ? { ...r, claseId: clase.id } : r)) };
+        via = 'CAMBIO';
+        cuerpo = `Se ha liberado una plaza y te hemos apuntado desde la lista de espera. Tu clase del ${origen.fecha.slice(8, 10)}/${origen.fecha.slice(5, 7)} a las ${origen.horaInicio} queda cambiada por esta.`;
+        // La plaza que deja en su clase antigua puede ser para otro.
+        nuevo = promoverListaEspera(nuevo, sesion, ahora, origen.id);
+      }
+    } else {
+      const r = reservar({ db: nuevo, sesion: { tipo: 'CLIENTE', userId: 'sistema', clienteId: e.clienteId, nombre: nombreCliente(nuevo, e.clienteId) }, ahora }, { claseId: clase.id });
+      if (r.ok) {
+        nuevo = r.db;
+        via = r.valor.origen;
+        cuerpo = 'Se ha liberado una plaza y te hemos apuntado desde la lista de espera.';
+      } else if (r.error === 'Ya tienes plaza en esta clase.') {
+        continue;
+      } else {
+        motivo = r.error;
+      }
+    }
+    const aviso: Aviso = {
+      id: nuevoId('avi'), importante: !motivo, publicadoEl: ahora.toISOString(), publicadoPor: 'sistema',
+      destino: { tipo: 'CLIENTES', clienteIds: [e.clienteId] }, destinatariosIds: [e.clienteId],
+      titulo: motivo ? titulo('Lista de espera:') : titulo('¡Tienes plaza!'),
+      cuerpo: motivo ? `Se ha liberado una plaza pero no hemos podido reservártela: ${motivo} Te hemos quitado de la lista de espera.` : cuerpo,
+    };
+    nuevo = { ...nuevo, avisos: [aviso, ...nuevo.avisos] };
+    nuevo = auditar(nuevo, sesion, ahora, 'LISTA_ESPERA', 'clase', clase.id,
+      motivo ? `${nombreCliente(db, e.clienteId)} no entra desde la lista (${motivo}) · ${descClase(db, clase)}` : `${nombreCliente(db, e.clienteId)} entra desde la lista de espera (${via}) · ${descClase(db, clase)}`);
+  }
+  return nuevo;
 }
 
 /** Un trabajador añade a un alumno a una clase (manual, clase suelta o usando una recuperación). */
@@ -280,6 +427,7 @@ function cancelarClaseInterna(db: Db, sesion: Sesion, ahora: Date, clase: Clase,
     ...db,
     contratos,
     recuperaciones: [...recuperaciones, ...nuevasRec],
+    listaEspera: db.listaEspera.filter((e) => e.claseId !== clase.id), // 0021: una clase cancelada no tiene lista de espera
     clases: db.clases.map((c) => (c.id === clase.id ? { ...c, estado: 'CANCELADA', motivoCancelacion: motivo, claseAlternativaId, canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : c)),
     reservas: db.reservas.map((r) => (r.claseId === clase.id && r.estado === 'RESERVADA' ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : r)),
   };
@@ -355,7 +503,10 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
       ...nuevo,
       clases: nuevo.clases.filter((c) => !borrables.has(c.id)).map((c) => (conservar.has(c.id) ? { ...c, actividadId: p.actividadId, monitorId: p.monitorId, duracionMin: p.duracionMin, plazas: Math.max(p.plazas, ocupadas(c.id)) } : c)),
       reservas: nuevo.reservas.filter((r) => !borrables.has(r.claseId)),
+      listaEspera: nuevo.listaEspera.filter((e) => !borrables.has(e.claseId)),
     };
+    // 0021: si ahora hay más plazas, entran los de la lista de espera.
+    for (const id of conservar) nuevo = promoverListaEspera(nuevo, sesion, ahora, id);
     // 0020: las que tienen alumnos y la franja ya no se imparte ese día se cancelan avisando (con recuperación).
     for (const c of clasesQueSeCancelarian(nuevo, p, hoy).clases) {
       const r = cancelarClaseInterna(nuevo, sesion, ahora, c, 'Esta clase deja de impartirse', null, true);
@@ -369,6 +520,46 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
   nuevo = generarClasesPendientes(nuevo, ahora);
   const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas; ${canceladas} canceladas` : `${p.diaSemana} ${p.horaInicio}`;
   return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas, canceladas, afectados, avisoIds });
+}
+
+/**
+ * Elimina una franja del horario (0021). Se bloquea si algún contrato activo la tiene como clase
+ * fija. Sus clases futuras con alumnos se cancelan avisando (con recuperación); las vacías se
+ * borran. La franja se conserva marcada como eliminada (historial de sus clases pasadas).
+ */
+export function eliminarPlantilla(ctx: Ctx, args: { plantillaId: Id }): Resultado<{ borradas: number; canceladas: number; afectados: number; avisoIds: Id[] }> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'HORARIOS_GESTIONAR');
+  if (e) return fallo(e);
+  if (limitadoASusClases(db, sesion)) return fallo(MENSAJE_HORARIO_LIMITADO);
+  const p = db.plantillas.find((x) => x.id === args.plantillaId);
+  if (!p) return fallo('La franja no existe.');
+  if (p.eliminadaEl) return fallo('La franja ya está eliminada.');
+  const fijos = db.contratos.filter((c) => c.estado === 'ACTIVO' && c.franjasFijas.some((f) => f.plantillaId === p.id)).map((c) => nombreCliente(db, c.clienteId)).sort((a, b) => a.localeCompare(b, 'es'));
+  if (fijos.length > 0) return fallo(`No se puede eliminar: la tienen como clase fija ${fijos.join(', ')}. Cambia antes sus horarios fijos.`);
+
+  let nuevo: Db = db;
+  let borradas = 0;
+  let canceladas = 0;
+  let afectados = 0;
+  const avisoIds: Id[] = [];
+  const futuras = db.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && !esPasada(c.fecha, c.horaInicio, ahora));
+  for (const c of futuras) {
+    if (nuevo.reservas.some((r) => r.claseId === c.id && r.estado === 'RESERVADA')) {
+      const r = cancelarClaseInterna(nuevo, sesion, ahora, c, 'Esta clase deja de impartirse', null, true);
+      nuevo = r.db;
+      canceladas += 1;
+      afectados += r.afectados;
+      if (r.avisoId) avisoIds.push(r.avisoId);
+    } else {
+      nuevo = { ...nuevo, clases: nuevo.clases.filter((x) => x.id !== c.id), reservas: nuevo.reservas.filter((r) => r.claseId !== c.id), listaEspera: nuevo.listaEspera.filter((x) => x.claseId !== c.id) };
+      borradas += 1;
+    }
+  }
+  nuevo = { ...nuevo, plantillas: nuevo.plantillas.map((x) => (x.id === p.id ? { ...x, activa: false, eliminadaEl: ahora.toISOString() } : x)) };
+  const actividad = db.actividades.find((a) => a.id === p.actividadId);
+  nuevo = auditar(nuevo, sesion, ahora, 'ELIMINAR_FRANJA', 'plantilla', p.id, `${actividad?.nombre ?? 'Clase'} ${p.horaInicio} · ${borradas} clases vacías borradas; ${canceladas} canceladas (${afectados} alumnos avisados)`);
+  return ok(nuevo, { borradas, canceladas, afectados, avisoIds });
 }
 
 /** Genera las clases (y reservas automáticas) que falten hasta 2 meses vista. Se ejecuta a diario en producción. */

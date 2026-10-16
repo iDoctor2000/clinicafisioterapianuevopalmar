@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Ban, Bell, Check, Clock, Lock, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { AlertTriangle, Ban, Bell, Check, Clock, Hourglass, Lock, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { MENSAJE_CLASE_AJENA } from '@/domain/ambito';
 import { HITOS_CLASES, esCumpleanos } from '@/domain/logros';
 import { conteoClases } from '@/data/logros';
@@ -11,7 +11,8 @@ import { AreaTexto, Boton, Chip, Hoja, Interruptor, Seleccion, Tarjeta, Vacio } 
 import { toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
-import { alternativasPara, clasesSueltasDe, resumenCliente } from './consultas';
+import { alternativasPara, clasesSueltasDe, listaEsperaDeClase, resumenCliente, type EsperaDeClase } from './consultas';
+import { HORAS_CIERRE_LISTA_ESPERA, listaEsperaCerrada } from '@/domain/rules';
 import { AvatarCliente, BarraOcupacion, BuscadorClientes, ChipEstadoReserva, ChipOrigen, Confirmacion, Encabezado, Plegable, may } from './comunes';
 import { useGanadorVigente } from './ClienteDelMes';
 import { IconoActividad } from '@/features/comun/IconoActividad';
@@ -25,6 +26,7 @@ export function DetalleClase() {
   const [anadir, setAnadir] = useState(false);
   const [cancelar, setCancelar] = useState(false);
   const [quitar, setQuitar] = useState<Reserva | null>(null);
+  const [quitarEspera, setQuitarEspera] = useState<EsperaDeClase | null>(null);
   // Antes de cualquier salida anticipada (regla de los hooks): solo para las clases de hoy.
   const esDeHoy = clase?.fecha === hoyISO();
   const ganador = useGanadorVigente();
@@ -44,6 +46,8 @@ export function DetalleClase() {
   const canceladas = vista.reservas.filter((r) => r.estado !== 'RESERVADA');
   const alternativa = clase.claseAlternativaId ? db.clases.find((c) => c.id === clase.claseAlternativaId) : null;
   const cs = clasesSueltasDe(vista);
+  const espera = listaEsperaDeClase(db, clase.id);
+  const esperaCerrada = listaEsperaCerrada(clase, ahora);
 
   const marcar = async (r: Reserva, asistencia: 'ASISTE' | 'NO_ASISTE') => {
     const res = await ejecutar('registrarAsistencia', { reservaId: r.id, asistencia: r.asistencia === asistencia ? 'PENDIENTE' : asistencia });
@@ -54,6 +58,12 @@ export function DetalleClase() {
     const res = await ejecutar('quitarAlumno', { reservaId: quitar.id });
     if (res.ok) toast.ok(`${nombreCompleto(clientes.get(quitar.clienteId))} ya no está en la clase.`); else toast.error(res.error);
     setQuitar(null);
+  };
+  const confirmarQuitarEspera = async () => {
+    if (!quitarEspera) return;
+    const res = await ejecutar('quitarDeListaEspera', { id: quitarEspera.entrada.id });
+    if (res.ok) toast.ok(`${nombreCompleto(quitarEspera.cliente)} ya no está en la lista de espera.`); else toast.error(res.error);
+    setQuitarEspera(null);
   };
 
   return (
@@ -128,6 +138,36 @@ export function DetalleClase() {
             </ul>
           </Tarjeta>
 
+          {!cancelada && !pasada && (espera.length > 0 || ocupadas >= clase.plazas) && (
+            <Tarjeta>
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <h2 className="text-lg font-semibold font-sans flex items-center gap-2"><Hourglass className="h-5 w-5 text-sky" /> Lista de espera ({espera.length})</h2>
+              </div>
+              {espera.length === 0 && <p className="px-4 pb-5 text-ink-muted">Nadie en lista de espera. Si la clase está completa, los alumnos pueden apuntarse desde su app.</p>}
+              <ul className="divide-y divide-ink/5">
+                {espera.map((e) => (
+                  <li key={e.entrada.id} className="p-3 sm:px-4 flex items-center gap-3">
+                    <span className="h-9 w-9 shrink-0 rounded-full bg-sky/10 text-sky font-bold flex items-center justify-center">{e.posicion}</span>
+                    <div className="flex-1 min-w-0">
+                      <Link to={`/clientes/${e.entrada.clienteId}`} className="font-semibold hover:underline block truncate">{nombreCompleto(e.cliente)}</Link>
+                      <p className="text-sm text-ink-muted">
+                        {e.cambio ? `A cambio de su clase de ${e.cambio.actividad?.nombre ?? ''} del ${fechaCorta(e.cambio.clase.fecha)} a las ${e.cambio.clase.horaInicio}` : 'Reservaría con su tarifa'} · desde el {fechaCorta(e.entrada.creadaEl.slice(0, 10))}
+                      </p>
+                    </div>
+                    {puede('RESERVAS_GESTIONAR') && (
+                      <button type="button" onClick={() => setQuitarEspera(e)} aria-label="Quitar de la lista de espera" title="Quitar de la lista de espera" className="h-11 w-11 rounded-full flex items-center justify-center text-ink-muted hover:bg-rose/10 hover:text-rose tap"><UserMinus className="h-5 w-5" /></button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="px-4 pb-4 pt-1 text-sm text-ink-muted">
+                {esperaCerrada
+                  ? `Faltan menos de ${HORAS_CIERRE_LISTA_ESPERA} horas: la lista ya no actúa sola. Si se libera una plaza, apunta tú al alumno con «Añadir alumno».`
+                  : `Si alguien deja su plaza, entra el primero de la lista automáticamente y recibe un aviso. La lista funciona hasta ${HORAS_CIERRE_LISTA_ESPERA} horas antes de la clase.`}
+              </p>
+            </Tarjeta>
+          )}
+
           {canceladas.length > 0 && (
             <Plegable titulo="Cancelaciones" resumen={`${canceladas.length}`}>
               <ul className="divide-y divide-ink/5">
@@ -162,6 +202,10 @@ export function DetalleClase() {
       <Confirmacion abierta={quitar != null} onCerrar={() => setQuitar(null)} titulo="Quitar de la clase" textoConfirmar="Quitar alumno" peligro onConfirmar={confirmarQuitar}>
         <p><strong className="text-ink">{nombreCompleto(clientes.get(quitar?.clienteId ?? ''))}</strong> dejará de estar apuntado/a a esta clase.</p>
         <p>No se le penaliza: se le devuelve el derecho (recuperación, sesión de bono o recuperación consumida) para que pueda usarlo en otra clase.</p>
+        {espera.length > 0 && !esperaCerrada && <p>La plaza que queda libre será para <strong className="text-ink">{nombreCompleto(espera[0].cliente)}</strong>, que es quien va primero en la lista de espera.</p>}
+      </Confirmacion>
+      <Confirmacion abierta={quitarEspera != null} onCerrar={() => setQuitarEspera(null)} titulo="Quitar de la lista de espera" textoConfirmar="Quitar de la lista" peligro onConfirmar={confirmarQuitarEspera}>
+        <p><strong className="text-ink">{nombreCompleto(quitarEspera?.cliente)}</strong> dejará de esperar plaza en esta clase. No se le avisa.</p>
       </Confirmacion>
     </div>
   );

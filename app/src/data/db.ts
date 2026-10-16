@@ -1,5 +1,5 @@
 import type {
-  Actividad, Aviso, Clase, Cliente, ConfigCentro, Contrato, LecturaAviso, Pago, PlantillaClase,
+  Actividad, Aviso, Clase, Cliente, ConfigCentro, Contrato, EntradaListaEspera, LecturaAviso, Pago, PlantillaClase,
   PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Trabajador, Id,
 } from '@/domain/types';
 
@@ -35,12 +35,14 @@ export interface Db {
   portada: PortadaImagen[];
   /** Premios "Cliente del mes" (uno por mes). */
   premios: PremioMes[];
+  /** Lista de espera de las clases completas (0021). Un alumno solo recibe sus entradas. */
+  listaEspera: EntradaListaEspera[];
 }
 
 import type { Tarifa } from '@/domain/types';
 
 /** Versión de la instantánea persistida en demo: al cambiar, la demo se regenera desde el seed. */
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 let contador = 0;
 export function nuevoId(prefijo = 'id'): Id {
@@ -59,6 +61,6 @@ export function dbVacio(): Db {
     version: DB_VERSION,
     config: { nombre: 'Nuevo Palmar Pilates', minutosAntelacionCancelacion: 60, diasVentanaReserva: 14, recuperacionCaducaConContrato: true, diasCaducidadRecuperacion: 30, diasCierre: [], zonaHoraria: 'Europe/Madrid' },
     actividades: [], tarifas: [], clientes: [], contratos: [], pagos: [], plantillas: [], clases: [], reservas: [], recuperaciones: [],
-    avisos: [], lecturas: [], trabajadores: [], usuarios: [], auditoria: [], portada: [], premios: [],
+    avisos: [], lecturas: [], trabajadores: [], usuarios: [], auditoria: [], portada: [], premios: [], listaEspera: [],
   };
 }

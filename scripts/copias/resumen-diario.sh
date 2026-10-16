@@ -99,7 +99,8 @@ select line from (
         ('0017', exists (select 1 from pg_trigger where tgname = 'clientes_vincular_usuario')),
         ('0018', to_regclass('public.ocupacion_clases') is not null),
         ('0019', to_regprocedure('public._generar_reservas_automaticas(uuid, boolean)') is not null),
-        ('0020', to_regprocedure('public._cancelar_clases_cierre()') is not null))
+        ('0020', to_regprocedure('public._cancelar_clases_cierre()') is not null),
+        ('0021', to_regclass('public.lista_espera') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

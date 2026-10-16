@@ -1,12 +1,12 @@
 /** Consultas de solo lectura específicas de la zona cliente. */
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Actividad, Categoria, Contrato, Id, ISODate, ISOInstant, PlantillaClase, Recuperacion, Reserva, Tarifa, Trabajador } from '@/domain/types';
+import type { Actividad, Categoria, Clase, Contrato, EntradaListaEspera, Id, ISODate, ISOInstant, PlantillaClase, Recuperacion, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
-import { evaluarReserva, sesionesPrevistas, type EvaluacionReserva } from '@/domain/rules';
+import { evaluarReserva, listaEsperaCerrada, motivoNoCambio, sesionesPrevistas, type EvaluacionReserva } from '@/domain/rules';
 import { aISODate, diasEntre, esPasada, fechaCorta, inicioSemana, sumarDias, DIAS_SEMANA_LABEL } from '@/domain/fechas';
 import { indexar, type Db } from '@/data/db';
-import { contratoActivoDe, recuperacionesDisponiblesDe, reservasDeCliente, tarifaDe, type ReservaVista } from '@/data/selectores';
+import { clasesDelDia, contratoActivoDe, recuperacionesDisponiblesDe, reservasDeCliente, tarifaDe, vistaClase, type ClaseVista, type ReservaVista } from '@/data/selectores';
 
 /** Evalúa si el cliente puede reservar una clase, con los mismos datos que usa el comando `reservar`. */
 export function evaluarReservaDe(db: Db, clienteId: Id, claseId: Id, ahora: Date): EvaluacionReserva {
@@ -22,6 +22,90 @@ export function evaluarReservaDe(db: Db, clienteId: Id, claseId: Id, ahora: Date
     reservasClase: db.reservas.filter((r) => r.claseId === clase.id),
     recuperaciones, clasesPorId: indexar(db.clases), actividadesPorId: indexar(db.actividades),
   });
+}
+
+/** Como `evaluarReservaDe`, pero sin mirar el aforo: ¿podría reservar con su tarifa si hubiera plaza? (lista de espera) */
+export function evaluarReservaSinPlazas(db: Db, clienteId: Id, claseId: Id, ahora: Date): EvaluacionReserva {
+  const clase = db.clases.find((c) => c.id === claseId);
+  if (!clase) return { ok: false, codigo: 'CLASE_CANCELADA', motivo: 'La clase no existe.' };
+  const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
+  const contrato = contratoActivoDe(db, clienteId, clase.fecha);
+  return evaluarReserva({
+    ahora, config: db.config, contrato, tarifa: tarifaDe(db, contrato), clase: { ...clase, ocupadas: 0 }, actividad,
+    reservasCliente: db.reservas.filter((r) => r.clienteId === clienteId), reservasClase: [],
+    recuperaciones: recuperacionesDisponiblesDe(db, clienteId, aISODate(ahora)), clasesPorId: indexar(db.clases), actividadesPorId: indexar(db.actividades),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Lista de espera (0021)
+// ---------------------------------------------------------------------------
+
+/** Entrada del alumno en la lista de espera de una clase, si está. */
+export function miEntradaEnLista(db: Db, clienteId: Id, claseId: Id): EntradaListaEspera | null {
+  return db.listaEspera.find((e) => e.claseId === claseId && e.clienteId === clienteId) ?? null;
+}
+
+/** Posición en la lista: la del servidor o, en la demo, contando las entradas anteriores de esa clase. */
+export function posicionEnLista(db: Db, entrada: EntradaListaEspera): number {
+  if (entrada.posicion) return entrada.posicion;
+  return db.listaEspera.filter((e) => e.claseId === entrada.claseId && (e.creadaEl < entrada.creadaEl || (e.creadaEl === entrada.creadaEl && e.id < entrada.id))).length + 1;
+}
+
+/** Cuántos esperan plaza en una clase (la cifra del servidor o, si es mayor, las entradas cargadas). */
+export function enEsperaDe(db: Db, clase: Pick<Clase, 'id' | 'enEspera'>): number {
+  return Math.max(clase.enEspera ?? 0, db.listaEspera.filter((e) => e.claseId === clase.id).length);
+}
+
+/** ¿Tiene sentido ofrecer la lista de espera? Clase programada, completa, sin plaza propia y a más de 2 horas. */
+export function listaEsperaDisponible(db: Db, clienteId: Id, vista: ClaseVista, ahora: Date): boolean {
+  return vista.clase.estado === 'PROGRAMADA' && vista.libres <= 0 && !reservaActivaEn(db, clienteId, vista.clase.id) && !listaEsperaCerrada(vista.clase, ahora);
+}
+
+export interface OpcionCambio { vista: ReservaVista; motivo: string | null }
+
+/** Reservas propias de esa misma semana que podrían cambiarse por la clase (con el motivo si alguna no vale). */
+export function opcionesDeCambio(db: Db, clienteId: Id, claseId: Id, ahora: Date): OpcionCambio[] {
+  const destino = db.clases.find((c) => c.id === claseId);
+  if (!destino) return [];
+  const actividadDestino = db.actividades.find((a) => a.id === destino.actividadId)!;
+  return reservasDeCliente(db, clienteId)
+    .filter((v) => v.reserva.estado === 'RESERVADA' && v.clase.id !== claseId && mismaSemanaISO(v.clase.fecha, destino.fecha) && !esPasada(v.clase.fecha, v.clase.horaInicio, ahora))
+    .map((vista) => ({
+      vista,
+      motivo: motivoNoCambio({
+        reserva: vista.reserva, claseOrigen: vista.clase, claseDestino: destino, actividadOrigen: vista.actividad, actividadDestino,
+        contrato: vista.reserva.contratoId ? db.contratos.find((c) => c.id === vista.reserva.contratoId) ?? null : null, config: db.config, ahora,
+      }),
+    }));
+}
+
+function mismaSemanaISO(a: ISODate, b: ISODate): boolean {
+  return inicioSemana(a) === inicioSemana(b);
+}
+
+export interface EsperaVista { entrada: EntradaListaEspera; vista: ClaseVista; posicion: number; cambio: ReservaVista | null }
+
+/** Listas de espera del alumno en clases que aún no han empezado, por fecha. */
+export function esperasFuturas(db: Db, clienteId: Id, ahora: Date): EsperaVista[] {
+  return db.listaEspera
+    .filter((e) => e.clienteId === clienteId)
+    .map((entrada) => {
+      const clase = db.clases.find((c) => c.id === entrada.claseId);
+      if (!clase || esPasada(clase.fecha, clase.horaInicio, ahora)) return null;
+      const cambio = entrada.reservaCambioId ? db.reservas.find((r) => r.id === entrada.reservaCambioId) : null;
+      return { entrada, vista: vistaClase(db, clase), posicion: posicionEnLista(db, entrada), cambio: cambio ? vistaReserva(db, cambio) : null };
+    })
+    .filter((x): x is EsperaVista => !!x)
+    .sort((a, b) => a.vista.clase.fecha.localeCompare(b.vista.clase.fecha) || a.vista.clase.horaInicio.localeCompare(b.vista.clase.horaInicio));
+}
+
+/**
+ * Clases del día que ve el alumno: las canceladas por el centro solo si él tenía plaza (así
+ * recibe el aviso y ve el motivo); las demás canceladas no aparecen (0021).
+ */
+export function clasesVisiblesDelDia(db: Db, clienteId: Id, fecha: ISODate): ClaseVista[] {
+  return clasesDelDia(db, fecha).filter((v) => v.clase.estado !== 'CANCELADA' || v.reservas.some((r) => r.clienteId === clienteId));
 }
 
 export function reservaActivaEn(db: Db, clienteId: Id, claseId: Id): Reserva | null {
