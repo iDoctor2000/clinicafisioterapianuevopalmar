@@ -143,7 +143,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
           <Entrada etiqueta="Vigente desde" ayuda="Opcional" type="date" value={f.vigenciaDesde ?? ''} onChange={(e) => setF({ ...f, vigenciaDesde: e.target.value || null })} />
           <Entrada etiqueta="Vigente hasta" ayuda="Opcional" type="date" value={f.vigenciaHasta ?? ''} onChange={(e) => setF({ ...f, vigenciaHasta: e.target.value || null })} />
         </div>
-        <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Franja activa" descripcion="Si se desactiva, sus clases futuras se cancelan (los alumnos apuntados reciben aviso y recuperación)." /></div>
+        <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Franja activa" descripcion={plantilla ? "Desactivarla no la borra: sigue en Horarios (en gris) y se puede volver a activar. Mientras esté desactivada no se crean clases nuevas, y las que ya tienen alumnos se cancelan avisándoles (con recuperación). Para quitarla del todo, usa «Eliminar franja del horario», aquí abajo." : "Si la desactivas, no se crean sus clases. No se borra: puedes volver a activarla cuando quieras."} /></div>
         <Boton ancho onClick={() => void guardar()} cargando={guardando}>{plantilla ? 'Guardar cambios' : 'Crear franja'}</Boton>
         {plantilla && (
           <Boton ancho variante="fantasma" className="text-rose" onClick={() => setEliminar(true)}><Trash2 className="h-5 w-5" /> Eliminar franja del horario</Boton>
