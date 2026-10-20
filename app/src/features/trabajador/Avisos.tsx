@@ -86,7 +86,7 @@ export function Avisos() {
               <BuscadorClientes clientes={db.clientes.filter((c) => c.activo)} excluirIds={clienteIds} onElegir={(c) => setClienteIds([...clienteIds, c.id])} placeholder="Añadir cliente…" />
             </div>
           )}
-          <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={importante} onCambio={setImportante} etiqueta="Importante" descripcion="Se destaca en la app y se envía notificación aunque estén desactivadas." /></div>
+          <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={importante} onCambio={setImportante} etiqueta="Importante" descripcion="Sale marcado en rojo en la app del alumno. La notificación al móvil llega igual que en cualquier aviso: solo a quien la tenga activada." /></div>
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-sand px-4 py-3">
             <span className="text-sm"><strong className="text-lg">{destinatarios.length}</strong> destinatario{destinatarios.length === 1 ? '' : 's'}</span>
             <Boton onClick={publicar} disabled={destinatarios.length === 0}><Send className="h-5 w-5" /> Publicar</Boton>
