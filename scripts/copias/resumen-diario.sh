@@ -65,6 +65,62 @@ with
      where k.estado = 'ACTIVO' and k.modalidad = 'FIJO' and k.fecha_fin >= (select d from hoy)
        and not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id
                         where r.contrato_id = k.id and r.estado = 'RESERVADA' and c.fecha >= (select d from hoy))
+  ),
+  -- Vigilancia: cada clase de los próximos 14 días de las franjas de cada contrato fijo activo, y qué tiene el alumno en ella.
+  huecos_fijos as (
+    select k.id as contrato_id, c.id as clase_id,
+           exists (select 1 from public.reservas r where r.clase_id = c.id and r.cliente_id = k.cliente_id and r.estado = 'RESERVADA') as tiene_plaza,
+           exists (select 1 from public.reservas r where r.clase_id = c.id and r.cliente_id = k.cliente_id and r.estado in ('CANCELADA_RECUPERABLE', 'CANCELADA_NO_RECUPERABLE')) as cancelo_el_alumno,
+           (select count(*) from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') >= c.plazas as completa
+      from public.contratos k
+      join public.contrato_franjas f on f.contrato_id = k.id
+      join public.clases c on c.plantilla_id = f.plantilla_id and c.estado = 'PROGRAMADA'
+     where k.estado = 'ACTIVO' and k.modalidad = 'FIJO'
+       and c.fecha between (select d from hoy) and least(k.fecha_fin, (select d from hoy) + 14)
+  ),
+  vig(o, aviso, texto, n, que_hacer) as (
+    values
+      (1, true, 'Clases fijas sin apuntar aunque hay plaza',
+        (select count(*) from huecos_fijos where not tiene_plaza and not cancelo_el_alumno and not completa),
+        'Un alumno de horario fijo no está apuntado a una clase de su franja y la clase tiene sitio: el mantenimiento nocturno debería haberlo hecho. Pulsa "Rehacer las reservas fijas de todos" en Ajustes y, si vuelve a salir mañana, avisa a quien mantiene la app.'),
+      (2, false, 'Alumnos de horario fijo sin plaza en una clase suya porque está completa',
+        (select count(*) from huecos_fijos where not tiene_plaza and not cancelo_el_alumno and completa),
+        'Esa clase se llenó mientras el alumno no estaba apuntado. Si quiere ir, que se apunte a la lista de espera o apúntalo a mano cuando se libere plaza.'),
+      (3, true, 'Reservas fijas "canceladas por el centro" en clases que siguen programadas',
+        (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
+          where r.origen = 'AUTOMATICA' and r.estado = 'CANCELADA_CENTRO' and c.estado = 'PROGRAMADA' and c.fecha >= (select d from hoy)),
+        'Son restos de finalizar un contrato: el alumno las ve como "cancelada por el centro" sin serlo. No debería ocurrir desde la 0023; avisa a quien mantiene la app.'),
+      (5, true, 'Horarios fijos apuntados a una franja eliminada o desactivada',
+        (select count(*) from public.contrato_franjas f join public.contratos k on k.id = f.contrato_id join public.plantillas_clase p on p.id = f.plantilla_id
+          where k.estado = 'ACTIVO' and k.modalidad = 'FIJO' and k.fecha_fin >= (select d from hoy) and (not p.activa or p.eliminada_el is not null)),
+        'El alumno no tendrá clases de esa franja. Edita su contratación (ficha → Tarifa → Editar contratación) y elige una franja activa.'),
+      (6, true, 'Franjas activas sin ninguna clase en los próximos 14 días',
+        (select count(*) from public.plantillas_clase p
+          where p.activa and p.eliminada_el is null
+            and (p.vigencia_desde is null or p.vigencia_desde <= (select d from hoy) + 14)
+            and (p.vigencia_hasta is null or p.vigencia_hasta >= (select d from hoy))
+            and not exists (select 1 from public.clases c where c.plantilla_id = p.id and c.fecha between (select d from hoy) and (select d from hoy) + 14)),
+        'Las clases se crean cada noche a partir de las franjas; si una franja activa no tiene clases, algo falla en la generación. Guarda la franja en Horarios sin cambiar nada y, si no aparecen, avisa a quien mantiene la app.'),
+      (7, true, 'Avisos de la lista de espera sin enviar al móvil desde hace más de un día',
+        (select count(*) from public.avisos_push_pendientes where creado_el < now() - interval '1 day'),
+        'La app los manda al abrirse; si llevan más de un día es que la función de notificaciones (enviar-push) falla. El aviso sí se ve dentro de la app. Avisa a quien mantiene la app.'),
+      (8, true, 'Lista de espera con entradas de clases ya pasadas',
+        (select count(*) from public.lista_espera e join public.clases c on c.id = e.clase_id where (c.fecha + c.hora_inicio) < public._ahora_local() - interval '1 day'),
+        'El mantenimiento nocturno debería haberlas limpiado. Avisa a quien mantiene la app.'),
+      (9, false, 'Alumnos con reservas futuras y sin tarifa activa',
+        (select count(distinct r.cliente_id) from public.reservas r join public.clases c on c.id = r.clase_id
+          where r.estado = 'RESERVADA' and c.estado = 'PROGRAMADA' and c.fecha >= (select d from hoy) and r.origen in ('AUTOMATICA', 'CLIENTE', 'BONO', 'RECUPERACION')
+            and not exists (select 1 from public.contratos k where k.cliente_id = r.cliente_id and k.estado = 'ACTIVO')),
+        'Tienen clases reservadas pero su contrato ha terminado o se finalizó. Si siguen viniendo, hazles la contratación nueva (no uses "Finalizar"); si no, cancela sus reservas.'),
+      (10, false, 'Contratos activos que terminan en los próximos 7 días',
+        (select count(*) from public.contratos where estado = 'ACTIVO' and fecha_fin between (select d from hoy) and (select d from hoy) + 7),
+        'Para renovarlos, usa "Nueva contratación" en la ficha del alumno (la actual se cierra sola y conserva sus clases fijas).'),
+      (11, false, 'Clases de ayer sin pasar lista',
+        (select count(*) from public.clases c
+          where c.estado = 'PROGRAMADA' and c.fecha = (select d from hoy) - 1
+            and exists (select 1 from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA')
+            and not exists (select 1 from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA' and r.asistencia <> 'PENDIENTE')),
+        'Las medallas y el cliente del mes cuentan las clases con asistencia marcada. Se puede marcar a posteriori desde la ficha de la clase.')
   )
 select line from (
   select 1 as o, '## Resumen de las últimas 24 horas (' || to_char(now() at time zone 'Europe/Madrid', 'DD/MM/YYYY HH24:MI') || ', hora de Madrid)' as line
@@ -106,6 +162,14 @@ select line from (
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'
+  union all select 30, ''
+  union all select 31, '### Vigilancia'
+  union all select 32, '| Qué | Cuántos |'
+  union all select 33, '|---|---|'
+  union all select 33 + vig.o, '| ' || texto || ' | ' || n || case when n > 0 then case when aviso then ' ⚠️' else ' ℹ️' end else '' end || ' |' from vig
+  union all select 50, case when exists (select 1 from vig where n > 0) then '' end
+  union all select 51, case when exists (select 1 from vig where n > 0) then '### Qué hacer' end
+  union all select 51 + vig.o, '- ' || case when aviso then '⚠️' else 'ℹ️' end || ' **' || texto || ' (' || n || ')**: ' || que_hacer from vig where n > 0
 ) t where line is not null order by o, line;
 commit;
 SQL
@@ -113,3 +177,5 @@ SQL
 
 echo "$RESUMEN"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then echo "$RESUMEN" >> "$GITHUB_STEP_SUMMARY"; fi
+# El workflow lee este archivo para abrir (o cerrar) el aviso de vigilancia en GitHub.
+if [[ -n "${RESUMEN_ARCHIVO:-}" ]]; then echo "$RESUMEN" > "$RESUMEN_ARCHIVO"; fi

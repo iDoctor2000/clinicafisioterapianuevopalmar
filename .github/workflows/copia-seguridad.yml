@@ -77,7 +77,36 @@ jobs:
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RESUMEN_ARCHIVO: ${{ runner.temp }}/resumen.md
         run: bash scripts/copias/resumen-diario.sh
+
+      # Vigilancia: si el resumen trae algo marcado con ⚠️, se abre (o se completa) un aviso en GitHub,
+      # que llega por correo al dueño del repositorio. Cuando un día no hay nada, el aviso se cierra solo.
+      # Todo son recuentos: el aviso no contiene datos personales.
+      - name: Avisar si la vigilancia ha encontrado algo
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.diagnostico_dias == ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUMEN_ARCHIVO: ${{ runner.temp }}/resumen.md
+          ENLACE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -s "$RESUMEN_ARCHIVO" ] || { echo "Sin resumen: no se comprueba la vigilancia."; exit 0; }
+          TITULO="⚠️ Vigilancia nocturna: hay cosas que revisar"
+          ABIERTA=$(gh issue list --repo "${{ github.repository }}" --state open --search "\"$TITULO\" in:title" --json number --jq '.[0].number // empty')
+          if grep -q "⚠️" "$RESUMEN_ARCHIVO"; then
+            CUERPO="$(printf 'Resumen del %s (solo cifras, sin datos personales). Lo marcado con ⚠️ necesita que alguien lo mire; lo marcado con ℹ️ es informativo.\n\n' "$(date -u +%d/%m/%Y)"; sed -n '/^### Estado/,$p' "$RESUMEN_ARCHIVO"; printf '\n\nDetalle completo: %s\n\nCuando esté resuelto no hace falta cerrar este aviso: se cierra solo la primera noche que no haya nada marcado con ⚠️.' "$ENLACE")"
+            if [ -n "$ABIERTA" ]; then
+              gh issue comment "$ABIERTA" --repo "${{ github.repository }}" --body "$CUERPO"
+            else
+              gh issue create --repo "${{ github.repository }}" --title "$TITULO" --body "$CUERPO" --assignee "${{ github.repository_owner }}" \
+                || gh issue create --repo "${{ github.repository }}" --title "$TITULO" --body "$CUERPO"
+            fi
+          elif [ -n "$ABIERTA" ]; then
+            gh issue close "$ABIERTA" --repo "${{ github.repository }}" --comment "Esta noche no hay nada marcado con ⚠️: se cierra el aviso. Detalle: $ENLACE"
+          else
+            echo "Vigilancia sin avisos."
+          fi
 
       # Solo a mano, cuando hay que investigar una incidencia: estado de reservas, contratos y
       # recuperaciones de los últimos días, con los nombres sustituidos por iniciales.
