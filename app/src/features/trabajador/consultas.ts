@@ -85,10 +85,19 @@ export function diasDeSemana(fecha: ISODate): ISODate[] {
   return diasEntre(lunes, sumarDias(lunes, 6));
 }
 
+/**
+ * Una clase cancelada en la que nunca hubo nadie no aporta nada al calendario (p. ej. las que se
+ * cancelaron a mano antes de eliminar su franja): se oculta. Las canceladas con alumnos se
+ * quedan tachadas, para ver a quién afectó.
+ */
+export function claseVisibleEnCalendario(db: Db, clase: Clase): boolean {
+  return clase.estado !== 'CANCELADA' || db.reservas.some((r) => r.claseId === clase.id);
+}
+
 export function clasesPorDiaDeSemana(db: Db, fecha: ISODate): { fecha: ISODate; clases: ClaseVista[] }[] {
   return diasDeSemana(fecha).map((f) => ({
     fecha: f,
-    clases: db.clases.filter((c) => c.fecha === f).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio)).map((c) => vistaClase(db, c)),
+    clases: db.clases.filter((c) => c.fecha === f && claseVisibleEnCalendario(db, c)).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio)).map((c) => vistaClase(db, c)),
   }));
 }
 
@@ -428,7 +437,7 @@ export function semanasDelMes(fecha: ISODate): ISODate[][] {
 export function clasesPorFechaEntre(db: Db, desde: ISODate, hasta: ISODate): Map<ISODate, ClaseVista[]> {
   const m = new Map<ISODate, ClaseVista[]>();
   for (const c of db.clases) {
-    if (!estaEntre(c.fecha, desde, hasta)) continue;
+    if (!estaEntre(c.fecha, desde, hasta) || !claseVisibleEnCalendario(db, c)) continue;
     const lista = m.get(c.fecha) ?? [];
     lista.push(vistaClase(db, c));
     m.set(c.fecha, lista);
