@@ -114,6 +114,17 @@ select x.quien, left(k.id::text, 8) as contrato, c.fecha, c.hora_inicio as hora,
    and not exists (select 1 from public.reservas r where r.clase_id = c.id and r.cliente_id = k.cliente_id and r.estado = 'RESERVADA')
  order by x.quien, c.fecha, c.hora_inicio;
 
+\echo '== Contratos de horario fijo activos sin ninguna clase futura apuntada a su nombre (el aviso del resumen diario)'
+select upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' || left(cl.id::text, 8) as quien, left(k.id::text, 8) as contrato, k.fecha_inicio, k.fecha_fin,
+       (select string_agg(left(f.plantilla_id::text, 8), ',') from public.contrato_franjas f where f.contrato_id = k.id) as franjas,
+       (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id join public.contrato_franjas f on f.contrato_id = k.id and f.plantilla_id = c.plantilla_id
+         where r.cliente_id = k.cliente_id and r.estado = 'RESERVADA' and c.fecha >= public._hoy() and c.fecha <= k.fecha_fin) as reservas_en_sus_franjas_con_otro_contrato,
+       (select count(*) from public.clases c join public.contrato_franjas f on f.contrato_id = k.id and f.plantilla_id = c.plantilla_id
+         where c.estado = 'PROGRAMADA' and c.fecha between public._hoy() and k.fecha_fin) as clases_futuras_de_sus_franjas
+  from public.contratos k join public.clientes cl on cl.id = k.cliente_id
+ where k.estado = 'ACTIVO' and k.modalidad = 'FIJO' and k.fecha_fin >= public._hoy()
+   and not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id where r.contrato_id = k.id and r.estado = 'RESERVADA' and c.fecha >= public._hoy());
+
 \echo '== Lista de espera y avisos push pendientes'
 select left(e.clase_id::text, 8) as clase, c.fecha, c.hora_inicio as hora, upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '.' as quien, e.reserva_cambio_id is not null as cambio, e.creado_el at time zone 'Europe/Madrid' as creada
   from public.lista_espera e join public.clases c on c.id = e.clase_id join public.clientes cl on cl.id = e.cliente_id order by c.fecha, c.hora_inicio, e.creado_el;
