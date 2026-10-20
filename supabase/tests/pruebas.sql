@@ -1518,11 +1518,20 @@ select pruebas.como('r1');
 select pruebas.guardar('res_r1_cancelada', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
    where r.contrato_id = pruebas.id('con_r1') and r.estado = 'RESERVADA' and c.fecha > current_date + 2 order by c.fecha limit 1));
 select public.cancelar_reserva(pruebas.id('res_r1_cancelada'));
+commit;
+-- Una de sus clases fijas la apuntó el centro a mano (origen MANUAL): al finalizar queda "cancelada por el centro".
+select pruebas.sistema();
+update public.reservas set origen = 'MANUAL' where id = (select r.id from public.reservas r join public.clases c on c.id = r.clase_id
+   where r.contrato_id = pruebas.id('con_r1') and r.estado = 'RESERVADA' and c.fecha > current_date + 4 order by c.fecha limit 1);
 -- El centro "finaliza" el contrato cancelando sus reservas futuras (lo que pasó en octubre) y le da uno nuevo con las mismas franjas.
+begin;
+set local role authenticated;
 select pruebas.como('admin');
 select public.finalizar_contrato(pruebas.id('con_r1'), true);
 do $$ begin
-  assert (select count(*) from public.reservas where contrato_id = pruebas.id('con_r1') and estado = 'CANCELADA_CENTRO') >= 3, 'al finalizar quedan canceladas por el centro';
+  -- 0023: las fijas se quitan; la manual queda cancelada por el centro.
+  assert (select count(*) from public.reservas where contrato_id = pruebas.id('con_r1') and estado = 'CANCELADA_CENTRO') = 1, 'al finalizar, solo la manual queda cancelada por el centro';
+  assert not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id where r.contrato_id = pruebas.id('con_r1') and r.origen = 'AUTOMATICA' and c.fecha >= current_date and r.id <> pruebas.id('res_r1_cancelada')), 'las fijas futuras se quitan (solo queda la que canceló ella)';
   assert not exists (select 1 from public.reservas where contrato_id = pruebas.id('con_r1') and estado = 'RESERVADA'), 'sin reservas activas';
 end $$;
 select pruebas.guardar('con_r2', public.crear_contrato(pruebas.id('cliente_r1'), pruebas.id('tar_dir2'), current_date, null, 'FIJO', array[pruebas.id('pl_lun_0900'), pruebas.id('pl_mie_0900')])::text);

@@ -760,8 +760,11 @@ export function finalizarContrato(ctx: Ctx, args: { contratoId: Id; cancelarRese
   const nuevo: Db = {
     ...db,
     contratos: db.contratos.map((c) => (c.id === args.contratoId ? { ...c, estado: 'CANCELADO', fechaFin: hoy < c.fechaFin ? hoy : c.fechaFin } : c)),
+    // 0023: las clases fijas futuras se quitan (el horario fijo va con el contrato); las demás se cancelan por el centro.
     reservas: args.cancelarReservasFuturas
-      ? db.reservas.map((r) => (r.contratoId === args.contratoId && r.estado === 'RESERVADA' && clasesFuturas.has(r.claseId) ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : r))
+      ? db.reservas
+          .filter((r) => !(r.contratoId === args.contratoId && r.estado === 'RESERVADA' && r.origen === 'AUTOMATICA' && clasesFuturas.has(r.claseId)))
+          .map((r) => (r.contratoId === args.contratoId && r.estado === 'RESERVADA' && clasesFuturas.has(r.claseId) ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : r))
       : db.reservas,
   };
   return ok(auditar(nuevo, sesion, ahora, 'FINALIZAR_CONTRATO', 'contrato', args.contratoId, ''), undefined);
