@@ -4,7 +4,7 @@ import type { Db } from '@/data/db';
 import type { Clase, Reserva, Sesion } from '@/domain/types';
 import { crearSeed } from '@/data/seed';
 import { apuntarListaEspera, cancelarReserva, eliminarPlantilla, quitarDeListaEspera, salirListaEspera } from '@/data/comandos';
-import { aISODate, sumarDias } from '@/domain/fechas';
+import { aISODate, esPasada, sumarDias } from '@/domain/fechas';
 
 const ahora = new Date();
 const hoy = aISODate(ahora);
@@ -106,9 +106,13 @@ describe('lista de espera', () => {
     const r = cancelarReserva({ db: r1.db, sesion: alumno(db, 'lucia'), ahora }, { reservaId: 'res-lucia-llena' });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    const movida = r.db.reservas.find((x) => x.id === deJuan.id)!;
-    expect(movida.claseId).toBe(clase.id);
-    expect(movida.estado).toBe('RESERVADA');
+    // 0022: la antigua queda cancelada en su clase fija y se crea una nueva en la clase elegida.
+    const antigua = r.db.reservas.find((x) => x.id === deJuan.id)!;
+    expect(antigua.claseId).toBe(deJuan.claseId);
+    expect(antigua.estado).toBe('CANCELADA_RECUPERABLE');
+    const nueva = r.db.reservas.find((x) => x.clienteId === 'juan' && x.claseId === clase.id && x.estado === 'RESERVADA')!;
+    expect(nueva).toMatchObject({ origen: 'CLIENTE', contratoId: deJuan.contratoId });
+    expect(r.db.recuperaciones.some((x) => x.reservaOrigenId === deJuan.id)).toBe(false);
     expect(r.db.reservas.filter((x) => x.clienteId === 'juan' && x.claseId === deJuan.claseId && x.estado === 'RESERVADA')).toHaveLength(0);
     expect(r.db.avisos.some((a) => a.destinatariosIds.includes('juan') && a.cuerpo.includes('queda cambiada por esta'))).toBe(true);
     // Una reserva ajena no vale como cambio.
@@ -141,16 +145,18 @@ describe('eliminar una franja', () => {
     const sinFijos: Db = {
       ...db0,
       contratos: db0.contratos.map((c) => (c.id === 'con-juan' ? { ...c, estado: 'FINALIZADO' as const } : c)),
-      reservas: db0.reservas.filter((r) => !(r.contratoId === 'con-juan' && r.origen === 'AUTOMATICA' && (db0.clases.find((c) => c.id === r.claseId)?.fecha ?? '') > hoy)),
+      reservas: db0.reservas.filter((r) => !(r.contratoId === 'con-juan' && r.origen === 'AUTOMATICA' && (db0.clases.find((c) => c.id === r.claseId)?.fecha ?? '') >= hoy)),
     };
-    const futuras = sinFijos.clases.filter((c) => c.plantillaId === 'pl-mar-1800' && c.estado === 'PROGRAMADA' && c.fecha > hoy);
+    // Las mismas que mira el comando: las que aún no han empezado (incluida la de hoy, si todavía no ha pasado).
+    const futuras = sinFijos.clases.filter((c) => c.plantillaId === 'pl-mar-1800' && c.estado === 'PROGRAMADA' && !esPasada(c.fecha, c.horaInicio, ahora)).sort((a, b) => a.fecha.localeCompare(b.fecha));
     expect(futuras.length).toBeGreaterThan(1);
     const db: Db = { ...sinFijos, reservas: [...sinFijos.reservas, reservaManual(futuras[0], 'maria', 'res-maria-franja')] };
     const r = eliminarPlantilla({ db, sesion: trabajador(db, 'tra-jose'), ahora }, { plantillaId: 'pl-mar-1800' });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.valor.canceladas).toBe(1);
-    expect(r.valor.afectados).toBe(1);
+    // María y quien más tuviera plaza en esa clase (la demo apunta a alguien a mano según el día).
+    expect(r.valor.afectados).toBe(db.reservas.filter((x) => x.claseId === futuras[0].id && x.estado === 'RESERVADA').length);
     expect(r.valor.borradas).toBe(futuras.length - 1);
     expect(r.db.clases.find((c) => c.id === futuras[0].id)?.estado).toBe('CANCELADA');
     expect(r.db.clases.some((c) => c.plantillaId === 'pl-mar-1800' && c.estado === 'PROGRAMADA' && c.fecha > hoy)).toBe(false);

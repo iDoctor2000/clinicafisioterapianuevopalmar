@@ -12,6 +12,11 @@ on:
   schedule:
     - cron: '17 2 * * *'   # cada noche, 03:17 (invierno) o 04:17 (verano) hora de Madrid
   workflow_dispatch:        # botón "Run workflow" para hacer una copia en el momento
+    inputs:
+      diagnostico_dias:
+        description: 'Diagnóstico anónimo de reservas y contratos: días hacia atrás (vacío = no hacerlo)'
+        default: ''
+        required: false
 
 permissions:
   contents: read
@@ -73,6 +78,16 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: bash scripts/copias/resumen-diario.sh
+
+      # Solo a mano, cuando hay que investigar una incidencia: estado de reservas, contratos y
+      # recuperaciones de los últimos días, con los nombres sustituidos por iniciales.
+      - name: Diagnóstico (sin datos personales)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.diagnostico_dias != ''
+        continue-on-error: true
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash scripts/diagnostico/diagnostico.sh "${{ github.event.inputs.diagnostico_dias }}"
 
       # GitHub desactiva las tareas programadas de un repositorio público tras 60 días sin cambios.
       - name: Mantener activa la tarea programada
