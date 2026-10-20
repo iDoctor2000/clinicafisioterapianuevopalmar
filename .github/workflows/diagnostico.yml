@@ -1,0 +1,33 @@
+# Diagnóstico de reservas y contratos, sin datos personales (los nombres salen como iniciales).
+# Se lanza a mano (Run workflow) cuando hay que investigar una incidencia. Solo lee.
+name: Diagnóstico (sin datos personales)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dias:
+        description: 'Días hacia atrás que se revisan'
+        default: '8'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar el cliente de PostgreSQL 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common > /dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Diagnóstico
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash scripts/diagnostico/diagnostico.sh "${{ github.event.inputs.dias || '8' }}"
