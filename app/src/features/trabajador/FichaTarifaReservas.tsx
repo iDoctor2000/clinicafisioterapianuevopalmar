@@ -127,13 +127,14 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
       </div>
       <aside>
         {puede('CLIENTES_EDITAR') && <Boton ancho onClick={() => setNueva(true)}><FilePlus2 className="h-5 w-5" /> Nueva contratación</Boton>}
-        {contrato && puede('CLIENTES_EDITAR') && <p className="text-sm text-ink-muted mt-2 text-center">Al crear una nueva contratación, la actual se finaliza automáticamente.</p>}
+        {contrato && puede('CLIENTES_EDITAR') && <p className="text-sm text-ink-muted mt-2 text-center">Al crear una nueva contratación, la actual se finaliza automáticamente y sus clases fijas pasan a la nueva (si la franja sigue).</p>}
       </aside>
 
       {nueva && <HojaNuevaContratacion cliente={cliente} onCerrar={() => setNueva(false)} />}
       {editar && contrato && tarifa && <HojaEditarContratacion contrato={contrato} tarifa={tarifa} onCerrar={() => setEditar(false)} />}
       <Confirmacion abierta={finalizar != null} onCerrar={() => setFinalizar(null)} titulo="Finalizar contrato" textoConfirmar="Finalizar" peligro onConfirmar={confirmarFin}>
         <p>El contrato de <strong className="text-ink">{tarifa?.nombre}</strong> termina hoy. El cliente dejará de poder reservar con esta tarifa.</p>
+        <p className="rounded-2xl bg-beige-100 text-ink px-4 py-3 text-sm">Si lo que quieres es <strong>cambiarle la tarifa o el horario</strong>, no uses este botón: crea directamente la <strong>nueva contratación</strong>. La actual se finaliza sola y sus clases fijas pasan a la nueva.</p>
         <div className="rounded-2xl border border-ink/10 px-4">
           <Interruptor activo={cancelarFuturas} onCambio={setCancelarFuturas} etiqueta="Cancelar sus reservas futuras" descripcion={`${reservasFuturas} reserva${reservasFuturas === 1 ? '' : 's'} pendiente${reservasFuturas === 1 ? '' : 's'} de este contrato. Se cancelan como "por el centro", sin penalizar.`} />
         </div>

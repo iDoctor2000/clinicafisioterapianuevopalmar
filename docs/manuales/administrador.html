@@ -243,8 +243,12 @@
     <li>Elige la <strong>modalidad</strong>: <em>Horario fijo</em> (siempre las mismas clases, por ejemplo lunes y miércoles a las 10:00; marca las franjas y la app le reserva esas clases automáticamente cada semana) o <em>Turno libre</em> (el cliente reserva cada vez la clase que quiera). Junto a cada franja ves <strong>cuántas de sus plazas ya tienen alumno fijo</strong> (por ejemplo "6/8 fijos"). Si está <span style="color:#b4473f;font-weight:600">Completa</span>, la app avisa pero te deja marcarla igualmente: tú decides si hay sitio (por ejemplo, porque alguien va a dejarla).</li>
     <li>En el apartado <strong>Pago</strong> elige la <strong>oferta</strong> (ninguna, trimestral o familiar), el <strong>importe</strong> y la <strong>forma de pago</strong> (efectivo, tarjeta, Bizum, transferencia o domiciliación). Con la oferta trimestral, los importes del cartel (por ejemplo 65 € / 65 € / 0 €) se rellenan solos.</li>
     <li>Debajo sale el <strong>plan de cobros</strong>: un cobro por mes (o uno solo si es un bono). Puedes cambiar cualquier importe. Si el cliente paga en ese momento, activa <em>El primer pago se cobra ahora</em>.</li>
-    <li>Toca <span class="btn">Crear contratación</span>. Si ya tenía una tarifa, la anterior se finaliza sola y queda en el historial.</li>
+    <li>Toca <span class="btn">Crear contratación</span>. Si ya tenía una tarifa, la anterior se finaliza sola y queda en el historial. Si era de horario fijo, sus clases fijas pasan a la contratación nueva (las de franjas que siguen); las de franjas que ya no tiene se quitan.</li>
   </ol>
+  <div class="caja ojo">
+    <div class="t">Para cambiar de tarifa, no uses "Finalizar contrato"</div>
+    <p>El botón <span class="btn claro">Finalizar contrato</span> es para cuando el alumno <strong>deja de venir</strong>: cierra la tarifa hoy y, si lo marcas, cancela sus clases futuras "por el centro". Si lo que quieres es cambiarle la tarifa o el horario, ve directamente a <span class="btn">Nueva contratación</span>: la actual se cierra sola y el alumno conserva sus clases fijas. (Hasta octubre de 2026, finalizar y luego crear una contratación nueva dejaba al alumno sin sus clases fijas; ya está corregido y, si pasa, la app las vuelve a apuntar sola.)</p>
+  </div>
   <h3>Cambiar una contratación ya hecha</h3>
   <p>Ficha del cliente → pestaña <strong>Tarifa</strong> → <span class="btn claro">Editar contratación</span>. Puedes cambiar la fecha de fin, las franjas fijas, las sesiones que quedan de un bono, la oferta, el importe, la forma de pago y las notas. Al guardar, las reservas automáticas futuras se rehacen solas con las franjas nuevas; las clases pasadas y las reservas hechas a mano no se tocan. Para <strong>cambiar de tarifa</strong> no se edita: se crea una contratación nueva y la anterior se finaliza sola.</p>
   <h3>Apuntar los cobros</h3>
@@ -619,6 +623,7 @@
         <tr><td><code>supabase/migrations/0019_reservas_pasadas.sql</code></td><td>Casilla "Apuntar también a las clases pasadas" al crear o editar una contratación con fecha de inicio anterior a hoy.</td></tr>
         <tr><td><code>supabase/migrations/0020_horario_y_festivos.sql</code></td><td>Al quitar una franja, sus clases con alumnos se cancelan solas (aviso y recuperación). Los festivos no se recuperan, se cancelen como se cancelen.</td></tr>
         <tr><td><code>supabase/migrations/0021_lista_espera_y_franjas.sql</code></td><td>Lista de espera de las clases completas (entran solos al liberarse una plaza), botón "Eliminar franja del horario" y avisos push del sistema. Con esta, además, hay que volver a publicar la función de notificaciones: <code>supabase functions deploy enviar-push</code>.</td></tr>
+        <tr><td><code>supabase/migrations/0022_reservas_fijas_al_recontratar.sql</code></td><td>Las clases fijas no se pierden al finalizar y crear otra contratación (se vuelven a apuntar solas) y pasan a la contratación nueva. Al ejecutarla, repara ya a los alumnos afectados.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
     <li><strong>Dominio y correo:</strong> <code>www.fisioterapianuevopalmar.com</code> está contratado en Strato, a nombre de la clínica, y allí sigue el correo del centro (por eso se mantiene ese contrato). La web se sirve desde GitHub. No cambies los registros DNS A, AAAA ni el CNAME de www, o la web dejará de verse; tampoco los registros MX, o dejará de llegar el correo.</li>
@@ -670,6 +675,9 @@
 
     <dt>Un cliente no puede reservar.</dt>
     <dd>Mira el mensaje que le sale: sin tarifa activa, tarifa caducada, actividad no incluida, bono agotado, sin plazas o fuera de la ventana de reserva. Cada caso se arregla en su ficha o en Ajustes. Si es por plazas, puede apuntarse a la lista de espera.</dd>
+
+    <dt>Un alumno de horario fijo se ha quedado sin sus clases después de cambiarle la contratación.</dt>
+    <dd>Pulsa <span class="btn claro">Rehacer reservas fijas</span> en su ficha (pestaña Tarifa) o espera a la noche: la app vuelve a apuntarle a las clases de sus franjas que le falten, también si estaban "canceladas por el centro" al finalizar el contrato anterior. Solo deja fuera las clases que ya están completas (apúntale a la lista de espera o a mano cuando se libere plaza) y las que él mismo canceló.</dd>
 
     <dt>Un alumno ha aparecido en una clase sin que nadie lo apuntara.</dt>
     <dd>Estaba en la lista de espera de esa clase y alguien dejó la plaza: ha entrado solo (con su tarifa, o cambiando otra clase suya de esa semana) y ha recibido un aviso. Queda en el registro de cambios como "Lista de espera". La lista solo actúa hasta 2 horas antes de la clase.</dd>

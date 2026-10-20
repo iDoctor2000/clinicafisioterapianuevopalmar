@@ -288,7 +288,17 @@ function promoverListaEspera(db: Db, sesion: Sesion, ahora: Date, claseId: Id): 
       motivo = motivoNoCambio(contextoCambio(nuevo, ahora, reserva, clase));
       if (!motivo && reserva) {
         const origen = nuevo.clases.find((c) => c.id === reserva.claseId)!;
-        nuevo = { ...nuevo, reservas: nuevo.reservas.map((r) => (r.id === reserva.id ? { ...r, claseId: clase.id } : r)) };
+        // 0022: la antigua queda cancelada en su clase (así el mantenimiento no la vuelve a apuntar allí) y se crea una nueva aquí.
+        const nueva: Reserva = {
+          id: nuevoId('res'), claseId: clase.id, clienteId: e.clienteId, contratoId: reserva.contratoId,
+          origen: reserva.origen === 'AUTOMATICA' || reserva.origen === 'MANUAL' ? 'CLIENTE' : reserva.origen, estado: 'RESERVADA', asistencia: 'PENDIENTE',
+          recuperacionUsadaId: reserva.recuperacionUsadaId, creadaEl: ahora.toISOString(), creadaPor: 'sistema', canceladaEl: null, canceladaPor: null,
+        };
+        nuevo = {
+          ...nuevo,
+          reservas: nuevo.reservas.map((r) => (r.id === reserva.id ? { ...r, estado: 'CANCELADA_RECUPERABLE' as const, canceladaEl: ahora.toISOString(), canceladaPor: 'sistema', recuperacionUsadaId: null } : r)).concat(nueva),
+          recuperaciones: reserva.recuperacionUsadaId ? nuevo.recuperaciones.map((x) => (x.id === reserva.recuperacionUsadaId ? { ...x, usadaEnReservaId: nueva.id } : x)) : nuevo.recuperaciones,
+        };
         via = 'CAMBIO';
         cuerpo = `Se ha liberado una plaza y te hemos apuntado desde la lista de espera. Tu clase del ${origen.fecha.slice(8, 10)}/${origen.fecha.slice(5, 7)} a las ${origen.horaInicio} queda cambiada por esta.`;
         // La plaza que deja en su clase antigua puede ser para otro.
@@ -572,7 +582,7 @@ export function generarClasesPendientes(db: Db, ahora: Date): Db {
   const cierres = new Set(db.config.diasCierre.map((d) => d.fecha));
   clases = clases.map((c) => (c.estado === 'PROGRAMADA' && cierres.has(c.fecha) && c.fecha >= desde ? { ...c, estado: 'CANCELADA', motivoCancelacion: 'Día de cierre', canceladaEl: ahora.toISOString(), canceladaPor: 'sistema' } : c));
   let reservas = db.reservas;
-  for (const c of db.contratos) reservas = reservas.concat(generarReservasAutomaticas(c, clases, reservas, () => nuevoId('res'), ahora.toISOString()));
+  for (const c of db.contratos) reservas = generarReservasAutomaticas(c, clases, reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
   // Reservas de clases canceladas por cierre pasan a CANCELADA_CENTRO sin penalizar (sin recuperación: el periodo ya descuenta los cierres).
   const canceladasIds = new Set(clases.filter((c) => c.estado === 'CANCELADA').map((c) => c.id));
   reservas = reservas.map((r) => (r.estado === 'RESERVADA' && canceladasIds.has(r.claseId) ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: 'sistema' } : r));
@@ -610,11 +620,19 @@ export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 
     sesionesRestantes: tarifa.tipo === 'BONO' ? (args.contrato.sesionesRestantes ?? tarifa.bono?.sesiones ?? 0) : null,
   };
   // Un cliente solo tiene un contrato activo: los anteriores se finalizan.
-  const contratos = db.contratos.map((c) => (c.clienteId === contrato.clienteId && c.estado === 'ACTIVO' ? { ...c, estado: 'FINALIZADO' as const } : c)).concat(contrato);
+  const previos = new Set(db.contratos.filter((c) => c.clienteId === contrato.clienteId && c.estado === 'ACTIVO').map((c) => c.id));
+  const contratos = db.contratos.map((c) => (previos.has(c.id) ? { ...c, estado: 'FINALIZADO' as const } : c)).concat(contrato);
   let nuevo: Db = { ...db, contratos };
   // Como en el servidor: desde hoy, salvo que se pidan también las clases pasadas desde el inicio.
   const hoy = aISODate(ahora);
-  const reservas = nuevo.reservas.concat(generarReservasAutomaticas(contrato, nuevo.clases.filter((c) => args.incluirPasadas || c.fecha >= hoy), nuevo.reservas, () => nuevoId('res'), ahora.toISOString()));
+  // 0022: las clases fijas futuras del contrato anterior pasan al nuevo si la franja sigue; si no, se quitan.
+  const desde = contrato.fechaInicio > hoy ? contrato.fechaInicio : hoy;
+  const franjasNuevas = new Set(contrato.modalidad === 'FIJO' ? contrato.franjasFijas.map((f) => f.plantillaId) : []);
+  const claseDe = indexar(db.clases);
+  const fijaPrevia = (r: Reserva) => previos.has(r.contratoId ?? '') && r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA' && (claseDe.get(r.claseId)?.fecha ?? '') >= desde;
+  const sigue = (r: Reserva) => { const c = claseDe.get(r.claseId); return !!c && !!c.plantillaId && franjasNuevas.has(c.plantillaId) && c.fecha <= contrato.fechaFin; };
+  nuevo = { ...nuevo, reservas: nuevo.reservas.filter((r) => !fijaPrevia(r) || sigue(r)).map((r) => (fijaPrevia(r) && sigue(r) ? { ...r, contratoId: contrato.id } : r)) };
+  const reservas = generarReservasAutomaticas(contrato, nuevo.clases.filter((c) => args.incluirPasadas || c.fecha >= hoy), nuevo.reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
   const pagos = (args.cobros ?? []).map((q): Pago => ({
     ...q, id: nuevoId('pag'), contratoId: contrato.id, clienteId: contrato.clienteId, creadoEl: ahora.toISOString(),
     pagadoEl: q.estado === 'PAGADO' ? q.pagadoEl ?? ahora.toISOString() : null,
@@ -667,7 +685,7 @@ export function editarContrato(ctx: Ctx, args: { contratoId: Id; cambios: Cambio
     return !!c && c.fecha >= hoy && (!c.plantillaId || !franjas.has(c.plantillaId) || c.fecha > contrato.fechaFin);
   };
   let reservas = db.reservas.filter((r) => !sobra(r));
-  reservas = reservas.concat(generarReservasAutomaticas(contrato, db.clases.filter((c) => args.cambios.incluirPasadas || c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()));
+  reservas = generarReservasAutomaticas(contrato, db.clases.filter((c) => args.cambios.incluirPasadas || c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
   const nuevo: Db = { ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas };
   return ok(auditar(nuevo, sesion, ahora, 'EDITAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: fin ${contrato.fechaFin}`), contrato);
 }
@@ -709,9 +727,9 @@ export function rehacerReservasFijas(ctx: Ctx, args: { contratoId: Id }): Result
   if (!contrato) return fallo('El contrato no existe.');
   if (contrato.modalidad !== 'FIJO' || contrato.estado !== 'ACTIVO') return fallo('Solo para contratos activos de horario fijo.');
   const hoy = aISODate(ahora);
-  const nuevas = generarReservasAutomaticas(contrato, db.clases.filter((c) => c.fecha >= hoy), db.reservas, () => nuevoId('res'), ahora.toISOString());
-  const nuevo: Db = { ...db, reservas: db.reservas.concat(nuevas) };
-  return ok(auditar(nuevo, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${nuevas.length} reservas generadas`), { creadas: nuevas.length });
+  const g = generarReservasAutomaticas(contrato, db.clases.filter((c) => c.fecha >= hoy), db.reservas, () => nuevoId('res'), ahora.toISOString());
+  const nuevo: Db = { ...db, reservas: g.reservas };
+  return ok(auditar(nuevo, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${g.creadas} reservas generadas`), { creadas: g.creadas });
 }
 
 /** Lo mismo para todos los contratos activos de horario fijo (administrador). */
@@ -724,11 +742,11 @@ export function rehacerTodasReservasFijas(ctx: Ctx, _args: Record<string, never>
   let creadas = 0;
   for (const c of db.contratos) {
     if (c.modalidad !== 'FIJO' || c.estado !== 'ACTIVO') continue;
-    const nuevas = generarReservasAutomaticas(c, db.clases.filter((x) => x.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString());
-    if (nuevas.length === 0) continue;
-    reservas = reservas.concat(nuevas);
+    const g = generarReservasAutomaticas(c, db.clases.filter((x) => x.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString());
+    if (g.creadas === 0) continue;
+    reservas = g.reservas;
     contratos += 1;
-    creadas += nuevas.length;
+    creadas += g.creadas;
   }
   return ok(auditar({ ...db, reservas }, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'sistema', '-', `${creadas} reservas generadas en ${contratos} contratos`), { contratos, creadas });
 }

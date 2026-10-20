@@ -1376,9 +1376,16 @@ do $$
 declare v_jue uuid := (select clase_id from public.reservas where id = pruebas.id('res_b_jue2'));
 begin
   update public.reservas set estado = 'CANCELADA_CENTRO' where clase_id = pruebas.id('cl_x2') and cliente_id = pruebas.id('cliente_c');
-  assert (select clase_id from public.reservas where id = pruebas.id('res_b_jue2')) = pruebas.id('cl_x2'), 'la reserva del jueves se mueve a la clase nueva';
-  assert (select estado from public.reservas where id = pruebas.id('res_b_jue2')) = 'RESERVADA', 'y sigue reservada';
+  -- 0022: la reserva antigua se queda en su clase (cancelada) y se crea una nueva en la clase elegida.
+  assert (select estado from public.reservas where id = pruebas.id('res_b_jue2')) = 'CANCELADA_RECUPERABLE', 'la reserva del jueves queda cancelada (cambio)';
+  assert (select clase_id from public.reservas where id = pruebas.id('res_b_jue2')) = v_jue, 'y sigue constando en su clase fija';
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_x2') and cliente_id = pruebas.id('cliente_b') and estado = 'RESERVADA' and origen = 'CLIENTE'
+                    and contrato_id = pruebas.id('con_b')), 'Berta tiene plaza en la clase nueva, con su contrato';
   assert not exists (select 1 from public.reservas where clase_id = v_jue and cliente_id = pruebas.id('cliente_b') and estado = 'RESERVADA'), 'el jueves queda libre';
+  assert not exists (select 1 from public.recuperaciones where reserva_origen_id = pruebas.id('res_b_jue2')), 'un cambio no da recuperación';
+  -- El mantenimiento no vuelve a apuntarla al jueves que cambió.
+  perform public._generar_reservas_automaticas(pruebas.id('con_b'));
+  assert not exists (select 1 from public.reservas where clase_id = v_jue and cliente_id = pruebas.id('cliente_b') and estado = 'RESERVADA'), 'el mantenimiento no la devuelve a la clase cambiada';
   assert exists (select 1 from public.avisos a join public.aviso_destinatarios d on d.aviso_id = a.id
                   where d.cliente_id = pruebas.id('cliente_b') and a.cuerpo like '%queda cambiada por esta%'), 'aviso del cambio';
   assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x2')) = 0, 'lista vacía';
@@ -1486,6 +1493,73 @@ do $$ begin
     'la franja eliminada no vuelve a generar clases';
   raise notice 'OK eliminar franja';
 end $$;
+
+\echo '== 34. Las reservas fijas no se pierden al cambiar la contratación (0022)'
+select pruebas.sistema();
+select pruebas.guardar('u_r1', '20000000-0000-4000-8000-0000000000f1');
+select pruebas.guardar('cliente_r1', 'e0000000-0000-4000-8000-0000000000f1');
+insert into auth.users (id, email) values (pruebas.id('u_r1'), 'rita@test.local');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_id) values
+  (pruebas.id('cliente_r1'), 'Rita', 'Recontrata', '73333333R', 'rita@test.local', '600 000 501', pruebas.id('u_r1'));
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+-- Contrato fijo lunes 09:00 + miércoles 09:00.
+select pruebas.guardar('con_r1', public.crear_contrato(pruebas.id('cliente_r1'), pruebas.id('tar_dir2'), current_date, null, 'FIJO', array[pruebas.id('pl_lun_0900'), pruebas.id('pl_mie_0900')])::text);
+do $$
+declare v_antes integer;
+begin
+  select count(*) into v_antes from public.reservas where contrato_id = pruebas.id('con_r1') and estado = 'RESERVADA';
+  assert v_antes >= 4, 'tiene sus clases fijas: ' || v_antes;
+  perform pruebas.guardar('r1_antes', v_antes::text);
+end $$;
+-- La alumna cancela una de ellas (decisión suya).
+select pruebas.como('r1');
+select pruebas.guardar('res_r1_cancelada', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
+   where r.contrato_id = pruebas.id('con_r1') and r.estado = 'RESERVADA' and c.fecha > current_date + 2 order by c.fecha limit 1));
+select public.cancelar_reserva(pruebas.id('res_r1_cancelada'));
+-- El centro "finaliza" el contrato cancelando sus reservas futuras (lo que pasó en octubre) y le da uno nuevo con las mismas franjas.
+select pruebas.como('admin');
+select public.finalizar_contrato(pruebas.id('con_r1'), true);
+do $$ begin
+  assert (select count(*) from public.reservas where contrato_id = pruebas.id('con_r1') and estado = 'CANCELADA_CENTRO') >= 3, 'al finalizar quedan canceladas por el centro';
+  assert not exists (select 1 from public.reservas where contrato_id = pruebas.id('con_r1') and estado = 'RESERVADA'), 'sin reservas activas';
+end $$;
+select pruebas.guardar('con_r2', public.crear_contrato(pruebas.id('cliente_r1'), pruebas.id('tar_dir2'), current_date, null, 'FIJO', array[pruebas.id('pl_lun_0900'), pruebas.id('pl_mie_0900')])::text);
+do $$
+declare v_despues integer;
+begin
+  select count(*) into v_despues from public.reservas where contrato_id = pruebas.id('con_r2') and estado = 'RESERVADA';
+  assert v_despues = current_setting('pruebas.r1_antes')::integer - 1, format('recupera sus clases fijas menos la que canceló ella: antes %s, ahora %s', current_setting('pruebas.r1_antes'), v_despues);
+  assert (select estado from public.reservas where id = pruebas.id('res_r1_cancelada')) = 'CANCELADA_RECUPERABLE', 'la que canceló ella sigue cancelada';
+  -- Sin duplicados: cada clase tiene una sola fila suya, revivida (no una cancelada y otra nueva).
+  assert not exists (select clase_id from public.reservas where cliente_id = pruebas.id('cliente_r1') group by clase_id having count(*) > 1), 'sin filas duplicadas por clase';
+  assert not exists (select 1 from public.reservas where cliente_id = pruebas.id('cliente_r1') and estado = 'CANCELADA_CENTRO'
+                        and clase_id in (select id from public.clases where estado = 'PROGRAMADA')), 'no queda ninguna "cancelada por el centro" en clases programadas';
+  raise notice 'OK recontratar tras finalizar: % reservas fijas recuperadas', v_despues;
+end $$;
+-- Nueva contratación directa (sin finalizar antes): las reservas pasan al contrato nuevo, sin duplicar.
+select pruebas.guardar('con_r3', public.crear_contrato(pruebas.id('cliente_r1'), pruebas.id('tar_dir2'), current_date, null, 'FIJO', array[pruebas.id('pl_lun_0900'), pruebas.id('pl_mie_0900')])::text);
+do $$ begin
+  assert (select estado from public.contratos where id = pruebas.id('con_r2')) = 'FINALIZADO', 'el anterior se finaliza solo';
+  assert not exists (select 1 from public.reservas where contrato_id = pruebas.id('con_r2') and estado = 'RESERVADA'
+                        and clase_id in (select id from public.clases where fecha >= current_date)), 'las reservas fijas futuras ya no cuelgan del contrato viejo';
+  assert (select count(*) from public.reservas where contrato_id = pruebas.id('con_r3') and estado = 'RESERVADA') = current_setting('pruebas.r1_antes')::integer - 1, 'y cuelgan del nuevo';
+  assert not exists (select clase_id from public.reservas where cliente_id = pruebas.id('cliente_r1') group by clase_id having count(*) > 1), 'sin duplicados';
+  assert exists (select 1 from public.auditoria where accion = 'CREAR_CONTRATO' and entidad_id = pruebas.id('con_r3')::text and detalle like '%conservadas del contrato anterior%'), 'auditoría';
+  raise notice 'OK nueva contratación directa: conserva las clases fijas';
+end $$;
+-- Cambio de franjas (solo lunes): las reservas fijas del miércoles se quitan; las del lunes siguen.
+select pruebas.guardar('con_r4', public.crear_contrato(pruebas.id('cliente_r1'), pruebas.id('tar_dir2'), current_date, null, 'FIJO', array[pruebas.id('pl_lun_0900')])::text);
+do $$ begin
+  assert not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id
+                      where r.cliente_id = pruebas.id('cliente_r1') and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_mie_0900') and c.fecha >= current_date),
+    'las clases fijas de la franja que ya no tiene se quitan';
+  assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
+           where r.contrato_id = pruebas.id('con_r4') and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_lun_0900')) > 0, 'las del lunes pasan al contrato nuevo';
+  raise notice 'OK nueva contratación con otras franjas';
+end $$;
+commit;
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

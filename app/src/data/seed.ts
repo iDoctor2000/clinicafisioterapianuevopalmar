@@ -160,7 +160,7 @@ export function crearSeed(ahora: Date = new Date()): Db {
 
   // Reservas automáticas de los contratos con horario fijo
   let reservas: Reserva[] = [];
-  for (const c of contratos) reservas = reservas.concat(generarReservasAutomaticas(c, clases, reservas, () => id('res'), ahoraISO));
+  for (const c of contratos) reservas = generarReservasAutomaticas(c, clases, reservas, () => id('res'), ahoraISO).reservas;
 
   // Reservas de turno libre (María: lunes 18:00 y miércoles 18:00; Antonio: martes 17:00 reformer + jueves 11:00)
   const porPlantillaFecha = new Map(clases.map((c) => [`${c.plantillaId}|${c.fecha}`, c]));

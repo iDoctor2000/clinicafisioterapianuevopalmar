@@ -36,12 +36,29 @@ describe('generarReservasAutomaticas', () => {
     const k3 = clase({ id: 'k3', fecha: '2026-10-20' });
     const kOtra = clase({ id: 'k4', fecha: '2026-10-08', plantillaId: 'p-jue-18' });
     const existentes = [reserva({ id: 'x', claseId: 'k1' }), reserva({ id: 'y', claseId: 'k2', clienteId: 'otro' })];
-    const nuevas = generarReservasAutomaticas(c, [k1, k2, k3, kOtra], existentes, id, '2026-09-26T00:00:00.000Z');
+    const g = generarReservasAutomaticas(c, [k1, k2, k3, kOtra], existentes, id, '2026-09-26T00:00:00.000Z');
+    expect(g.creadas).toBe(1);
+    const nuevas = g.reservas.filter((r) => !existentes.includes(r));
     expect(nuevas.map((r) => r.claseId)).toEqual(['k3']);
     expect(nuevas[0].origen).toBe('AUTOMATICA');
   });
   it('no genera nada para turno libre', () => {
-    expect(generarReservasAutomaticas(contrato(), [clase()], [], id, '')).toEqual([]);
+    expect(generarReservasAutomaticas(contrato(), [clase()], [], id, '')).toEqual({ reservas: [], creadas: 0 });
+  });
+  it('una reserva cancelada por el centro en una clase programada se vuelve a activar; una cancelada por el alumno, no (0022)', () => {
+    const c = contrato({ id: 'c-nuevo', modalidad: 'FIJO', franjasFijas: [{ plantillaId: 'p-mar-18' }] });
+    const k1 = clase({ id: 'k1', fecha: '2026-10-06' });
+    const k2 = clase({ id: 'k2', fecha: '2026-10-13' });
+    const existentes = [
+      reserva({ id: 'centro', claseId: 'k1', contratoId: 'c-viejo', estado: 'CANCELADA_CENTRO', canceladaEl: '2026-10-01T10:00:00.000Z' }),
+      reserva({ id: 'alumno', claseId: 'k2', contratoId: 'c-viejo', estado: 'CANCELADA_RECUPERABLE', canceladaEl: '2026-10-01T10:00:00.000Z' }),
+    ];
+    const g = generarReservasAutomaticas(c, [k1, k2], existentes, id, '2026-10-02T00:00:00.000Z');
+    expect(g.creadas).toBe(1);
+    expect(g.reservas).toHaveLength(2);
+    const revivida = g.reservas.find((r) => r.id === 'centro')!;
+    expect(revivida).toMatchObject({ estado: 'RESERVADA', contratoId: 'c-nuevo', origen: 'AUTOMATICA', canceladaEl: null });
+    expect(g.reservas.find((r) => r.id === 'alumno')?.estado).toBe('CANCELADA_RECUPERABLE');
   });
 });
 
