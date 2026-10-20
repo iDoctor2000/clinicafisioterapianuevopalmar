@@ -33,6 +33,18 @@ describe('clases canceladas en el calendario del personal', () => {
     expect(mes.some((v) => v.clase.id === vacia.id)).toBe(false);
     expect(mes.some((v) => v.clase.id === conAlumno.id)).toBe(true);
   });
+  it('una cancelada de una franja eliminada se oculta aunque tuviera alumnos; la de una franja que sigue, no', () => {
+    const franja = db0.plantillas[0];
+    const eliminada = { ...franja, id: 'pl-eliminada', activa: false, eliminadaEl: new Date().toISOString() };
+    const deEliminada: Clase = { ...cancelada('cla-de-franja-eliminada'), plantillaId: eliminada.id, extraordinaria: false };
+    const deViva: Clase = { ...cancelada('cla-de-franja-viva'), plantillaId: franja.id, extraordinaria: false };
+    const conReservas: Db = {
+      ...db, plantillas: [...db.plantillas, eliminada], clases: [...db.clases, deEliminada, deViva],
+      reservas: [...db.reservas, { ...reserva, id: 'res-e', claseId: deEliminada.id }, { ...reserva, id: 'res-v', claseId: deViva.id }],
+    };
+    expect(claseVisibleEnCalendario(conReservas, deEliminada)).toBe(false);
+    expect(claseVisibleEnCalendario(conReservas, deViva)).toBe(true);
+  });
   it('las clases programadas se muestran siempre', () => {
     const programadas = db.clases.filter((c) => c.estado === 'PROGRAMADA');
     expect(programadas.every((c) => claseVisibleEnCalendario(db, c))).toBe(true);

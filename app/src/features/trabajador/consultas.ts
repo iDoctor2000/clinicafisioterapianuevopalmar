@@ -86,12 +86,16 @@ export function diasDeSemana(fecha: ISODate): ISODate[] {
 }
 
 /**
- * Una clase cancelada en la que nunca hubo nadie no aporta nada al calendario (p. ej. las que se
- * cancelaron a mano antes de eliminar su franja): se oculta. Las canceladas con alumnos se
- * quedan tachadas, para ver a quién afectó.
+ * Clases canceladas que no aportan nada al calendario del personal y se ocultan:
+ *  - las que nunca tuvieron a nadie (p. ej. canceladas a mano antes de eliminar su franja);
+ *  - las de una franja que ya se eliminó del horario, tuvieran alumnos o no (a quién afectó se ve
+ *    en la ficha de cada alumno, y ya recibieron aviso y recuperación).
+ * Una clase cancelada con alumnos de una franja que sigue (p. ej. "monitor enfermo") se queda tachada.
  */
 export function claseVisibleEnCalendario(db: Db, clase: Clase): boolean {
-  return clase.estado !== 'CANCELADA' || db.reservas.some((r) => r.claseId === clase.id);
+  if (clase.estado !== 'CANCELADA') return true;
+  if (clase.plantillaId && db.plantillas.find((p) => p.id === clase.plantillaId)?.eliminadaEl) return false;
+  return db.reservas.some((r) => r.claseId === clase.id);
 }
 
 export function clasesPorDiaDeSemana(db: Db, fecha: ISODate): { fecha: ISODate; clases: ClaseVista[] }[] {
