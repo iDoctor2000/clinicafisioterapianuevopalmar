@@ -40,7 +40,7 @@ SQL
 
 # 2) Informe (en crudo, a un archivo temporal; se imprime solo tras anonimizar).
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -P pager=off -v dias="$DIAS" > "$TMP/informe.txt" <<'SQL'
-begin transaction read only;
+begin;  -- solo lecturas; al final se deshace todo (rollback), por si acaso
 \set desde 'now() - make_interval(days => :dias)'
 \echo '== Hora del servidor:' 
 select now() at time zone 'Europe/Madrid' as ahora_madrid, public._hoy() as hoy;
@@ -118,7 +118,7 @@ select x.quien, left(k.id::text, 8) as contrato, c.fecha, c.hora_inicio as hora,
 select left(e.clase_id::text, 8) as clase, c.fecha, c.hora_inicio as hora, upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '.' as quien, e.reserva_cambio_id is not null as cambio, e.creado_el at time zone 'Europe/Madrid' as creada
   from public.lista_espera e join public.clases c on c.id = e.clase_id join public.clientes cl on cl.id = e.cliente_id order by c.fecha, c.hora_inicio, e.creado_el;
 select count(*) as push_pendientes from public.avisos_push_pendientes;
-commit;
+rollback;
 SQL
 
 # 3) Anonimizar: nombres completos y de pila → iniciales; correos → [correo]. Primero los más largos.
@@ -133,7 +133,7 @@ for linea in open(sys.argv[1], encoding='utf-8'):
 pares.sort(key=lambda p: -len(p[0]))
 texto = open(sys.argv[2], encoding='utf-8').read()
 for nombre, ini in pares:
-    texto = re.sub(re.escape(nombre), ini, texto, flags=re.IGNORECASE)
+    texto = re.sub(r'(?<!\w)' + re.escape(nombre) + r'(?!\w)', ini, texto, flags=re.IGNORECASE)
 texto = re.sub(r'[\w.+-]+@[\w-]+\.[\w.]+', '[correo]', texto)
 print(texto)
 PY
