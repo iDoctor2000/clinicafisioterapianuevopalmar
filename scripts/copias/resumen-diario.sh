@@ -145,7 +145,9 @@ select line from (
   union all select 17, '| Contrataciones activas | ' || (select count(*) from public.contratos where estado = 'ACTIVO') || ' |'
   union all select 18, '| Clases futuras programadas | ' || (select count(*) from ocupacion) || ' |'
   union all select 19, '| Clases con más alumnos que plazas | ' || (select count(*) from ocupacion where n > plazas) || case when (select count(*) from ocupacion where n > plazas) > 0 then ' ⚠️' else '' end || ' |'
-  union all select 20, '| Contratos de horario fijo sin ninguna clase futura apuntada | ' || (select count(*) from fijos_sin_reservas) || case when (select count(*) from fijos_sin_reservas) > 0 then ' ⚠️' else '' end || ' |'
+  -- Informativo (ℹ️): si el alumno canceló él sus clases o la franja está completa es normal; los casos que
+  -- hay que arreglar los señala la vigilancia con ⚠️ (clase fija sin apuntar con plaza, franja sin clases).
+  union all select 20, '| Contratos de horario fijo sin ninguna clase futura apuntada | ' || (select count(*) from fijos_sin_reservas) || case when (select count(*) from fijos_sin_reservas) > 0 then ' ℹ️' else '' end || ' |'
   union all select 21, '| Cobros pendientes ya vencidos | ' || (select count(*) from public.pagos where estado = 'PENDIENTE' and vence_el < (select d from hoy)) || ' |'
   union all select 22, '| Cambios de la base de datos (migraciones) | ' || (
       with m(n, ok) as (values
