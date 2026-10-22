@@ -146,22 +146,9 @@ select upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' 
  where exists (select 1 from auth.refresh_tokens t where t.user_id = u.id::text and t.updated_at > :desde)
  order by tokens_revocados desc, quien;
 
-\echo '== Cuentas: acciones de autenticación por alumno (últimos días; token_refreshed solo como recuento)'
-select upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' || left(cl.id::text, 8) as quien,
-       e.payload->>'action' as accion, count(*) as veces,
-       min(e.created_at) at time zone 'Europe/Madrid' as primera, max(e.created_at) at time zone 'Europe/Madrid' as ultima
-  from auth.audit_log_entries e join public.clientes cl on cl.user_id::text = e.payload->>'actor_id'
- where e.created_at > :desde
- group by 1, 2
- order by 1, 5;
-
-\echo '== Cuentas: acciones raras (revocaciones, salidas, cambios de contraseña) con su momento exacto'
-select e.created_at at time zone 'Europe/Madrid' as cuando,
-       upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' || left(cl.id::text, 8) as quien,
-       e.payload->>'action' as accion, e.payload->>'log_type' as tipo
-  from auth.audit_log_entries e join public.clientes cl on cl.user_id::text = e.payload->>'actor_id'
- where e.created_at > :desde and e.payload->>'action' not in ('token_refreshed', 'login')
- order by e.created_at;
+\echo '== Cuentas: registro de autenticación de Supabase (recuento por acción; vacío si el proyecto no lo conserva)'
+select e.payload->>'action' as accion, count(*) as veces, max(e.created_at) at time zone 'Europe/Madrid' as ultima
+  from auth.audit_log_entries e where e.created_at > :desde group by 1 order by 2 desc;
 \endif
 rollback;
 SQL

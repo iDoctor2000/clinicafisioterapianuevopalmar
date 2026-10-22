@@ -112,6 +112,23 @@ export async function cambiarContrasena(password: string): Promise<{ ok: true } 
   }
 }
 
+export const SESION_CADUCADA = 'Tu sesión ha caducado. Vuelve a entrar.';
+
+/**
+ * true si hay una sesión válida en este momento. `getSession()` refresca el token si ha caducado;
+ * si Supabase rechaza el refresco (token revocado o ya usado), la librería borra la sesión y emite
+ * SIGNED_OUT. Sin esta comprobación, la siguiente petición saldría con la clave anónima y el
+ * servidor contestaría "permission denied for table ...".
+ */
+export async function haySesionViva(): Promise<boolean> {
+  try {
+    const { data } = await servidor().auth.getSession();
+    return data.session !== null;
+  } catch {
+    return false;
+  }
+}
+
 /** Usuario con sesión guardada en el navegador (null si no hay). */
 export async function usuarioActual(): Promise<UsuarioAuth | null> {
   const { data, error } = await servidor().auth.getSession();

@@ -31,6 +31,8 @@ interface Estado {
   recuperandoContrasena: boolean;
   /** Último resultado de un comando (para avisos en pantalla). */
   ultimoError: string | null;
+  /** Solo SUPABASE: por qué se ha vuelto a la pantalla de acceso sin que el usuario cerrase sesión (caducó). */
+  avisoAcceso: string | null;
   /** Arranque (una vez, al montar la app): en SUPABASE restaura la sesión y carga los datos. */
   arrancar: () => Promise<void>;
   /** Solo DEMO: entra como el usuario indicado sin contraseña. */
@@ -72,6 +74,8 @@ function sesionDeUsuario(db: Db, userId: string): Sesion | null {
 
 let detenerTiempoReal: (() => void) | null = null;
 let detenerAuth: (() => void) | null = null;
+/** true mientras el usuario está pulsando "Cerrar sesión" (para distinguirlo de una sesión caducada). */
+let cerrandoSesion = false;
 
 /** Envía las notificaciones push de un aviso sin bloquear al usuario (la Edge Function `enviar-push`). */
 function enviarPushDeAviso(avisoId: string): void {
@@ -115,7 +119,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
     const db = await cargarDb();
     const sesion = auth.sesionDesdeUsuario(usuario, db);
     registrar('arranque', `Datos cargados del servidor (${Math.round(performance.now() - t0)} ms)`, { usuario: usuario.email, sesion: sesion ? { tipo: sesion.tipo, nombre: sesion.nombre } : 'sin ficha vinculada', clases: db.clases.length, reservas: db.reservas.length });
-    set({ db, usuarioAuth: usuario, sesion, errorCarga: null });
+    set({ db, usuarioAuth: usuario, sesion, errorCarga: null, avisoAcceso: null });
     // Por si la noche anterior (o un cambio hecho desde otro sitio) dejó avisos de la lista de espera sin mandar.
     if (sesion) void enviarPushPendientes();
   };
@@ -137,6 +141,12 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
     if (!sesion) return { ok: false, error: 'Sesión no iniciada.' };
 
     if (MODO === 'SUPABASE') {
+      // Antes de tocar el servidor: si la sesión ha caducado y no se puede refrescar, no se manda nada
+      // (saldría con la clave anónima → "permission denied"); la librería emite SALIDA y se vuelve a la entrada.
+      if (!(await auth.haySesionViva())) {
+        set({ ultimoError: auth.SESION_CADUCADA });
+        return { ok: false, error: auth.SESION_CADUCADA };
+      }
       const rr = await ejecutarRemoto(nombre, args as never, sesion);
       if (!rr.ok) {
         set({ ultimoError: rr.error });
@@ -175,6 +185,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
     errorCarga: null,
     recuperandoContrasena: false,
     ultimoError: null,
+    avisoAcceso: null,
 
     arrancar: async () => {
       if (MODO === 'DEMO') {
@@ -188,8 +199,12 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
             registrar('auth', `Evento de autenticación: ${evento}`, { usuario: usuario?.email });
             if (evento === 'RECUPERACION_CONTRASENA') set({ recuperandoContrasena: true });
             if (evento === 'SALIDA') {
+              // Si no ha sido el usuario (botón "Cerrar sesión"), es que Supabase ha dado la sesión por
+              // perdida (token caducado y refresco rechazado): se avisa en la pantalla de entrada.
+              const expulsado = !cerrandoSesion && get().usuarioAuth !== null;
+              if (expulsado) registrar('auth', 'Sesión caducada: Supabase ha rechazado el refresco del token');
               detenerEscucha();
-              set({ usuarioAuth: null, sesion: null, db: dbVacio() });
+              set({ usuarioAuth: null, sesion: null, db: dbVacio(), avisoAcceso: expulsado ? auth.SESION_CADUCADA : null });
             }
             // Sesión iniciada en otra pestaña (o desde el enlace de recuperación): cargar si aún no tenemos a ese usuario.
             if (evento === 'ENTRADA' && usuario && get().usuarioAuth?.id !== usuario.id) {
@@ -255,8 +270,13 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
     cerrarSesion: async () => {
       if (MODO === 'SUPABASE') {
         detenerEscucha();
-        await auth.cerrarSesion();
-        set({ sesion: null, usuarioAuth: null, db: dbVacio(), recuperandoContrasena: false });
+        cerrandoSesion = true;
+        try {
+          await auth.cerrarSesion();
+        } finally {
+          cerrandoSesion = false;
+        }
+        set({ sesion: null, usuarioAuth: null, db: dbVacio(), recuperandoContrasena: false, avisoAcceso: null });
       } else {
         set({ sesion: null });
       }
@@ -266,6 +286,7 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
       if (MODO !== 'SUPABASE') return;
       const usuario = get().usuarioAuth;
       if (!usuario) return;
+      if (!(await auth.haySesionViva())) return; // caducada: el evento SALIDA ya vacía el estado
       try {
         await cargarYResolver(usuario);
       } catch (e) {
