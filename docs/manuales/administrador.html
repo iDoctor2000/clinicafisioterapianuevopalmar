@@ -641,6 +641,9 @@
     <div class="t">Si sale en rojo</div>
     <p>Si pone que la última copia es de hace varios días, algo falla. Avisa a Juan Antonio o a quien mantenga la app. Además, cuando una copia falla, GitHub manda un correo con el título "⚠️ La copia de seguridad ha fallado".</p>
   </div>
+  <h3>La vigilancia nocturna</h3>
+  <p>Junto con la copia, cada noche la app se revisa a sí misma y escribe un resumen (solo cifras, nunca nombres): cuántas reservas y contrataciones ha habido, si el mantenimiento nocturno se ha ejecutado, si hay clases con más alumnos que plazas, alumnos de horario fijo sin apuntar a una clase suya con plaza, restos de contratos finalizados, franjas activas sin clases, avisos de la lista de espera sin enviar al móvil, contratos que terminan esta semana, clases de ayer sin pasar lista… Cada cosa marcada con ⚠️ lleva al lado qué hacer.</p>
+  <p>Cuando aparece algo con ⚠️, GitHub abre un aviso titulado <strong>"⚠️ Vigilancia nocturna: hay cosas que revisar"</strong> y manda un correo a Juan Antonio. Las noches siguientes se añade al mismo aviso, y la primera noche en que no hay nada se cierra solo. Lo marcado con ℹ️ es informativo (por ejemplo, contratos que terminan en siete días) y no abre avisos.</p>
   <h3>La contraseña de las copias</h3>
   <p>Las copias van cifradas: sin su contraseña no las puede leer nadie (tampoco el centro). Esa contraseña está guardada <strong>en papel en la clínica y en el gestor de contraseñas de la administración</strong>. Si se pierde, las copias no sirven. No la cambies ni la tires.</p>
   <h3>Descargar los datos en Excel</h3>
@@ -664,6 +667,9 @@
   <dl class="faq">
     <dt>Un cliente entra y le sale "Tu usuario aún no está dado de alta en el centro".</dt>
     <dd>El correo con el que entra no coincide con el de su ficha, o todavía no tiene ficha. En su ficha, la línea <strong>Cuenta en la app</strong> te dice si está enlazada (✅) o sin enlazar (⏳). Mira el correo que sale en su pantalla y compáralo con el de su ficha (Clientes → su ficha → Editar datos). Corrígelo o crea la ficha con ese mismo correo, y que pulse "Volver a intentar". Da igual que se registrara antes o después de crearle la ficha: se enlazan solas en cuanto el correo coincide. Si aun así no entra, revisa que la ficha esté activa (no dada de baja).</dd>
+
+    <dt>A un alumno le ha salido "permission denied for table …" o "Tu sesión ha caducado".</dt>
+    <dd>El servidor ha dado por terminada la sesión que tenía guardada ese teléfono (lleva días sin abrir la app, ha entrado desde otra instalación, o se le cerró la sesión). La app le manda a la pantalla de entrada con el aviso; con volver a entrar basta y no pierde nada. Si se repite a diario, mándale el enlace actual de la app (www.fisioterapianuevopalmar.com/app) y que la reinstale.</dd>
 
     <dt>Un trabajador entra y le sale la app de cliente.</dt>
     <dd>Lo mismo: su correo en Equipo no coincide. Corrígelo.</dd>

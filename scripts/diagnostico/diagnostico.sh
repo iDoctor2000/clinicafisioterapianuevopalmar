@@ -129,6 +129,27 @@ select upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' 
 select left(e.clase_id::text, 8) as clase, c.fecha, c.hora_inicio as hora, upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '.' as quien, e.reserva_cambio_id is not null as cambio, e.creado_el at time zone 'Europe/Madrid' as creada
   from public.lista_espera e join public.clases c on c.id = e.clase_id join public.clientes cl on cl.id = e.cliente_id order by c.fecha, c.hora_inicio, e.creado_el;
 select count(*) as push_pendientes from public.avisos_push_pendientes;
+
+-- Cuentas de acceso (esquema auth de Supabase): para investigar "me ha salido permission denied" o
+-- "me ha echado de la app". Solo recuentos y acciones por alumno (iniciales + id), nunca correos ni IPs.
+select exists (select 1 from information_schema.tables where table_schema = 'auth' and table_name = 'audit_log_entries') as hay_auth \gset
+\if :hay_auth
+\echo '== Cuentas: sesiones y tokens de acceso por alumno (últimos días)'
+select upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' || left(cl.id::text, 8) as quien,
+       u.last_sign_in_at at time zone 'Europe/Madrid' as ultima_entrada,
+       (select count(*) from auth.sessions s where s.user_id = u.id) as sesiones_abiertas,
+       (select count(*) from auth.sessions s where s.user_id = u.id and s.created_at > :desde) as sesiones_nuevas,
+       (select count(*) from auth.refresh_tokens t where t.user_id = u.id::text and t.updated_at > :desde) as tokens_usados,
+       (select count(*) from auth.refresh_tokens t where t.user_id = u.id::text and t.revoked and t.updated_at > :desde) as tokens_revocados,
+       (select max(s.refreshed_at) from auth.sessions s where s.user_id = u.id) at time zone 'Europe/Madrid' as ultimo_refresco
+  from public.clientes cl join auth.users u on u.id = cl.user_id
+ where exists (select 1 from auth.refresh_tokens t where t.user_id = u.id::text and t.updated_at > :desde)
+ order by tokens_revocados desc, quien;
+
+\echo '== Cuentas: registro de autenticación de Supabase (recuento por acción; vacío si el proyecto no lo conserva)'
+select e.payload->>'action' as accion, count(*) as veces, max(e.created_at) at time zone 'Europe/Madrid' as ultima
+  from auth.audit_log_entries e where e.created_at > :desde group by 1 order by 2 desc;
+\endif
 rollback;
 SQL
 

@@ -84,8 +84,15 @@ describe('lista de espera', () => {
   });
 
   it('con "cambio", la reserva antigua se mueve a la clase nueva sin gastar nada', () => {
-    const { db, clase } = preparar();
-    // Juan (horario fijo mar+jue) tiene una reserva automática esa misma semana.
+    const { db: db0, clase: c0 } = preparar();
+    // La clase llena se pone en la misma semana que la primera clase fija futura de Juan (mar+jue):
+    // así la prueba vale sea cual sea el día de hoy (un jueves, hoy+3 cae en la semana siguiente).
+    const fijaDeJuan = db0.reservas.filter((x) => x.clienteId === 'juan' && x.estado === 'RESERVADA')
+      .map((x) => db0.clases.find((c) => c.id === x.claseId)!).filter((c) => c.fecha > hoy).sort((x, y) => x.fecha.localeCompare(y.fecha))[0];
+    expect(fijaDeJuan).toBeDefined();
+    const clase: Clase = { ...c0, fecha: fijaDeJuan.fecha };
+    const db: Db = { ...db0, clases: db0.clases.map((c) => (c.id === clase.id ? clase : c)) };
+    // Juan tiene una reserva automática esa misma semana.
     const semana = (f: string) => {
       const d = new Date(f + 'T00:00:00');
       const lunes = new Date(d); lunes.setDate(d.getDate() - ((d.getDay() + 6) % 7));

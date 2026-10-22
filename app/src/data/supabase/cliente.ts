@@ -33,5 +33,7 @@ export function mensajeError(e: unknown): string {
     return 'No se ha podido conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.';
   }
   if (/jwt expired|invalid jwt|refresh token/i.test(msg)) return 'Tu sesión ha caducado. Vuelve a entrar.';
+  // "permission denied for table X": la petición llegó sin sesión (rol anon, que no tiene permisos sobre ninguna tabla).
+  if (/permission denied/i.test(msg)) return 'Tu sesión ha caducado. Vuelve a entrar.';
   return msg;
 }

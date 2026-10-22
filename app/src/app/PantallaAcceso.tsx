@@ -52,6 +52,7 @@ function AccesoSupabase() {
 
 function FormularioEntrada() {
   const iniciar = useStore((s) => s.iniciarSesionEmail);
+  const avisoAcceso = useStore((s) => s.avisoAcceso);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [ver, setVer] = useState(false);
@@ -88,6 +89,9 @@ function FormularioEntrada() {
   return (
     <Marco>
       <Tarjeta className="p-5 sm:p-6">
+        {avisoAcceso && (
+          <p role="status" className="rounded-2xl bg-beige-100 text-ink px-4 py-3 mb-4 text-[15px] font-medium">{avisoAcceso} Tus datos y reservas siguen guardados.</p>
+        )}
         <Boton type="button" tamano="lg" ancho variante="secundario" cargando={conGoogle} onClick={google} className="mb-2">
           <LogoGoogle /> Entrar con Google
         </Boton>
