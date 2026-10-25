@@ -11,6 +11,7 @@ import { pagosVencidos } from '@/domain/cobros';
 import { esCumpleanos } from '@/domain/logros';
 import { AvatarCliente, CampoBusqueda, Encabezado, Segmentado } from './comunes';
 import { ChipConsentimiento, estadoConsentimiento } from './Consentimientos';
+import { BotonRenovaciones } from './Renovaciones';
 
 type FiltroConsentimiento = 'TODOS' | 'FIRMADOS' | 'PENDIENTES';
 const FILTROS_CONSENTIMIENTO: FiltroConsentimiento[] = ['TODOS', 'FIRMADOS', 'PENDIENTES'];
@@ -35,7 +36,7 @@ export function Clientes() {
       <Encabezado
         titulo={limitado ? 'Mis alumnos' : 'Clientes'}
         subtitulo={`${db.clientes.filter((c) => c.activo).length} activos · ${db.clientes.length} en total${limitado ? ' · solo alumnos de tus clases' : ''}`}
-        acciones={puede('CLIENTES_EDITAR') && !limitado && <Boton tamano="sm" onClick={() => navigate('/clientes/nuevo')}><UserPlus className="h-5 w-5" /> Nuevo cliente</Boton>}
+        acciones={puede('CLIENTES_EDITAR') && !limitado && <><BotonRenovaciones /><Boton tamano="sm" onClick={() => navigate('/clientes/nuevo')}><UserPlus className="h-5 w-5" /> Nuevo cliente</Boton></>}
       />
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <CampoBusqueda valor={texto} onCambio={setTexto} placeholder="Buscar por nombre, apellidos, DNI o teléfono" className="flex-1" />

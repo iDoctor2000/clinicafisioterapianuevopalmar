@@ -20,6 +20,7 @@ import {
   generarReservasAutomaticas, listaEsperaCerrada, motivoNoCambio, plazasLibres, puedeCancelarCliente, puedeGenerarRecuperacion, caducarVencidas,
 } from '@/domain/rules';
 import { indexar, nuevoId, type Db } from './db';
+import { cobrosDeRenovacion } from '@/domain/renovaciones';
 import { portadaOrdenada } from './selectores';
 
 export type Resultado<T = void> = { ok: true; db: Db; valor: T } | { ok: false; error: string };
@@ -688,6 +689,32 @@ export function editarContrato(ctx: Ctx, args: { contratoId: Id; cambios: Cambio
   reservas = generarReservasAutomaticas(contrato, db.clases.filter((c) => args.cambios.incluirPasadas || c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
   const nuevo: Db = { ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas };
   return ok(auditar(nuevo, sesion, ahora, 'EDITAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: fin ${contrato.fechaFin}`), contrato);
+}
+
+/**
+ * Renovar de golpe (0028): alarga hasta `hasta` los contratos mensuales activos indicados, les apunta a
+ * sus clases fijas y crea el cobro de cada mes nuevo. Los que no cumplen se saltan. CLIENTES_EDITAR.
+ */
+export function renovarContratos(ctx: Ctx, args: { contratoIds: Id[]; hasta: ISODate }): Resultado<{ renovados: number; saltados: number; cobros: number }> {
+  const { sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLIENTES_EDITAR');
+  if (e) return fallo(e);
+  if (!args.hasta || args.hasta <= aISODate(ahora)) return fallo('La fecha de renovación tiene que ser futura.');
+  let db = ctx.db;
+  let renovados = 0, saltados = 0, cobros = 0;
+  for (const id of args.contratoIds) {
+    const c = db.contratos.find((x) => x.id === id);
+    const tarifa = c && db.tarifas.find((t) => t.id === c.tarifaId);
+    if (!c || c.estado !== 'ACTIVO' || tarifa?.tipo !== 'RECURRENTE' || c.fechaFin >= args.hasta || (limitadoASusClases(db, sesion) && !esAlumnoMio(db, sesion, c.clienteId))) { saltados++; continue; }
+    const nuevosCobros = cobrosDeRenovacion(c, args.hasta, db.pagos);
+    const r = editarContrato({ ...ctx, db }, { contratoId: c.id, cambios: { fechaFin: args.hasta, franjasFijas: c.franjasFijas, notas: c.notas, oferta: c.oferta ?? 'NINGUNA', importeCentimos: c.importeCentimos ?? null, metodoPago: c.metodoPago ?? null, sesionesRestantes: c.sesionesRestantes } });
+    if (!r.ok) { saltados++; continue; }
+    const pagos = nuevosCobros.map((q): Pago => ({ ...q, id: nuevoId('pag'), contratoId: c.id, clienteId: c.clienteId, estado: 'PENDIENTE', metodo: null, pagadoEl: null, creadoEl: ahora.toISOString() }));
+    db = auditar({ ...r.db, pagos: [...r.db.pagos, ...pagos] }, sesion, ahora, 'RENOVAR_CONTRATO', 'contrato', c.id, `${nombreCliente(db, c.clienteId)}: fin ${c.fechaFin} → ${args.hasta} (${pagos.length} cobros)`);
+    renovados++;
+    cobros += pagos.length;
+  }
+  return ok(db, { renovados, saltados, cobros });
 }
 
 /** Crea o modifica un cobro (cuota del plan o cobro suelto). */

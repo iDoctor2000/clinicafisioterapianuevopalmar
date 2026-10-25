@@ -201,6 +201,12 @@ const impl: Impl = {
     return (db) => db.contratos.find((x) => x.id === args.contratoId)!;
   },
 
+  async renovarContratos(args) {
+    const r = await rpc<{ renovados: number; saltados: number; cobros: number }>('renovar_contratos', { p_contratos: args.contratoIds, p_hasta: args.hasta });
+    const valor = { renovados: Number(r?.renovados ?? 0), saltados: Number(r?.saltados ?? 0), cobros: Number(r?.cobros ?? 0) };
+    return () => valor;
+  },
+
   async guardarPago(args) {
     const id = args.pago.id ?? nuevoUuid();
     const fila = dePago({ ...args.pago, id, concepto: args.pago.concepto.trim() });

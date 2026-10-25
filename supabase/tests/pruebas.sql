@@ -1750,5 +1750,52 @@ do $$ begin
   raise notice 'OK permisos de la función de notificaciones';
 end $$;
 
+\echo '== 39. Renovar contratos de golpe (0028)'
+select pruebas.sistema();
+select pruebas.guardar('cliente_rn', 'e0000000-0000-4000-8000-0000000000f1');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cliente_rn'), 'Rena', 'Novación', '88888888R', 'rena@test.local', '600 000 088') on conflict (id) do nothing;
+select pruebas.como('admin');
+-- Horario fijo los lunes, termina en 10 días, 50 € al mes por tarjeta, sin cobros todavía.
+select pruebas.guardar('con_rn', public.crear_contrato(pruebas.id('cliente_rn'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 10, 'FIJO',
+  array[pruebas.id('pl_lun_0900')], '{}', '', null, 'NINGUNA', 5000, 'TARJETA')::text);
+select pruebas.guardar('rn_reservas_antes', (select count(*) from public.reservas where contrato_id = pruebas.id('con_rn') and estado = 'RESERVADA')::text);
+-- Se renueva junto con un bono (que no se toca).
+select pruebas.guardar('rn_res', public.renovar_contratos(array[pruebas.id('con_rn'), pruebas.id('con_c')], public._hoy() + 40)::text);
+do $$
+declare
+  v jsonb := current_setting('pruebas.rn_res')::jsonb;
+  v_meses integer;
+begin
+  assert (v->>'renovados')::int = 1 and (v->>'saltados')::int = 1, format('uno renovado y el bono saltado (%s)', v);
+  assert (select fecha_fin from public.contratos where id = pruebas.id('con_rn')) = public._hoy() + 40, 'fin alargado';
+  assert (select estado from public.contratos where id = pruebas.id('con_rn')) = 'ACTIVO', 'sigue siendo el mismo contrato, activo';
+  assert (select count(*) from public.reservas where contrato_id = pruebas.id('con_rn') and estado = 'RESERVADA') > current_setting('pruebas.rn_reservas_antes')::int, 'apuntado a las clases del periodo nuevo';
+  assert not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id
+                      where r.contrato_id = pruebas.id('con_rn') and c.fecha > public._hoy() + 40), 'nada después del fin nuevo';
+  -- Un cobro por cada mes que empieza en el periodo nuevo.
+  select count(distinct date_trunc('month', d)) into v_meses from generate_series(public._hoy() + 11, public._hoy() + 40, interval '1 day') d
+   where d::date = public._hoy() + 11 or extract(day from d) = 1;
+  assert (select count(*) from public.pagos where contrato_id = pruebas.id('con_rn') and concepto like 'Renovación · %' and importe_centimos = 5000 and estado = 'PENDIENTE') = v_meses,
+    format('un cobro de 50 € por mes nuevo (%s esperados)', v_meses);
+end $$;
+-- Repetirlo no hace nada (ya llega a esa fecha) ni duplica cobros.
+do $$
+declare v jsonb := public.renovar_contratos(array[pruebas.id('con_rn')], public._hoy() + 40);
+begin
+  assert (v->>'renovados')::int = 0 and (v->>'cobros')::int = 0, format('segunda vez sin efecto (%s)', v);
+end $$;
+-- Sin permiso de editar fichas, no se puede.
+begin;
+set local role authenticated;
+select pruebas.como('a');
+select pruebas.espera_error(format('select public.renovar_contratos(array[%L]::uuid[], %L::date)', pruebas.id('con_rn'), current_date + 60), '%No tienes permiso%');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert exists (select 1 from public.auditoria where accion = 'RENOVAR_CONTRATO' and entidad_id = pruebas.id('con_rn')::text), 'queda en el registro de cambios';
+  raise notice 'OK renovar contratos';
+end $$;
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'
