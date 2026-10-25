@@ -10,7 +10,7 @@
  * sobre el `Db` recargado después del comando (función `valor(db)`).
  */
 import type { Clase, Cliente, Id, Recuperacion, Reserva, Sesion } from '@/domain/types';
-import { tienePermiso } from '@/domain/types';
+import { tienePermiso, veFinanzas } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import type { Db } from '../db';
@@ -322,10 +322,10 @@ const impl: Impl = {
     return (db) => db.actividades.find((x) => x.id === a.id) ?? a;
   },
 
-  async guardarTrabajador(args) {
+  async guardarTrabajador(args, sesion) {
     const sb = servidor();
     const t = { ...args.trabajador, id: args.trabajador.id ?? nuevoUuid() };
-    const { trabajador, permisos } = deTrabajador(t);
+    const { trabajador, permisos } = deTrabajador(t, veFinanzas(sesion));
     comprobar(await sb.from('trabajadores').upsert(trabajador));
     comprobar(await sb.from('trabajador_permisos').delete().eq('trabajador_id', t.id));
     if (permisos.length > 0) comprobar(await sb.from('trabajador_permisos').insert(permisos));

@@ -8,7 +8,7 @@ import type {
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, EntradaListaEspera, Id, ISODate, MetodoPago, Oferta, Pago,
   PlantillaClase, PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
 } from '@/domain/types';
-import { tienePermiso } from '@/domain/types';
+import { tienePermiso, veFinanzas } from '@/domain/types';
 import {
   MENSAJE_AVISO_LIMITADO, MENSAJE_CLASE_AJENA, MENSAJE_CLASE_EXTRA_LIMITADA, MENSAJE_CLIENTE_AJENO, MENSAJE_HORARIO_LIMITADO, MENSAJE_SOLO_ADMIN_EQUIPO,
   esAlumnoMio, limitadoASusClases, puedeGestionarClase,
@@ -903,7 +903,14 @@ export function guardarTrabajador(ctx: Ctx, args: { trabajador: Omit<Trabajador,
   if (sesion.tipo !== 'TRABAJADOR' || sesion.rol !== 'ADMIN') return fallo(MENSAJE_SOLO_ADMIN_EQUIPO);
   const t: Trabajador = { ...args.trabajador, id: args.trabajador.id ?? nuevoId('tra') };
   if (t.rol === 'ADMIN') t.ambito = 'CENTRO'; // un administrador siempre tiene ámbito CENTRO
-  const existe = db.trabajadores.some((x) => x.id === t.id);
+  const anterior = db.trabajadores.find((x) => x.id === t.id);
+  const existe = anterior !== undefined;
+  // Acceso a las finanzas (0024): solo lo concede o quita quien ya lo tiene (si no, se conserva en silencio),
+  // y no puede quedarse nadie con él.
+  if (!veFinanzas(sesion)) t.veFinanzas = anterior?.veFinanzas === true;
+  else if (anterior?.veFinanzas && (!t.veFinanzas || !t.activo) && !db.trabajadores.some((x) => x.id !== t.id && x.veFinanzas && x.activo)) {
+    return fallo('Tiene que quedar al menos una persona activa con acceso a las finanzas.');
+  }
   let usuarios = db.usuarios;
   if (!t.userId) {
     const userId = nuevoId('usr');

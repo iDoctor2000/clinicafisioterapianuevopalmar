@@ -86,6 +86,8 @@ insert into auth.users (id, email) values
   (pruebas.id('u_a'), 'ana@test.local'), (pruebas.id('u_b'), 'berta@test.local'), (pruebas.id('u_c'), 'carlos@test.local');
 update public.trabajadores set user_id = pruebas.id('u_admin') where id = pruebas.id('tra_admin');
 update public.trabajadores set user_id = pruebas.id('u_recep') where id = pruebas.id('tra_recep');
+-- 0024: el administrador de pruebas ve las finanzas (el rol ADMIN por sí solo ya no las da).
+update public.trabajadores set ve_finanzas = true where id = pruebas.id('tra_admin');
 insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_id) values
   (pruebas.id('cliente_a'), 'Ana',    'Libre', '11111111A', 'ana@test.local',    '600 000 001', pruebas.id('u_a')),
   (pruebas.id('cliente_b'), 'Berta',  'Fija',  '22222222B', 'berta@test.local',  '600 000 002', pruebas.id('u_b')),
@@ -1569,6 +1571,72 @@ do $$ begin
   raise notice 'OK nueva contratación con otras franjas';
 end $$;
 commit;
+
+\echo '== 35. Finanzas: solo quien tiene ve_finanzas ve importes y cobros (0024)'
+select pruebas.sistema();
+-- Recepción puede editar fichas (y por tanto contratar) pero no ve las finanzas.
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_recep'), 'CLIENTES_EDITAR'), (pruebas.id('tra_recep'), 'CLIENTES_VER')
+  on conflict do nothing;
+do $$ begin
+  assert (select ve_finanzas from public.trabajadores where id = pruebas.id('tra_admin')), 'el admin de pruebas ve las finanzas';
+  assert not (select ve_finanzas from public.trabajadores where id = pruebas.id('tra_recep')), 'recepción no';
+end $$;
+-- Como recepción (rol authenticated): ni cobros, ni columnas de dinero, ni vista; y no puede concedérselo.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+do $$ begin
+  assert not public.ve_finanzas(), 've_finanzas() false';
+  assert (select count(*) from public.pagos) = 0, 'no lee ningún cobro';
+  assert (select count(*) from public.contratos_finanzas) = 0, 'la vista no le devuelve nada';
+  assert (select count(*) from public.contratos where id = pruebas.id('con_z')) = 1, 'sigue viendo el contrato (sin dinero)';
+  assert (select count(*) from public.contratos_finanzas) = 0, 'vista vacía';
+end $$;
+select pruebas.espera_error(format('select importe_centimos from public.contratos where id = %L', pruebas.id('con_z')), '%permission denied%');
+select pruebas.espera_error('select * from public.contratos limit 1', '%permission denied%');
+select pruebas.espera_error(format('insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos) values (%L, %L, %L, 100)', pruebas.id('con_z'), pruebas.id('cliente_z'), 'Truco'), '%row-level security%');
+select pruebas.espera_sin_efecto(format('update public.pagos set estado = %L where cliente_id = %L', 'PAGADO', pruebas.id('cliente_z')));
+-- Edita el contrato sin mandar datos de pago: la fecha cambia, el dinero se conserva.
+select public.editar_contrato(pruebas.id('con_z'), (current_date + interval '3 months')::date, array[pruebas.id('pl_mie_0900')], 'Editado por recepción'); -- _hoy() es interna: current_date
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select fecha_fin = (current_date + interval '3 months')::date and notas = 'Editado por recepción' from public.contratos where id = pruebas.id('con_z')), 'recepción edita fin y notas';
+  assert (select oferta = 'TRIMESTRAL' and importe_centimos = 6500 and metodo_pago = 'EFECTIVO' from public.contratos where id = pruebas.id('con_z')), 'los datos de pago no se han tocado';
+end $$;
+-- Un administrador sin acceso a las finanzas (recepción ascendida para la prueba) gestiona trabajadores,
+-- pero no puede darse el acceso: se conserva en silencio y el resto del cambio sí se guarda.
+update public.trabajadores set rol = 'ADMIN' where id = pruebas.id('tra_recep');
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+update public.trabajadores set telefono = '600 000 111', ve_finanzas = true where id = pruebas.id('tra_recep');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert not (select ve_finanzas from public.trabajadores where id = pruebas.id('tra_recep')), 'no se lo ha podido conceder';
+  assert (select telefono from public.trabajadores where id = pruebas.id('tra_recep')) = '600 000 111', 'pero el resto del cambio sí se guarda';
+end $$;
+-- Como administrador con finanzas: ve todo, puede conceder, y no puede dejar a nadie con acceso.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$ begin
+  assert public.ve_finanzas(), 've_finanzas() true';
+  assert (select count(*) from public.pagos where contrato_id = pruebas.id('con_z')) = 3, 'lee los cobros';
+  assert (select importe_centimos from public.contratos_finanzas where id = pruebas.id('con_z')) = 6500, 'lee el importe en la vista';
+end $$;
+select pruebas.espera_error(format('select importe_centimos from public.contratos where id = %L', pruebas.id('con_z')), '%permission denied%'); -- la tabla, nadie
+update public.trabajadores set ve_finanzas = true where id = pruebas.id('tra_recep');
+do $$ begin assert (select ve_finanzas from public.trabajadores where id = pruebas.id('tra_recep')), 'el admin concede el acceso'; end $$;
+update public.trabajadores set ve_finanzas = false where id = pruebas.id('tra_recep');
+select pruebas.espera_error(format('update public.trabajadores set ve_finanzas = false where id = %L', pruebas.id('tra_admin')), '%al menos una persona%');
+select pruebas.espera_error(format('update public.trabajadores set activo = false where id = %L', pruebas.id('tra_admin')), '%al menos una persona activa%');
+commit;
+select pruebas.sistema();
+update public.trabajadores set rol = 'RECEPCION', ve_finanzas = false where id = pruebas.id('tra_recep');
+delete from public.trabajador_permisos where trabajador_id = pruebas.id('tra_recep') and permiso in ('CLIENTES_EDITAR', 'CLIENTES_VER');
+do $$ begin raise notice 'OK finanzas: solo con ve_finanzas'; end $$;
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

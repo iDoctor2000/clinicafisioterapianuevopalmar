@@ -90,7 +90,7 @@ export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimer
 // ---------------------------------------------------------------------------
 
 export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrato: Contrato | null }) {
-  const { db, puede, ejecutar } = useTrabajador();
+  const { db, puede, ejecutar, veFinanzas } = useTrabajador();
   const hoy = hoyISO();
   const [editando, setEditando] = useState<Pago | 'nuevo' | null>(null);
   const pagos = db.pagos
@@ -112,6 +112,7 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
     if (r.ok) toast.info(`${p.concepto}: vuelve a pendiente.`); else toast.error(r.error);
   };
 
+  if (!veFinanzas) return null;
   if (pagos.length === 0 && !editable) return null;
   return (
     <Tarjeta>

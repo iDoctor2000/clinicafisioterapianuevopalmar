@@ -475,6 +475,11 @@ export interface Trabajador {
   color: string;
   activo: boolean;
   userId: Id | null;
+  /**
+   * Ve importes, ofertas, forma de pago y cobros (0024). Es explícito, persona a persona: el rol ADMIN
+   * no lo incluye. Solo quien lo tiene puede concedérselo a otros.
+   */
+  veFinanzas?: boolean;
 }
 
 export interface RegistroAuditoria {
@@ -498,9 +503,16 @@ export type Sesion =
       tipo: 'TRABAJADOR'; userId: Id; trabajadorId: Id; nombre: string; permisos: Permiso[]; rol: RolTrabajador;
       /** Ámbito del trabajador. Si falta, se resuelve desde su ficha (ver domain/ambito.ts). */
       ambito?: Ambito;
+      /** Acceso a las finanzas (ver Trabajador.veFinanzas). */
+      veFinanzas?: boolean;
     };
 
 export function tienePermiso(sesion: Sesion | null, permiso: Permiso): boolean {
   if (!sesion || sesion.tipo !== 'TRABAJADOR') return false;
   return sesion.rol === 'ADMIN' || sesion.permisos.includes(permiso);
+}
+
+/** true si la sesión es de un trabajador con acceso a las finanzas. A diferencia de los permisos, el rol ADMIN no lo da. */
+export function veFinanzas(sesion: Sesion | null): boolean {
+  return !!sesion && sesion.tipo === 'TRABAJADOR' && sesion.veFinanzas === true;
 }

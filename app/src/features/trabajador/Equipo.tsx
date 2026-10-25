@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, GraduationCap, Plus, ShieldCheck } from 'lucide-react';
+import { Building2, GraduationCap, Landmark, Plus, ShieldCheck } from 'lucide-react';
 import type { Ambito, Permiso, RolTrabajador, Trabajador } from '@/domain/types';
 import { AMBITO_DESCRIPCION, AMBITO_LABEL, PERMISOS, PERMISO_LABEL } from '@/domain/types';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
@@ -10,7 +10,7 @@ import { Avatar, Encabezado, ROL_TEXTO } from './comunes';
 const COLORES = ['#3A3A3A', '#86735F', '#3B82C4', '#C9713F', '#D95A6A', '#A08D79', '#6B7A8F'];
 
 export function Equipo() {
-  const { db } = useTrabajador();
+  const { db, veFinanzas } = useTrabajador();
   const [edicion, setEdicion] = useState<Trabajador | 'NUEVO' | null>(null);
   return (
     <div>
@@ -24,9 +24,9 @@ export function Equipo() {
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center gap-2 flex-wrap"><span className="font-semibold">{t.nombre} {t.apellidos}</span>{!t.activo && <Chip tono="rojo">Inactivo</Chip>}</span>
                   <span className="block text-sm text-ink-muted truncate">{t.email}{t.telefono && ` · ${t.telefono}`}</span>
-                  <span className="flex gap-1.5 flex-wrap mt-1.5 sm:hidden"><ChipsTrabajador t={t} /></span>
+                  <span className="flex gap-1.5 flex-wrap mt-1.5 sm:hidden"><ChipsTrabajador t={t} finanzas={veFinanzas} /></span>
                 </span>
-                <span className="hidden sm:flex gap-1.5 shrink-0 flex-wrap justify-end"><ChipsTrabajador t={t} /></span>
+                <span className="hidden sm:flex gap-1.5 shrink-0 flex-wrap justify-end"><ChipsTrabajador t={t} finanzas={veFinanzas} /></span>
               </button>
             </li>
           ))}
@@ -37,10 +37,12 @@ export function Equipo() {
   );
 }
 
-function ChipsTrabajador({ t }: { t: Trabajador }) {
+/** `finanzas`: quien mira ve las finanzas; solo entonces se señala quién más las ve. */
+function ChipsTrabajador({ t, finanzas }: { t: Trabajador; finanzas: boolean }) {
   return (
     <>
       <Chip tono={t.rol === 'ADMIN' ? 'cocoa' : 'gris'}>{ROL_TEXTO[t.rol]}</Chip>
+      {finanzas && t.veFinanzas && <Chip tono="cocoa"><Landmark className="h-3.5 w-3.5" /> Finanzas</Chip>}
       {t.esMonitor && t.rol !== 'MONITOR' && <Chip tono="beige">Imparte clases</Chip>}
       {t.rol !== 'ADMIN' && t.ambito === 'SUS_CLASES' && <Chip tono="ambar"><GraduationCap className="h-3.5 w-3.5" /> Solo sus clases</Chip>}
       <Chip tono="azul"><ShieldCheck className="h-3.5 w-3.5" /> {t.rol === 'ADMIN' ? 'todos' : t.permisos.length} permisos</Chip>
@@ -111,6 +113,11 @@ function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | nul
         <div className="rounded-2xl border border-ink/10 px-4 divide-y divide-ink/5">
           <Interruptor activo={f.esMonitor} onCambio={(v) => setF({ ...f, esMonitor: v })} etiqueta="Imparte clases" descripcion="Aparece como monitor/a en horarios y clases." />
           <Interruptor activo={f.activo} onCambio={(v) => setF({ ...f, activo: v })} etiqueta="Activo" descripcion="Un trabajador inactivo no puede acceder." />
+          {/* Solo quien ve las finanzas sabe que este acceso existe y puede concederlo. */}
+          {sesion.veFinanzas && (
+            <Interruptor activo={f.veFinanzas === true} onCambio={(v) => setF({ ...f, veFinanzas: v })} etiqueta="Ve las finanzas"
+              descripcion="Importes, ofertas, forma de pago y cobros de los alumnos. No lo da el rol de administrador: se concede persona a persona, y solo por quien ya lo tiene." />
+          )}
         </div>
         <SelectorAmbito valor={f.rol === 'ADMIN' ? 'CENTRO' : f.ambito} onCambio={(a) => setF({ ...f, ambito: a })} esAdmin={f.rol === 'ADMIN'} />
         <div>
