@@ -10,15 +10,17 @@ import { Avisos } from './Avisos';
 import { Tarifas } from './Tarifas';
 import { Estadisticas } from './Estadisticas';
 import { Trofeos } from './Trofeos';
+import { ResumenCobros } from './ResumenCobros';
 import { Equipo } from './Equipo';
 import { Ajustes } from './Ajustes';
 import { Mas } from './Mas';
 import { useTrabajador } from './useTrabajador';
 
 /** Redirige al calendario si el trabajador no tiene el permiso necesario. */
-function Requiere({ permiso, admin, children }: { permiso?: Permiso; admin?: boolean; children: ReactNode }) {
-  const { puede, esAdmin } = useTrabajador();
+function Requiere({ permiso, admin, finanzas, children }: { permiso?: Permiso; admin?: boolean; finanzas?: boolean; children: ReactNode }) {
+  const { puede, esAdmin, veFinanzas } = useTrabajador();
   if (admin && !esAdmin) return <Navigate to="/" replace />;
+  if (finanzas && !veFinanzas) return <Navigate to="/" replace />;
   if (permiso && !puede(permiso)) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -35,6 +37,7 @@ export const rutasTrabajador = (
     <Route path="tarifas" element={<Requiere permiso="TARIFAS_GESTIONAR"><Tarifas /></Requiere>} />
     <Route path="estadisticas" element={<Requiere permiso="ESTADISTICAS_VER"><Estadisticas /></Requiere>} />
     <Route path="trofeos" element={<Requiere permiso="ESTADISTICAS_VER"><Trofeos /></Requiere>} />
+    <Route path="cobros" element={<Requiere finanzas><ResumenCobros /></Requiere>} />
     <Route path="equipo" element={<Requiere admin><Equipo /></Requiere>} />
     <Route path="ajustes" element={<Requiere admin><Ajustes /></Requiere>} />
     <Route path="mas" element={<Mas />} />
