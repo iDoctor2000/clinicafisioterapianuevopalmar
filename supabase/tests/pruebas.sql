@@ -872,7 +872,9 @@ select pruebas.guardar('con_z', public.crear_contrato(
 do $$
 declare v_con uuid := pruebas.id('con_z');
 begin
-  assert (select oferta = 'TRIMESTRAL' and importe_centimos = 6500 and metodo_pago = 'BIZUM' from public.contratos where id = v_con), 'datos de pago guardados en el contrato';
+  -- 0027: los datos de pago viven en contratos_pago; en contratos quedan vacíos.
+  assert (select oferta = 'TRIMESTRAL' and importe_centimos = 6500 and metodo_pago = 'BIZUM' from public.contratos_pago where contrato_id = v_con), 'datos de pago guardados (contratos_pago)';
+  assert (select oferta = 'NINGUNA' and importe_centimos is null and metodo_pago is null from public.contratos where id = v_con), 'en contratos, vacíos';
   assert (select count(*) from public.pagos where contrato_id = v_con) = 3, 'plan de 3 cobros';
   assert (select count(*) from public.pagos where contrato_id = v_con and estado = 'PAGADO' and pagado_el is not null and proveedor = 'BIZUM') = 1, 'el primero, cobrado por Bizum';
   assert (select proveedor from public.pagos where contrato_id = v_con and concepto = 'Mes 3') = 'SIN_INDICAR', 'un método no válido queda sin indicar';
@@ -885,7 +887,8 @@ select public.editar_contrato(pruebas.id('con_z'), (public._hoy() + interval '2 
 do $$
 declare v_con uuid := pruebas.id('con_z');
 begin
-  assert (select metodo_pago = 'EFECTIVO' and notas = 'Cambia a miércoles' and fecha_fin = (public._hoy() + interval '2 months')::date from public.contratos where id = v_con), 'contrato editado';
+  assert (select notas = 'Cambia a miércoles' and fecha_fin = (public._hoy() + interval '2 months')::date from public.contratos where id = v_con), 'contrato editado';
+  assert (select metodo_pago from public.contratos_pago where contrato_id = v_con) = 'EFECTIVO', 'forma de pago editada (contratos_pago)';
   assert (select array_agg(plantilla_id) from public.contrato_franjas where contrato_id = v_con) = array[pruebas.id('pl_mie_0900')], 'franjas cambiadas';
   assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
            where r.contrato_id = v_con and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_lun_0900') and c.fecha >= public._hoy()) = 0, 'sin reservas futuras del lunes';
@@ -1592,8 +1595,12 @@ do $$ begin
   assert (select count(*) from public.contratos where id = pruebas.id('con_z')) = 1, 'sigue viendo el contrato (sin dinero)';
   assert (select count(*) from public.contratos_finanzas) = 0, 'vista vacía';
 end $$;
-select pruebas.espera_error(format('select importe_centimos from public.contratos where id = %L', pruebas.id('con_z')), '%permission denied%');
-select pruebas.espera_error('select * from public.contratos limit 1', '%permission denied%');
+-- 0027: la tabla contratos se lee entera (también las apps antiguas), pero sus columnas de dinero van vacías.
+do $$ begin assert (select importe_centimos is null and oferta = 'NINGUNA' from public.contratos where id = pruebas.id('con_z')), 'en contratos el dinero va vacío'; end $$;
+select pruebas.espera_error('select count(*) from public.contratos_pago', '%permission denied%');
+do $$ begin assert (select count(*) from (select * from public.contratos limit 1) x) = 1, 'select * de contratos funciona (apps antiguas)'; end $$;
+-- Escribir el dinero directamente en contratos sin ver las finanzas: se ignora y queda vacío.
+update public.contratos set importe_centimos = 1, oferta = 'FAMILIAR' where id = pruebas.id('con_z');
 select pruebas.espera_error(format('insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos) values (%L, %L, %L, 100)', pruebas.id('con_z'), pruebas.id('cliente_z'), 'Truco'), '%row-level security%');
 select pruebas.espera_sin_efecto(format('update public.pagos set estado = %L where cliente_id = %L', 'PAGADO', pruebas.id('cliente_z')));
 -- Edita el contrato sin mandar datos de pago: la fecha cambia, el dinero se conserva.
@@ -1602,7 +1609,8 @@ commit;
 select pruebas.sistema();
 do $$ begin
   assert (select fecha_fin = (current_date + interval '3 months')::date and notas = 'Editado por recepción' from public.contratos where id = pruebas.id('con_z')), 'recepción edita fin y notas';
-  assert (select oferta = 'TRIMESTRAL' and importe_centimos = 6500 and metodo_pago = 'EFECTIVO' from public.contratos where id = pruebas.id('con_z')), 'los datos de pago no se han tocado';
+  assert (select oferta = 'TRIMESTRAL' and importe_centimos = 6500 and metodo_pago = 'EFECTIVO' from public.contratos_pago where contrato_id = pruebas.id('con_z')), 'los datos de pago no se han tocado';
+  assert (select importe_centimos is null and oferta = 'NINGUNA' from public.contratos where id = pruebas.id('con_z')), 'y en contratos siguen vacíos';
 end $$;
 -- Un administrador sin acceso a las finanzas (recepción ascendida para la prueba) gestiona trabajadores,
 -- pero no puede darse el acceso: se conserva en silencio y el resto del cambio sí se guarda.
@@ -1626,7 +1634,13 @@ do $$ begin
   assert (select count(*) from public.pagos where contrato_id = pruebas.id('con_z')) = 3, 'lee los cobros';
   assert (select importe_centimos from public.contratos_finanzas where id = pruebas.id('con_z')) = 6500, 'lee el importe en la vista';
 end $$;
-select pruebas.espera_error(format('select importe_centimos from public.contratos where id = %L', pruebas.id('con_z')), '%permission denied%'); -- la tabla, nadie
+select pruebas.espera_error('select count(*) from public.contratos_pago', '%permission denied%'); -- la tabla aparte, nadie desde la app
+select public.editar_contrato(pruebas.id('con_z'), (current_date + interval '3 months')::date, array[pruebas.id('pl_mie_0900')], 'Editado por el admin', 'NINGUNA', 7000, 'BIZUM');
+do $$ begin
+  assert (select importe_centimos from public.contratos_finanzas where id = pruebas.id('con_z')) = 7000, 'editar_contrato con finanzas guarda el importe';
+  assert (select oferta from public.contratos_finanzas where id = pruebas.id('con_z')) = 'NINGUNA', 'y la oferta (también "ninguna")';
+  assert (select importe_centimos is null from public.contratos where id = pruebas.id('con_z')), 'contratos sigue vacío';
+end $$;
 update public.trabajadores set ve_finanzas = true where id = pruebas.id('tra_recep');
 do $$ begin assert (select ve_finanzas from public.trabajadores where id = pruebas.id('tra_recep')), 'el admin concede el acceso'; end $$;
 update public.trabajadores set ve_finanzas = false where id = pruebas.id('tra_recep');
@@ -1724,6 +1738,17 @@ commit;
 select pruebas.sistema();
 delete from public.suscripciones_push where trabajador_id = pruebas.id('tra_recep');
 do $$ begin raise notice 'OK cumpleaños del personal'; end $$;
+
+\echo '== 38. Permisos de la función de notificaciones (rol service_role, 0027)'
+do $$ begin
+  assert has_table_privilege('service_role', 'public.avisos', 'SELECT'), 'service_role lee avisos';
+  assert has_table_privilege('service_role', 'public.avisos_push_pendientes', 'DELETE'), 'service_role borra avisos pendientes';
+  assert has_table_privilege('service_role', 'public.push_personal_pendientes', 'DELETE'), 'service_role borra notificaciones del personal';
+  assert has_table_privilege('service_role', 'public.suscripciones_push', 'DELETE'), 'service_role borra suscripciones caducadas';
+  assert has_table_privilege('service_role', 'public.contratos_pago', 'SELECT'), 'service_role lee la tabla nueva';
+  assert not has_table_privilege('authenticated', 'public.contratos_pago', 'SELECT'), 'la app no lee contratos_pago';
+  raise notice 'OK permisos de la función de notificaciones';
+end $$;
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'
