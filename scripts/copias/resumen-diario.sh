@@ -164,7 +164,8 @@ select line from (
         ('0024', to_regclass('public.contratos_finanzas') is not null),
         ('0025', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clientes' and column_name = 'consentimiento_adjunto')
                  and (to_regclass('storage.buckets') is null or exists (select 1 from storage.buckets where id = 'consentimientos'))),
-        ('0026', to_regclass('public.push_personal_pendientes') is not null))
+        ('0026', to_regclass('public.push_personal_pendientes') is not null),
+        ('0027', to_regclass('public.contratos_pago') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'
@@ -175,6 +176,11 @@ select line from (
                             from cron.job where jobname in ('mantenimiento-diario', 'push-cumpleanos')), '⚠️ ninguna')
                 || case when (select count(*) from cron.job where jobname in ('mantenimiento-diario', 'push-cumpleanos')) < 2 then ' ⚠️ falta alguna' else '' end
       end) || ' |'
+  -- La función enviar-push usa el rol service_role: sin permiso de lectura no sale ninguna notificación (0027).
+  union all select 25, '| La función de notificaciones puede leer los avisos | ' ||
+      case when not exists (select 1 from pg_roles where rolname = 'service_role') then 'sin rol service_role'
+           when has_table_privilege('service_role', 'public.avisos', 'SELECT') and has_table_privilege('service_role', 'public.suscripciones_push', 'SELECT') then 'sí'
+           else '⚠️ NO: no llega ninguna notificación al móvil (falta la migración 0027)' end || ' |'
   union all select 24, '| Personas con acceso a cobros | ' || (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'ve_finanzas')::boolean, false))
       || case when (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'ve_finanzas')::boolean, false)) = 0 then ' ⚠️ nadie' else '' end || ' |'
   union all select 30, ''

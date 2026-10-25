@@ -635,6 +635,9 @@
         <tr><td><code>supabase/migrations/0022_reservas_fijas_al_recontratar.sql</code></td><td>Las clases fijas no se pierden al finalizar y crear otra contratación (se vuelven a apuntar solas) y pasan a la contratación nueva. Al ejecutarla, repara ya a los alumnos afectados.</td></tr>
         <tr><td><code>supabase/migrations/0023_finalizar_contrato_sin_restos.sql</code></td><td>Al finalizar un contrato, sus clases fijas futuras se quitan sin dejar "canceladas por el centro" en la app del alumno. Limpia los restos que quedaron.</td></tr>
         <tr><td><code>supabase/migrations/0024_finanzas.sql</code></td><td>Ajustes internos de permisos en contratos y cobros. Después de ejecutarla hay que correr la orden de "conceder acceso" que se indica en su cabecera.</td></tr>
+        <tr><td><code>supabase/migrations/0025_consentimiento_adjunto.sql</code></td><td>Foto de la hoja de consentimiento firmada en papel (almacén privado del personal).</td></tr>
+        <tr><td><code>supabase/migrations/0026_cumpleanos_personal.sql</code></td><td>Notificación al móvil del equipo el día que un alumno cumple años. Después hay que volver a desplegar la función enviar-push.</td></tr>
+        <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
     <li><strong>Dominio y correo:</strong> <code>www.fisioterapianuevopalmar.com</code> está contratado en Strato, a nombre de la clínica, y allí sigue el correo del centro (por eso se mantiene ese contrato). La web se sirve desde GitHub. No cambies los registros DNS A, AAAA ni el CNAME de www, o la web dejará de verse; tampoco los registros MX, o dejará de llegar el correo.</li>
