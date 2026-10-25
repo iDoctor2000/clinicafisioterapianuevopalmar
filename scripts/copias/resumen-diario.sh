@@ -114,7 +114,7 @@ with
         'Tienen clases reservadas pero su contrato ha terminado o se finalizó. Si siguen viniendo, hazles la contratación nueva (no uses "Finalizar"); si no, cancela sus reservas.'),
       (10, false, 'Contratos activos que terminan en los próximos 7 días',
         (select count(*) from public.contratos where estado = 'ACTIVO' and fecha_fin between (select d from hoy) and (select d from hoy) + 7),
-        'Para renovarlos, usa "Nueva contratación" en la ficha del alumno (la actual se cierra sola y conserva sus clases fijas).'),
+        'Para renovarlos todos de golpe, usa el botón "Renovar" del aviso del Calendario (o "Renovar contratos" en Clientes): se alargan un mes con sus mismas clases y se crea el cobro. Los bonos, desde la ficha con "Nueva contratación".'),
       (11, false, 'Clases de ayer sin pasar lista',
         (select count(*) from public.clases c
           where c.estado = 'PROGRAMADA' and c.fecha = (select d from hoy) - 1
