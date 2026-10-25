@@ -160,10 +160,23 @@ select line from (
         ('0020', to_regprocedure('public._cancelar_clases_cierre()') is not null),
         ('0021', to_regclass('public.lista_espera') is not null),
         ('0022', pg_get_functiondef('public._generar_reservas_automaticas(uuid, boolean)'::regprocedure) like '%CANCELADA_CENTRO%'),
-        ('0023', pg_get_functiondef('public.finalizar_contrato(uuid, boolean)'::regprocedure) like '%delete from public.reservas%'))
+        ('0023', pg_get_functiondef('public.finalizar_contrato(uuid, boolean)'::regprocedure) like '%delete from public.reservas%'),
+        ('0024', to_regclass('public.contratos_finanzas') is not null),
+        ('0025', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clientes' and column_name = 'consentimiento_adjunto')
+                 and (to_regclass('storage.buckets') is null or exists (select 1 from storage.buckets where id = 'consentimientos'))),
+        ('0026', to_regclass('public.push_personal_pendientes') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'
+  -- Tareas programadas en la base de datos (pg_cron): el mantenimiento nocturno y la notificación de cumpleaños (0026).
+  union all select 23, '| Tareas automáticas programadas | ' || (
+      case when to_regclass('cron.job') is null then 'sin pg_cron'
+           else coalesce((select string_agg(jobname || case when active then '' else ' (pausada) ⚠️' end, ', ' order by jobname)
+                            from cron.job where jobname in ('mantenimiento-diario', 'push-cumpleanos')), '⚠️ ninguna')
+                || case when (select count(*) from cron.job where jobname in ('mantenimiento-diario', 'push-cumpleanos')) < 2 then ' ⚠️ falta alguna' else '' end
+      end) || ' |'
+  union all select 24, '| Personas con acceso a cobros | ' || (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'ve_finanzas')::boolean, false))
+      || case when (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'ve_finanzas')::boolean, false)) = 0 then ' ⚠️ nadie' else '' end || ' |'
   union all select 30, ''
   union all select 31, '### Vigilancia'
   union all select 32, '| Qué | Cuántos |'
