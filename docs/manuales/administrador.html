@@ -260,6 +260,14 @@
     <li>Tocando un cobro puedes cambiar el importe, la fecha o la forma de pago, o borrarlo.</li>
     <li><span class="btn claro">Añadir cobro</span> sirve para un pago suelto (una clase suelta, un material…).</li>
   </ul>
+  <h3>Renovar de golpe los contratos que terminan</h3>
+  <p>La última semana de cada mes, el Calendario avisa: <strong>"77 contratos terminan el 31 de octubre"</strong>, con el botón <span class="btn">Renovar</span> (también está en la lista de Clientes: <em>Renovar contratos</em>).</p>
+  <ol class="pasos">
+    <li>Sale la lista de los contratos mensuales que terminan, <strong>todos marcados</strong>. Desmarca a quien no sigue (los dados de baja salen ya desmarcados).</li>
+    <li>Arriba está la fecha <strong>"Renovar hasta"</strong>: por defecto, el último día del mes siguiente. Se puede cambiar.</li>
+    <li>Pulsa <span class="btn">Renovar N contratos</span> y confirma.</li>
+  </ol>
+  <p>Cada contrato marcado se <strong>alarga</strong> hasta esa fecha: es el mismo contrato, con la misma tarifa, las mismas clases fijas, sus recuperaciones y su forma de pago. Los alumnos de horario fijo quedan apuntados a sus clases del mes nuevo, y se crea el cobro pendiente del mes ("Renovación · noviembre 2026") con el importe de su contrato, salvo que ya tenga un cobro ese mes. Los bonos y las clases sueltas no salen aquí: se renuevan desde la ficha con <em>Nueva contratación</em>. Si alguien no tenía que renovarse, en su ficha usa <em>Finalizar contrato</em>.</p>
   <div class="caja ojo">
     <div class="t">"Pago pendiente"</div>
     <p>Cuando llega la fecha de un cobro y no está marcado como cobrado, el cliente sale con la etiqueta roja <strong>Pago pendiente</strong> en la lista de clientes y en su ficha. Así, de un vistazo, sabes a quién hay que recordárselo.</p>
@@ -637,6 +645,7 @@
         <tr><td><code>supabase/migrations/0024_finanzas.sql</code></td><td>Ajustes internos de permisos en contratos y cobros. Después de ejecutarla hay que correr la orden de "conceder acceso" que se indica en su cabecera.</td></tr>
         <tr><td><code>supabase/migrations/0025_consentimiento_adjunto.sql</code></td><td>Foto de la hoja de consentimiento firmada en papel (almacén privado del personal).</td></tr>
         <tr><td><code>supabase/migrations/0026_cumpleanos_personal.sql</code></td><td>Notificación al móvil del equipo el día que un alumno cumple años. Después hay que volver a desplegar la función enviar-push.</td></tr>
+        <tr><td><code>supabase/migrations/0028_renovar_contratos.sql</code></td><td>Botón para renovar de golpe los contratos mensuales que terminan.</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>

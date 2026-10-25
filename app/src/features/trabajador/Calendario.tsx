@@ -12,6 +12,7 @@ import { cumpleanosProximos } from '@/domain/logros';
 import { CalendarioSemana } from './CalendarioSemana';
 import { CalendarioMes } from './CalendarioMes';
 import { BannerClienteDelMes } from './ClienteDelMes';
+import { BannerRenovaciones } from './Renovaciones';
 import { IconoActividad } from '@/features/comun/IconoActividad';
 
 type Vista = 'DIA' | 'SEMANA' | 'MES';
@@ -63,6 +64,7 @@ export function Calendario() {
         }
       />
 
+      <BannerRenovaciones />
       <CumpleanosDeHoy />
       <BannerClienteDelMes />
 
