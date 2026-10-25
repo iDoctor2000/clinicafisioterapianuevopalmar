@@ -165,6 +165,11 @@ export interface Cliente {
   consentimientoEl: ISOInstant | null;
   /** Versión de la política aceptada ('2026-09-27') o 'papel' si lo registró el personal. */
   consentimientoVersion: string | null;
+  /**
+   * Foto de la hoja firmada en papel (0025). En demo, una data URL; en Supabase, la ruta del objeto en el
+   * bucket privado `consentimientos`. null o ausente = sin foto.
+   */
+  consentimientoAdjunto?: string | null;
 }
 
 export type Modalidad = 'FIJO' | 'LIBRE';

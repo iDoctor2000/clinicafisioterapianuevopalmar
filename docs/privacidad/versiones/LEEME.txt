@@ -1,0 +1,15 @@
+Versiones anteriores de la política de privacidad
+=================================================
+
+La política vigente es docs/PRIVACIDAD.md y su versión es la fecha de "Última actualización"
+(también en app/src/domain/privacidad.ts, VERSION_POLITICA_PRIVACIDAD).
+
+Cuando cambie la política:
+  1. Copia el docs/PRIVACIDAD.md ACTUAL a esta carpeta con el nombre de su versión, p. ej. 2026-09-27.md
+     (sin tocar nada del texto).
+  2. Edita docs/PRIVACIDAD.md con el texto nuevo y su nueva fecha de "Última actualización".
+  3. Cambia VERSION_POLITICA_PRIVACIDAD a la nueva fecha (las pruebas avisan si no coincide).
+
+Así, en la ficha de cada alumno, "Ver lo que aceptó" enseña exactamente el texto de la versión
+que aceptó, aunque la política haya cambiado después. Los archivos .md de esta carpeta se
+incluyen en la app automáticamente.

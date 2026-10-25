@@ -1638,5 +1638,48 @@ update public.trabajadores set rol = 'RECEPCION', ve_finanzas = false where id =
 delete from public.trabajador_permisos where trabajador_id = pruebas.id('tra_recep') and permiso in ('CLIENTES_EDITAR', 'CLIENTES_VER');
 do $$ begin raise notice 'OK finanzas: solo con ve_finanzas'; end $$;
 
+\echo '== 36. Foto de la hoja de consentimiento firmada en papel (0025)'
+select pruebas.sistema();
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_recep'), 'CLIENTES_EDITAR'), (pruebas.id('tra_recep'), 'CLIENTES_VER') on conflict do nothing;
+do $$ begin
+  assert (select consentimiento_version from public.clientes where id = pruebas.id('cliente_b')) = 'papel', 'B firmó en papel (bloque 18)';
+  assert (select consentimiento_adjunto from public.clientes where id = pruebas.id('cliente_b')) is null, 'sin foto todavía';
+end $$;
+-- Recepción (CLIENTES_EDITAR) guarda la ruta de la foto; queda auditado.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+update public.clientes set consentimiento_adjunto = pruebas.id('cliente_b')::text || '/1.jpg' where id = pruebas.id('cliente_b');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select consentimiento_adjunto from public.clientes where id = pruebas.id('cliente_b')) = pruebas.id('cliente_b')::text || '/1.jpg', 'foto guardada';
+  assert exists (select 1 from public.auditoria where accion = 'CONSENTIMIENTO_ADJUNTO' and entidad_id = pruebas.id('cliente_b')::text and actor_id = pruebas.id('u_recep') and detalle like '%guardada%'), 'auditado: foto guardada';
+end $$;
+-- El propio cliente no puede tocar la foto (sí su contacto).
+begin;
+set local role authenticated;
+select pruebas.como('b');
+select pruebas.espera_error(format('update public.clientes set consentimiento_adjunto = null where id = %L', pruebas.id('cliente_b')), 'Solo puedes modificar tus datos de contacto%');
+update public.clientes set telefono = '600 000 222' where id = pruebas.id('cliente_b');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select consentimiento_adjunto from public.clientes where id = pruebas.id('cliente_b')) is not null, 'la foto sigue';
+  assert (select telefono from public.clientes where id = pruebas.id('cliente_b')) = '600 000 222', 'y su contacto sí cambia';
+end $$;
+-- Quitar la foto también se audita.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+update public.clientes set consentimiento_adjunto = null where id = pruebas.id('cliente_b');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert exists (select 1 from public.auditoria where accion = 'CONSENTIMIENTO_ADJUNTO' and entidad_id = pruebas.id('cliente_b')::text and detalle like '%quitada%'), 'auditado: foto quitada';
+end $$;
+delete from public.trabajador_permisos where trabajador_id = pruebas.id('tra_recep') and permiso in ('CLIENTES_EDITAR', 'CLIENTES_VER');
+do $$ begin raise notice 'OK foto del consentimiento en papel'; end $$;
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'

@@ -266,7 +266,7 @@
   <h3>Lo demás que hay en la ficha</h3>
   <ul>
     <li><strong>Foto:</strong> <em>Poner foto</em> / <em>Cambiar foto</em>. El propio cliente también puede ponerla desde su perfil.</li>
-    <li><strong>Consentimiento:</strong> si el cliente acepta la política de privacidad en la app, queda registrado solo. Si firmó en papel, usa <em>Registrar consentimiento firmado en papel</em> y guarda el papel.</li>
+    <li><strong>Consentimiento:</strong> si el cliente acepta la política de privacidad en la app, queda registrado solo. Si firmó en papel, usa <em>Registrar consentimiento firmado en papel</em>: puedes hacerle una foto a la hoja firmada en ese momento (o añadirla después) y queda guardada junto a su ficha, solo visible para el personal. Pulsa sobre la etiqueta del consentimiento (o en <em>Ver lo que aceptó</em>) para leer el texto exacto que aceptó, de la versión de la política que estaba vigente ese día, y ver la foto del papel si la hay.</li>
     <li><strong>Reservas:</strong> todo su historial, con asistencias.</li>
     <li><strong>Recuperaciones:</strong> las suyas, y el botón <em>Autorizar recuperación excepcional</em> para casos especiales (una baja médica, por ejemplo).</li>
     <li><strong>Clínica:</strong> notas de salud. Solo las ven quienes tengan el permiso "Consultar información clínica".</li>
@@ -671,6 +671,12 @@
 
     <dt>A un alumno le ha salido "permission denied for table …" o "Tu sesión ha caducado".</dt>
     <dd>El servidor ha dado por terminada la sesión que tenía guardada ese teléfono (lleva días sin abrir la app, ha entrado desde otra instalación, o se le cerró la sesión). La app le manda a la pantalla de entrada con el aviso; con volver a entrar basta y no pierde nada. Si se repite a diario, mándale el enlace actual de la app (www.fisioterapianuevopalmar.com/app) y que la reinstale.</dd>
+
+    <dt>¿Quién ha firmado el consentimiento y a quién le falta?</dt>
+    <dd>En <em>Ajustes → Protección de datos</em> tienes los recuentos (aceptados en la app, firmados en papel y pendientes) y los botones <em>Ver pendientes</em> y <em>Ver firmados</em>, que abren la lista de clientes ya filtrada. En la propia lista de clientes hay un filtro "Consentimiento". Con <em>Recordar a los que usan la app</em> se les manda un aviso importante (y notificación al móvil) a los pendientes que ya tienen cuenta; quien no usa la app tiene que firmar la hoja en recepción.</dd>
+
+    <dt>Ha cambiado la política de privacidad: ¿cómo sé qué texto aceptó cada alumno?</dt>
+    <dd>La app guarda la fecha de la versión que aceptó cada uno y conserva el texto de cada versión (carpeta <code>docs/privacidad/versiones</code>, ver su LEEME). Al cambiar la política se archiva la anterior ahí y se actualiza la fecha de "Última actualización"; <em>Ver lo que aceptó</em> enseña siempre el texto de su versión.</dd>
 
     <dt>Un trabajador entra y le sale la app de cliente.</dt>
     <dd>Lo mismo: su correo en Equipo no coincide. Corrígelo.</dd>

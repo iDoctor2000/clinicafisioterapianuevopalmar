@@ -859,7 +859,7 @@ export function registrarConsentimiento(ctx: Ctx, _args: Record<string, never>):
  * El personal (CLIENTES_EDITAR; con ámbito SUS_CLASES solo sus alumnos) registra que el cliente
  * firmó el consentimiento en papel en recepción. Versión 'papel'.
  */
-export function registrarConsentimientoPapel(ctx: Ctx, args: { clienteId: Id }): Resultado<void> {
+export function registrarConsentimientoPapel(ctx: Ctx, args: { clienteId: Id; adjunto?: string | null }): Resultado<void> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'CLIENTES_EDITAR');
   if (e) return fallo(e);
@@ -867,8 +867,26 @@ export function registrarConsentimientoPapel(ctx: Ctx, args: { clienteId: Id }):
   if (!db.clientes.some((c) => c.id === args.clienteId)) return fallo('Cliente no encontrado.');
   if (limitadoASusClases(db, sesion) && !esAlumnoMio(db, sesion, args.clienteId)) return fallo(MENSAJE_CLIENTE_AJENO);
   const consentimientoEl = ahora.toISOString();
-  const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === args.clienteId ? { ...c, consentimientoEl, consentimientoVersion: CONSENTIMIENTO_PAPEL } : c)) };
-  return ok(auditar(nuevo, sesion, ahora, 'CONSENTIMIENTO_PAPEL', 'cliente', args.clienteId, `${nombreCliente(db, args.clienteId)}: firmado en papel`), undefined);
+  const adjunto = args.adjunto ?? null;
+  const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === args.clienteId ? { ...c, consentimientoEl, consentimientoVersion: CONSENTIMIENTO_PAPEL, consentimientoAdjunto: adjunto } : c)) };
+  return ok(auditar(nuevo, sesion, ahora, 'CONSENTIMIENTO_PAPEL', 'cliente', args.clienteId, `${nombreCliente(db, args.clienteId)}: firmado en papel${adjunto ? ' (con foto)' : ''}`), undefined);
+}
+
+/**
+ * Pone o quita la foto de la hoja firmada en papel (0025). Solo tiene sentido en consentimientos
+ * registrados en papel. CLIENTES_EDITAR; con ámbito SUS_CLASES solo sus alumnos.
+ */
+export function adjuntarConsentimiento(ctx: Ctx, args: { clienteId: Id; adjunto: string | null }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLIENTES_EDITAR');
+  if (e) return fallo(e);
+  const cliente = db.clientes.find((c) => c.id === args.clienteId);
+  if (!cliente) return fallo('Cliente no encontrado.');
+  if (limitadoASusClases(db, sesion) && !esAlumnoMio(db, sesion, args.clienteId)) return fallo(MENSAJE_CLIENTE_AJENO);
+  if (cliente.consentimientoVersion !== CONSENTIMIENTO_PAPEL) return fallo('La foto solo se guarda en consentimientos firmados en papel.');
+  const adjunto = args.adjunto && args.adjunto.trim() ? args.adjunto : null;
+  const nuevo: Db = { ...db, clientes: db.clientes.map((c) => (c.id === args.clienteId ? { ...c, consentimientoAdjunto: adjunto } : c)) };
+  return ok(auditar(nuevo, sesion, ahora, 'CONSENTIMIENTO_ADJUNTO', 'cliente', args.clienteId, `${nombreCliente(db, args.clienteId)}: ${adjunto ? 'foto del papel firmado guardada' : 'foto del papel quitada'}`), undefined);
 }
 
 function limpiar<T extends object>(o: T): Partial<T> {

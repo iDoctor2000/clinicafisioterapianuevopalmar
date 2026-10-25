@@ -4,7 +4,7 @@ import type { Sesion } from '@/domain/types';
 import { MENSAJE_CLIENTE_AJENO, alumnosDe } from '@/domain/ambito';
 import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import { crearSeed } from '@/data/seed';
-import { registrarConsentimiento, registrarConsentimientoPapel, guardarCliente, type Ctx } from '@/data/comandos';
+import { adjuntarConsentimiento, registrarConsentimiento, registrarConsentimientoPapel, guardarCliente, type Ctx } from '@/data/comandos';
 import type { Db } from '@/data/db';
 
 const db0 = crearSeed();
@@ -80,5 +80,32 @@ describe('registrarConsentimientoPapel · personal', () => {
     const c = db0.clientes.find((x) => x.id === 'maria')!;
     const r = guardarCliente(ctx(jose), { cliente: { ...c, telefono: '600 000 000' } });
     expect(r.ok && consentimientoDe(r.db, 'maria')).toEqual(consentimientoDe(db0, 'maria'));
+  });
+});
+
+describe('foto de la hoja firmada en papel (0025)', () => {
+  const laura = trabajador('tra-laura'); // RECEPCION con CLIENTES_EDITAR
+  it('se puede registrar el papel con foto, y poner, cambiar o quitar la foto después', () => {
+    const r1 = registrarConsentimientoPapel(ctx(laura), { clienteId: 'nuria', adjunto: 'data:image/jpeg;base64,AAA' });
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) return;
+    expect(r1.db.clientes.find((c) => c.id === 'nuria')).toMatchObject({ consentimientoVersion: CONSENTIMIENTO_PAPEL, consentimientoAdjunto: 'data:image/jpeg;base64,AAA' });
+    expect(r1.db.auditoria[0]).toMatchObject({ accion: 'CONSENTIMIENTO_PAPEL', entidadId: 'nuria' });
+    expect(r1.db.auditoria[0].detalle).toMatch(/con foto/);
+    const r2 = adjuntarConsentimiento(ctx(laura, r1.db), { clienteId: 'nuria', adjunto: 'data:image/jpeg;base64,BBB' });
+    expect(r2.ok && r2.db.clientes.find((c) => c.id === 'nuria')!.consentimientoAdjunto).toBe('data:image/jpeg;base64,BBB');
+    if (!r2.ok) return;
+    const r3 = adjuntarConsentimiento(ctx(laura, r2.db), { clienteId: 'nuria', adjunto: null });
+    expect(r3.ok && r3.db.clientes.find((c) => c.id === 'nuria')!.consentimientoAdjunto).toBeNull();
+    expect(r3.ok && r3.db.auditoria[0]).toMatchObject({ accion: 'CONSENTIMIENTO_ADJUNTO' });
+  });
+  it('sin foto el registro queda sin adjunto; la foto solo vale para consentimientos en papel; y hacen falta permiso y ámbito', () => {
+    const r = registrarConsentimientoPapel(ctx(laura), { clienteId: 'nuria' });
+    expect(r.ok && r.db.clientes.find((c) => c.id === 'nuria')!.consentimientoAdjunto).toBeNull();
+    // María aceptó en la app: no se le puede colgar una foto de papel.
+    expect(adjuntarConsentimiento(ctx(laura), { clienteId: 'maria', adjunto: 'data:x' })).toMatchObject({ ok: false, error: expect.stringMatching(/firmados en papel/) });
+    // Ana (monitora, SUS_CLASES) no tiene CLIENTES_EDITAR.
+    expect(adjuntarConsentimiento(ctx(trabajador('tra-ana')), { clienteId: 'nuria', adjunto: 'data:x' }).ok).toBe(false);
+    expect(adjuntarConsentimiento(ctx(clienteSesion('maria')), { clienteId: 'maria', adjunto: 'data:x' }).ok).toBe(false);
   });
 });

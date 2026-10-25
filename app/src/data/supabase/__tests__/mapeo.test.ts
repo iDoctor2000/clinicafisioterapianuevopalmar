@@ -119,7 +119,7 @@ describe('clientes', () => {
     expect(c).toEqual<Cliente>({
       id: U1, nombre: 'María', apellidos: 'García', dni: '1A', direccion: 'C/ Sol', email: 'm@x.com', telefono: '600',
       clinica: { lesiones: 'Rodilla', patologias: '', observaciones: 'Ok', actualizadaEl: '2026-02-01T10:00:00.000Z' },
-      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null, fechaNacimiento: null,
+      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null, consentimientoAdjunto: null, fechaNacimiento: null,
     });
     const { user_id: _u, ...sinUser } = fila;
     expect(deCliente(c)).toEqual({ ...sinUser, fecha_nacimiento: null });
