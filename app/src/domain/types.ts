@@ -165,6 +165,11 @@ export interface Cliente {
   consentimientoEl: ISOInstant | null;
   /** Versión de la política aceptada ('2026-09-27') o 'papel' si lo registró el personal. */
   consentimientoVersion: string | null;
+  /**
+   * Foto de la hoja firmada en papel (0025). En demo, una data URL; en Supabase, la ruta del objeto en el
+   * bucket privado `consentimientos`. null o ausente = sin foto.
+   */
+  consentimientoAdjunto?: string | null;
 }
 
 export type Modalidad = 'FIJO' | 'LIBRE';
@@ -475,6 +480,11 @@ export interface Trabajador {
   color: string;
   activo: boolean;
   userId: Id | null;
+  /**
+   * Ve importes, ofertas, forma de pago y cobros (0024). Es explícito, persona a persona: el rol ADMIN
+   * no lo incluye. Solo quien lo tiene puede concedérselo a otros.
+   */
+  veFinanzas?: boolean;
 }
 
 export interface RegistroAuditoria {
@@ -498,9 +508,16 @@ export type Sesion =
       tipo: 'TRABAJADOR'; userId: Id; trabajadorId: Id; nombre: string; permisos: Permiso[]; rol: RolTrabajador;
       /** Ámbito del trabajador. Si falta, se resuelve desde su ficha (ver domain/ambito.ts). */
       ambito?: Ambito;
+      /** Acceso a las finanzas (ver Trabajador.veFinanzas). */
+      veFinanzas?: boolean;
     };
 
 export function tienePermiso(sesion: Sesion | null, permiso: Permiso): boolean {
   if (!sesion || sesion.tipo !== 'TRABAJADOR') return false;
   return sesion.rol === 'ADMIN' || sesion.permisos.includes(permiso);
+}
+
+/** true si la sesión es de un trabajador con acceso a las finanzas. A diferencia de los permisos, el rol ADMIN no lo da. */
+export function veFinanzas(sesion: Sesion | null): boolean {
+  return !!sesion && sesion.tipo === 'TRABAJADOR' && sesion.veFinanzas === true;
 }

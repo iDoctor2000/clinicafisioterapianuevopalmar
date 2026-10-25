@@ -10,7 +10,14 @@ import { Fragment, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ShieldCheck } from 'lucide-react';
 import politicaMd from '../../../docs/PRIVACIDAD.md?raw';
+import { VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import { Boton } from '@/ui';
+
+/**
+ * Versiones anteriores de la política (docs/privacidad/versiones/<fecha>.md): al cambiar la política se
+ * archiva la anterior ahí (ver LEEME.txt) y así "Ver lo que aceptó" enseña el texto exacto de cada versión.
+ */
+const VERSIONES_ARCHIVADAS = import.meta.glob('../../../docs/privacidad/versiones/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 // ---------------------------------------------------------------------------
 // Mini-renderizador de markdown (solo lo que usa docs/PRIVACIDAD.md)
@@ -89,7 +96,7 @@ function enlazar(texto: string): ReactNode {
   });
 }
 
-function Lineas({ lineas }: { lineas: string[] }) {
+export function Lineas({ lineas }: { lineas: string[] }) {
   return (
     <>
       {lineas.map((l, i) => (
@@ -159,11 +166,49 @@ function Tabla({ cabecera, filas }: { cabecera: string[]; filas: string[][] }) {
 
 const BLOQUES = parsearMarkdown(politicaMd);
 
-/** Líneas de la cita que sigue al título "Texto de consentimiento..." en docs/PRIVACIDAD.md. */
+/** El markdown de una versión de la política: la vigente o una archivada. null si no la tenemos. */
+export function markdownDeVersion(version: string): string | null {
+  if (version === VERSION_POLITICA_PRIVACIDAD) return politicaMd;
+  const clave = Object.keys(VERSIONES_ARCHIVADAS).find((k) => k.endsWith(`/${version}.md`));
+  return clave ? VERSIONES_ARCHIVADAS[clave] : null;
+}
+
+/** Versiones de las que tenemos texto (la vigente y las archivadas). */
+export function versionesDisponibles(): string[] {
+  return [VERSION_POLITICA_PRIVACIDAD, ...Object.keys(VERSIONES_ARCHIVADAS).map((k) => k.replace(/^.*\//, '').replace(/\.md$/, ''))].sort().reverse();
+}
+
+export function bloquesDeVersion(version: string): Bloque[] | null {
+  if (version === VERSION_POLITICA_PRIVACIDAD) return BLOQUES;
+  const md = markdownDeVersion(version);
+  return md ? parsearMarkdown(md) : null;
+}
+
+/** La cita que sigue a un título dado ("Texto de consentimiento…", "Texto para el consentimiento en papel…"). */
+function citaTras(bloques: Bloque[], titulo: RegExp): string[] | null {
+  const idx = bloques.findIndex((b) => b.tipo === 'h2' && titulo.test(b.lineas[0]));
+  const cita = idx >= 0 ? bloques.slice(idx + 1).find((b) => b.tipo === 'cita') : undefined;
+  return cita && cita.tipo === 'cita' ? cita.lineas : null;
+}
+
+/** Líneas de la cita que sigue al título "Texto de consentimiento..." de una versión. */
+export function lineasConsentimientoDe(bloques: Bloque[]): string[] {
+  return citaTras(bloques, /^Texto de consentimiento/i) ?? ['He leído la política de privacidad y consiento el tratamiento de mis datos.'];
+}
+
+/** Líneas de la hoja que se firma en recepción ("Texto para el consentimiento en papel"). */
+export function lineasPapelDe(bloques: Bloque[]): string[] {
+  return citaTras(bloques, /^Texto para el consentimiento en papel/i) ?? lineasConsentimientoDe(bloques);
+}
+
+/** Líneas de la cita que sigue al título "Texto de consentimiento..." en docs/PRIVACIDAD.md (versión vigente). */
 export function lineasConsentimiento(): string[] {
-  const idx = BLOQUES.findIndex((b) => b.tipo === 'h2' && /^Texto de consentimiento/i.test(b.lineas[0]));
-  const cita = idx >= 0 ? BLOQUES.slice(idx + 1).find((b) => b.tipo === 'cita') : undefined;
-  return cita && cita.tipo === 'cita' ? cita.lineas : ['He leído la política de privacidad y consiento el tratamiento de mis datos.'];
+  return lineasConsentimientoDe(BLOQUES);
+}
+
+/** La política maquetada (cualquier versión), sin cabecera ni botones: para hojas y páginas. */
+export function VistaBloques({ bloques }: { bloques: Bloque[] }) {
+  return <>{bloques.map((b, i) => <BloqueVista key={i} b={b} />)}</>;
 }
 
 /** El texto de consentimiento maquetado (negritas), sin envoltorio: va dentro de la casilla de aceptación. */
@@ -196,7 +241,7 @@ export function Privacidad() {
       </header>
       <main className="max-w-3xl mx-auto px-4 py-6 pb-16">
         <article>
-          {BLOQUES.map((b, i) => <BloqueVista key={i} b={b} />)}
+          <VistaBloques bloques={BLOQUES} />
         </article>
         <div className="mt-10">
           <Boton tamano="lg" ancho variante="secundario" onClick={volver}><ChevronLeft className="h-5 w-5" /> Volver</Boton>

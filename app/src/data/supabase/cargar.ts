@@ -17,13 +17,16 @@ import {
   aActividad, aAuditoria, aAviso, aClase, aCliente, aConfig, aContrato, aEntradaListaEspera, aLectura, aPago, aPlantilla, aRecuperacion, aReserva, aTarifa,
   aPortadaImagen, aPremioMes, aTrabajador, aTrabajadorDesdeMonitor, derivarUsuarios,
   type FilaActividad, type FilaAuditoria, type FilaAviso, type FilaAvisoDestinatario, type FilaAvisoLectura, type FilaClase, type FilaCliente,
-  type FilaClienteClinica, type FilaConfigCentro, type FilaContrato, type FilaContratoFranja, type FilaDiaCierre, type FilaListaEspera, type FilaMiListaEspera,
+  type FilaClienteClinica, type FilaConfigCentro, type FilaContrato, type FilaContratoFinanzas, type FilaContratoFranja, type FilaDiaCierre, type FilaListaEspera, type FilaMiListaEspera,
   type FilaPago, type FilaMonitor,
   type FilaOcupacionClase, type FilaPlantillaClase, type FilaPortadaImagen, type FilaPremioMes, type FilaRecuperacion, type FilaReserva, type FilaTarifa,
   type FilaTarifaCupo, type FilaTrabajador, type FilaTrabajadorPermiso,
 } from './mapeo';
 
 /** Meses hacia atrás y hacia delante que se cargan de clases y reservas. */
+/** Todas las columnas de `contratos` menos las de dinero (ver 0024_finanzas.sql). */
+const COLUMNAS_CONTRATO = 'id, cliente_id, tarifa_id, fecha_inicio, fecha_fin, modalidad, sesiones_restantes, estado, actividades_permitidas_ids, notas, creado_por, creado_el';
+
 export const MESES_RANGO = 3;
 /** Filas por petición: el máximo que devuelve la API de Supabase ("Max rows" en Settings → API). */
 export const PAGINA = 1000;
@@ -81,7 +84,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
   if (configRes.error) throw new Error(`No se han podido cargar los datos del centro: ${mensajeError(configRes.error)}`);
 
   const [
-    cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, ocupacion, contratos, franjas, pagos,
+    cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, ocupacion, contratos, finanzas, franjas, pagos,
     reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios, listaEspera, miListaEspera,
   ] = await Promise.all([
     leerPaginado<FilaDiaCierre>('dias_cierre', de('dias_cierre', 'fecha')),
@@ -97,7 +100,10 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     leerPaginado<FilaClase>('clases', (d, h) => sb.from('clases').select('*', { count: 'exact' }).gte('fecha', desde).lte('fecha', hasta).order('fecha').order('hora_inicio').order('id').range(d, h) as unknown as Consulta<FilaClase>),
     // Plazas ocupadas de cada clase (0018): un alumno solo ve sus reservas, pero sí cuántas plazas hay ocupadas.
     leerPaginado<FilaOcupacionClase>('ocupacion_clases', (d, h) => sb.from('ocupacion_clases').select('*', { count: 'exact' }).gte('fecha', desde).lte('fecha', hasta).order('clase_id').range(d, h) as unknown as Consulta<FilaOcupacionClase>),
-    leerPaginado<FilaContrato>('contratos', de('contratos')),
+    // Contratos: columnas explícitas. Las de dinero (oferta, importe, forma de pago) no se pueden leer en la tabla
+    // desde 0024: se leen aparte en la vista contratos_finanzas, que solo responde a quien ve las finanzas.
+    leerPaginado<FilaContrato>('contratos', (d, h) => sb.from('contratos').select(COLUMNAS_CONTRATO, { count: 'exact' }).order('id').range(d, h) as unknown as Consulta<FilaContrato>),
+    leerPaginado<FilaContratoFinanzas>('contratos_finanzas', de('contratos_finanzas'), 1),
     leerPaginado<FilaContratoFranja>('contrato_franjas', de('contrato_franjas', 'contrato_id', 'plantilla_id')),
     // Cobros (0013). RLS: el personal con CLIENTES_VER (en su ámbito) y cada cliente los suyos.
     leerPaginado<FilaPago>('pagos', (d, h) => sb.from('pagos').select('*', { count: 'exact' }).order('vence_el', { ascending: true, nullsFirst: false }).order('creado_el').order('id').range(d, h) as unknown as Consulta<FilaPago>),
@@ -123,6 +129,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
   const listaTrabajadores = trabajadores.length > 0 ? trabajadores.map((t) => aTrabajador(t, permisos)) : monitores.map(aTrabajadorDesdeMonitor);
   const ocupadasPorClase = new Map(ocupacion.map((o) => [o.clase_id, o]));
   const posicionPorEntrada = new Map(miListaEspera.map((m) => [m.id, m.posicion]));
+  const finanzasPorContrato = new Map(finanzas.map((f) => [f.id, { oferta: f.oferta, importe_centimos: f.importe_centimos, metodo_pago: f.metodo_pago }]));
 
   return {
     version: DB_VERSION,
@@ -130,7 +137,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     actividades: actividades.map(aActividad),
     tarifas: tarifas.map((t) => aTarifa(t, cupos)),
     clientes: listaClientes,
-    contratos: contratos.map((c) => aContrato(c, franjas)),
+    contratos: contratos.map((c) => aContrato({ ...c, ...finanzasPorContrato.get(c.id) }, franjas)),
     pagos: pagos.map(aPago),
     plantillas: plantillas.map(aPlantilla),
     clases: clases.map((c) => aClase(c, ocupadasPorClase.get(c.id)?.ocupadas, ocupadasPorClase.get(c.id)?.en_espera)),

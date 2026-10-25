@@ -198,6 +198,23 @@ export function esCumpleanos(fechaNacimiento: ISODate | null | undefined, hoy: I
   return mN === '02' && dN === '29' && !bisiesto && m === '02' && d === '28';
 }
 
+/**
+ * Alumnos que cumplen años en los próximos `dias` días (hoy incluido), en orden de fecha:
+ * para la franja "esta semana cumplen…" del calendario del personal. `fecha` es el día de este año en
+ * que lo celebran (29 de febrero → 28 en años no bisiestos).
+ */
+export function cumpleanosProximos<T extends { fechaNacimiento?: ISODate | null; activo: boolean }>(clientes: T[], hoy: ISODate, dias = 7): { cliente: T; fecha: ISODate; enDias: number }[] {
+  const lista: { cliente: T; fecha: ISODate; enDias: number }[] = [];
+  const [a, m, d] = hoy.split('-').map(Number);
+  const base = Date.UTC(a, m - 1, d);
+  for (let i = 0; i < dias; i++) {
+    const dia = new Date(base + i * 86_400_000);
+    const fecha = `${dia.getUTCFullYear()}-${String(dia.getUTCMonth() + 1).padStart(2, '0')}-${String(dia.getUTCDate()).padStart(2, '0')}`;
+    for (const c of clientes) if (c.activo && esCumpleanos(c.fechaNacimiento, fecha)) lista.push({ cliente: c, fecha, enDias: i });
+  }
+  return lista;
+}
+
 export const MENSAJE_CUMPLEANOS_POR_DEFECTO = 'Todo el equipo de Nuevo Palmar te desea un año lleno de salud y bienestar. ¡Que lo celebres a lo grande!';
 
 // ---------------------------------------------------------------------------

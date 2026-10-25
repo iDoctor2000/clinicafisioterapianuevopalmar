@@ -8,7 +8,7 @@ import type { Db } from '@/data/db';
 import type { Id, ISODate, PremioMes } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
 import {
-  avisoGanador, finMes, mesAnterior, motivoCandidato, nombreMes, ordenarCandidatos, premioVigente, type Candidato,
+  avisoGanador, CRITERIOS_CLIENTE_DEL_MES, faltasDelMes, finMes, mesAnterior, motivoCandidato, nombreMes, ordenarCandidatos, premioVigente, type Candidato,
 } from '@/domain/clienteDelMes';
 import { contratoActivoDe, tarifaDe } from '@/data/selectores';
 import { actividadDelMes } from '@/data/logros';
@@ -27,6 +27,18 @@ export function cupoSemanalEn(db: Db, clienteId: Id, fecha: ISODate): number {
 function nombreCompleto(db: Db, id: Id): string {
   const c = db.clientes.find((x) => x.id === id);
   return c ? `${c.nombre} ${c.apellidos}`.trim() : 'Cliente';
+}
+
+/** Criterios de desempate con los datos de la instantánea (faltas, antigüedad, nombre). Lo usan la hoja y la pantalla Trofeos. */
+export function opcionesCandidatos(db: Db, mes: ISODate) {
+  return {
+    mes,
+    cupoDe: (id: Id) => cupoSemanalEn(db, id, finMes(mes)),
+    premios: db.premios.filter((p) => p.mes !== mes),
+    faltasDe: (id: Id) => faltasDelMes(db.reservas, db.clases, id, mes),
+    altaDe: (id: Id) => db.clientes.find((c) => c.id === id)?.altaEl ?? null,
+    nombreDe: (id: Id) => nombreCompleto(db, id),
+  };
 }
 
 function textoPublico(p: PremioMes): string {
@@ -67,8 +79,7 @@ export function HojaClienteDelMes({ abierta, onCerrar, mesInicial }: { abierta: 
     actividadDelMes(mes)
       .then((act) => {
         if (!vivo) return;
-        const lista = ordenarCandidatos(act, { mes, cupoDe: (id) => cupoSemanalEn(db, id, finMes(mes)), premios: db.premios.filter((p) => p.mes !== mes) })
-          .filter((c) => db.clientes.some((x) => x.id === c.clienteId));
+        const lista = ordenarCandidatos(act, opcionesCandidatos(db, mes)).filter((c) => db.clientes.some((x) => x.id === c.clienteId));
         setCandidatos(lista);
         setElegido(premio?.clienteId ?? lista[0]?.clienteId ?? null);
       })
@@ -130,7 +141,7 @@ export function HojaClienteDelMes({ abierta, onCerrar, mesInicial }: { abierta: 
 
         <div>
           <p className="text-[15px] font-semibold">Los más constantes de {nombreMes(mes, true)}</p>
-          <p className="text-sm text-ink-muted mb-3">Primero quien cumplió el reto (las clases de su tarifa × 4), luego quien vino más semanas distintas y quien más clases hizo. Quien ganó en los últimos 3 meses va al final. La decisión es vuestra.</p>
+          <p className="text-sm text-ink-muted mb-3">{CRITERIOS_CLIENTE_DEL_MES.join(' ')}</p>
           {error && <p className="text-rose">{error}</p>}
           {!error && candidatos === null && <p className="text-ink-muted">Calculando…</p>}
           {candidatos?.length === 0 && <p className="text-ink-muted">Nadie ha hecho clases ese mes.</p>}

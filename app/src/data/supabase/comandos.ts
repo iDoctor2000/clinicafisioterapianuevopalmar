@@ -10,7 +10,7 @@
  * sobre el `Db` recargado después del comando (función `valor(db)`).
  */
 import type { Clase, Cliente, Id, Recuperacion, Reserva, Sesion } from '@/domain/types';
-import { tienePermiso } from '@/domain/types';
+import { tienePermiso, veFinanzas } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import type { Db } from '../db';
@@ -19,6 +19,7 @@ import { mensajeError, servidor } from './cliente';
 import { borrarFoto } from './fotos';
 import { CLINICA_VACIA, deActividad, deCliente, deClinica, deConfig, deDestino, deDiasCierre, dePago, dePlantilla, dePortadaImagen, deTarifa, deTrabajador, deClaseNueva } from './mapeo';
 import { borrarImagenPortada } from './portada';
+import { borrarAdjuntosConsentimiento } from './consentimientos';
 import { invocarEnvioPush } from './push';
 
 export type ResultadoRemoto<T = unknown> = { ok: true; valor: (db: Db) => T } | { ok: false; error: string };
@@ -297,9 +298,21 @@ const impl: Impl = {
     if (!args.clienteId) throw new Error('Falta el cliente.');
     // RLS no lanza error si la fila queda fuera del permiso/ámbito: simplemente no actualiza nada.
     const filas = comprobar(
-      await servidor().from('clientes').update({ consentimiento_el: new Date().toISOString(), consentimiento_version: CONSENTIMIENTO_PAPEL }).eq('id', args.clienteId).select('id'),
+      await servidor().from('clientes')
+        .update({ consentimiento_el: new Date().toISOString(), consentimiento_version: CONSENTIMIENTO_PAPEL, ...(args.adjunto !== undefined ? { consentimiento_adjunto: args.adjunto } : {}) })
+        .eq('id', args.clienteId).select('id'),
     );
     if (!filas || filas.length === 0) throw new Error('No se ha podido registrar el consentimiento: sin permiso sobre este cliente.');
+    return () => undefined;
+  },
+
+  /** La imagen ya está subida al bucket `consentimientos` (features/trabajador/Consentimientos.tsx → consentimientos.ts). Al quitar, se borra el objeto. */
+  async adjuntarConsentimiento(args) {
+    if (!args.clienteId) throw new Error('Falta el cliente.');
+    const adjunto = args.adjunto && args.adjunto.trim() ? args.adjunto : null;
+    const filas = comprobar(await servidor().from('clientes').update({ consentimiento_adjunto: adjunto }).eq('id', args.clienteId).eq('consentimiento_version', CONSENTIMIENTO_PAPEL).select('id'));
+    if (!filas || filas.length === 0) throw new Error('No se ha podido guardar: sin permiso sobre este cliente o su consentimiento no es en papel.');
+    if (!adjunto) await borrarAdjuntosConsentimiento(args.clienteId);
     return () => undefined;
   },
 
@@ -322,10 +335,10 @@ const impl: Impl = {
     return (db) => db.actividades.find((x) => x.id === a.id) ?? a;
   },
 
-  async guardarTrabajador(args) {
+  async guardarTrabajador(args, sesion) {
     const sb = servidor();
     const t = { ...args.trabajador, id: args.trabajador.id ?? nuevoUuid() };
-    const { trabajador, permisos } = deTrabajador(t);
+    const { trabajador, permisos } = deTrabajador(t, veFinanzas(sesion));
     comprobar(await sb.from('trabajadores').upsert(trabajador));
     comprobar(await sb.from('trabajador_permisos').delete().eq('trabajador_id', t.id));
     if (permisos.length > 0) comprobar(await sb.from('trabajador_permisos').insert(permisos));

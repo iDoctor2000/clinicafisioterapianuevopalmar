@@ -16,6 +16,17 @@ export async function guardarSuscripcionPush(clienteId: string, s: SuscripcionPu
   if (error) throw new Error(mensajeError(error));
 }
 
+/** Guarda (o actualiza) la suscripción push de un trabajador en este navegador (0026). */
+export async function guardarSuscripcionPushTrabajador(trabajadorId: string, s: SuscripcionPush): Promise<void> {
+  const { error } = await servidor()
+    .from('suscripciones_push')
+    .upsert(
+      { cliente_id: null, trabajador_id: trabajadorId, endpoint: s.endpoint, clave_p256dh: s.p256dh, clave_auth: s.auth, user_agent: navigator.userAgent.slice(0, 500) },
+      { onConflict: 'endpoint' },
+    );
+  if (error) throw new Error(/column|schema cache/i.test(error.message) ? 'Las notificaciones del personal aún no están configuradas en el servidor (falta la migración 0026).' : mensajeError(error));
+}
+
 /** Borra la suscripción de este navegador (por endpoint). No falla si ya no existe. */
 export async function borrarSuscripcionPush(endpoint: string): Promise<void> {
   const { error } = await servidor().from('suscripciones_push').delete().eq('endpoint', endpoint);

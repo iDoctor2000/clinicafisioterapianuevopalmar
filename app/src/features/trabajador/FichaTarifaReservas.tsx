@@ -23,7 +23,7 @@ const ESTADO_CONTRATO = { ACTIVO: { texto: 'Activo', tono: 'beige' }, FINALIZADO
 // ---------------------------------------------------------------------------
 
 export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
-  const { db, puede, ejecutar } = useTrabajador();
+  const { db, puede, ejecutar, veFinanzas } = useTrabajador();
   const [nueva, setNueva] = useState(false);
   const [editar, setEditar] = useState(false);
   const [finalizar, setFinalizar] = useState<Contrato | null>(null);
@@ -69,7 +69,7 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
               {tarifa.tipo === 'BONO' && <Dato etiqueta="Sesiones restantes">{contrato.sesionesRestantes ?? 0} de {tarifa.bono?.sesiones}</Dato>}
               {tarifa.tipo === 'RECURRENTE' && <Dato etiqueta="Cupo semanal">{tarifa.cupos.map((c) => `${c.sesionesSemana} ${CATEGORIA_LABEL[c.categoria].toLowerCase()}`).join(' + ')}</Dato>}
               {previstas != null && <Dato etiqueta="Sesiones previstas en el periodo">{previstas} (descontando cierres)</Dato>}
-              <Dato etiqueta="Pago">{textoPago(contrato, tarifa.tipo === 'RECURRENTE')}</Dato>
+              {veFinanzas && <Dato etiqueta="Pago">{textoPago(contrato, tarifa.tipo === 'RECURRENTE')}</Dato>}
               {contrato.notas && <Dato etiqueta="Notas" className="sm:col-span-2">{contrato.notas}</Dato>}
             </div>
             {contrato.modalidad === 'FIJO' && (
@@ -205,7 +205,7 @@ function SelectorFranjas({ tarifa, franjas, setFranjas, inicio, fin, contratoAct
 }
 
 function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerrar: () => void }) {
-  const { db, ejecutar } = useTrabajador();
+  const { db, ejecutar, veFinanzas } = useTrabajador();
   const hoy = hoyISO();
   const tarifas = db.tarifas.filter((t) => t.activa).sort((a, b) => a.orden - b.orden);
   const [tarifaId, setTarifaId] = useState(tarifas[0]?.id ?? '');
@@ -263,7 +263,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
       if (n === 0) toast.error('Contratación creada, pero no se ha podido apuntar al alumno a ninguna clase: puede que las franjas elegidas no tengan clases creadas o estén completas. Revísalo en el calendario y usa "Rehacer reservas fijas" en su pestaña Tarifa.');
       else toast.ok(`Contratación creada: apuntado a ${n === 1 ? '1 clase' : `${n} clases`} hasta el ${fechaMedia(fin)}${inicio < hoy ? (incluirPasadas ? `, incluidas las pasadas desde el ${fechaMedia(inicio)}` : '. Los días anteriores a hoy no se apuntan') : ''}.`);
     } else {
-      toast.ok('Contratación creada. El plan de cobros se ha generado.');
+      toast.ok(veFinanzas ? 'Contratación creada. El plan de cobros se ha generado.' : 'Contratación creada.');
     }
     onCerrar();
   };
@@ -293,7 +293,9 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
         )}
         {tarifa?.tipo === 'BONO' && tarifa.bono && <p className="text-sm text-ink-soft rounded-2xl bg-sand p-3">Bono de <strong>{tarifa.bono.sesiones} sesiones</strong> de {CATEGORIA_LABEL[tarifa.bono.categoria].toLowerCase()}, válido hasta el {fechaMedia(fin)}.</p>}
 
-        <div className="border-t border-ink/10 pt-4 space-y-4">
+        {/* Sin acceso a las finanzas no hay apartado de pago: el contrato se crea con el importe de la tarifa y su plan
+            de cobros estándar, y quien lleva las cuentas lo ajusta después. */}
+        {veFinanzas && <div className="border-t border-ink/10 pt-4 space-y-4">
           <h3 className="font-semibold text-lg">Pago</h3>
           <CamposPago mensual={esRecurrente} datos={{ oferta, importe: importeTexto, metodo }}
             onCambio={(d) => {
@@ -304,7 +306,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
           {plan.length > 0 && (
             <PlanCobros plan={plan} importes={importesPlan} onImporte={(i, t) => setAjustes({ ...ajustes, [i]: t })} primeroCobrado={primeroCobrado} onPrimeroCobrado={setPrimeroCobrado} />
           )}
-        </div>
+        </div>}
 
         <AreaTexto etiqueta="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" className="min-h-[4rem]" />
         <Boton ancho onClick={() => void guardar()} cargando={guardando}>Crear contratación</Boton>
@@ -314,7 +316,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
 }
 
 function HojaEditarContratacion({ contrato, tarifa, onCerrar }: { contrato: Contrato; tarifa: Tarifa; onCerrar: () => void }) {
-  const { ejecutar } = useTrabajador();
+  const { ejecutar, veFinanzas } = useTrabajador();
   const [fin, setFin] = useState(contrato.fechaFin);
   const [franjas, setFranjas] = useState<string[]>(contrato.franjasFijas.map((f) => f.plantillaId));
   const [notas, setNotas] = useState(contrato.notas);
@@ -355,11 +357,11 @@ function HojaEditarContratacion({ contrato, tarifa, onCerrar }: { contrato: Cont
           <Interruptor activo={incluirPasadas} onCambio={setIncluirPasadas} etiqueta={`Apuntar también a las clases pasadas desde el ${fechaMedia(contrato.fechaInicio)}`}
             descripcion="Para dejar reflejados los días en que ya venía antes de darle de alta en la app. Solo apunta a las clases que le falten de sus franjas; cuentan como hechas." />
         )}
-        <div className="border-t border-ink/10 pt-4 space-y-4">
+        {veFinanzas && <div className="border-t border-ink/10 pt-4 space-y-4">
           <h3 className="font-semibold text-lg">Pago</h3>
           <CamposPago mensual={tarifa.tipo === 'RECURRENTE'} datos={pago} onCambio={setPago} />
           <p className="text-sm text-ink-muted">Los cobros ya apuntados no cambian: se gestionan en la tarjeta "Cobros".</p>
-        </div>
+        </div>}
         <AreaTexto etiqueta="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" className="min-h-[4rem]" />
         <Boton ancho onClick={guardar}>Guardar cambios</Boton>
       </div>

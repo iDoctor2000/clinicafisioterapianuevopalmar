@@ -12,6 +12,7 @@ import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { Diagnostico } from './Diagnostico';
 import { Sorpresas } from './Sorpresas';
+import { ProteccionDatos } from './Consentimientos';
 import { ultimaCopia, type UltimaCopia } from '@/data/supabase/copias';
 import { excelDeDatos } from '@/data/exportar';
 import { descargarBlob } from '@/lib/compartir';
@@ -29,6 +30,7 @@ export function Ajustes() {
         <Cierres />
         <div className="lg:col-span-2"><CentroPilates /></div>
         <div className="lg:col-span-2"><FotosPortada /></div>
+        <div className="lg:col-span-2"><ProteccionDatos /></div>
         <div className="lg:col-span-2"><Sorpresas /></div>
         <div className="lg:col-span-2"><ReservasFijas /></div>
         <div className="lg:col-span-2"><CopiasSeguridad /></div>
@@ -168,7 +170,7 @@ const ACCION_TEXTO: Record<string, string> = {
   CANCELAR_CLASE: 'Clase cancelada', CREAR_CLASE_EXTRA: 'Clase extraordinaria', CREAR_HORARIO: 'Franja creada', EDITAR_HORARIO: 'Franja editada', CREAR_CLIENTE: 'Cliente creado', EDITAR_CLIENTE: 'Cliente editado',
   CREAR_CONTRATO: 'Contratación', FINALIZAR_CONTRATO: 'Contrato finalizado', PUBLICAR_AVISO: 'Aviso publicado', EDITAR_PERFIL: 'Perfil editado', CREAR_TARIFA: 'Tarifa creada', EDITAR_TARIFA: 'Tarifa editada',
   CREAR_ACTIVIDAD: 'Actividad creada', EDITAR_ACTIVIDAD: 'Actividad editada', CREAR_TRABAJADOR: 'Trabajador creado', EDITAR_TRABAJADOR: 'Trabajador editado', CONFIG: 'Configuración',
-  FOTO_CLIENTE: 'Foto de cliente', QUITAR_FOTO_CLIENTE: 'Foto de cliente quitada', CONSENTIMIENTO: 'Consentimiento', CONSENTIMIENTO_PAPEL: 'Consentimiento en papel',
+  FOTO_CLIENTE: 'Foto de cliente', QUITAR_FOTO_CLIENTE: 'Foto de cliente quitada', CONSENTIMIENTO: 'Consentimiento', CONSENTIMIENTO_PAPEL: 'Consentimiento en papel', CONSENTIMIENTO_ADJUNTO: 'Foto del consentimiento',
   CREAR_PORTADA: 'Foto de portada añadida', EDITAR_PORTADA: 'Foto de portada editada', BORRAR_PORTADA: 'Foto de portada borrada', ORDENAR_PORTADA: 'Portada reordenada',
   LISTA_ESPERA: 'Lista de espera', ELIMINAR_FRANJA: 'Franja eliminada',
 };

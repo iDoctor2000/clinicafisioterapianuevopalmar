@@ -3,11 +3,13 @@
  *
  *   POST { avisoId: "<uuid>" }  → a los destinatarios del aviso que tengan `notificaciones_push = true`.
  *                                 Solo trabajadores con AVISOS_ENVIAR o CLASES_CREAR_CANCELAR (ADMIN siempre).
- *   POST { prueba: true }       → solo al cliente autenticado (todas sus suscripciones).
+ *   POST { prueba: true }       → solo al usuario autenticado (cliente o trabajador; todas sus suscripciones).
  *   POST { pendientes: true }   → manda los avisos que ha creado la propia base de datos (lista de
- *                                 espera, 0021) y están en `avisos_push_pendientes`. Cualquier usuario
- *                                 autenticado puede pedirlo: la app lo hace al arrancar y tras cada
- *                                 acción que puede liberar una plaza. Cada aviso se manda una sola vez.
+ *                                 espera, 0021) y están en `avisos_push_pendientes`, y las notificaciones
+ *                                 al personal de `push_personal_pendientes` (cumpleaños, 0026) cuya hora
+ *                                 ya ha llegado. Cualquier usuario autenticado puede pedirlo: la app lo
+ *                                 hace al arrancar y tras cada acción que puede liberar una plaza. Cada
+ *                                 aviso se manda una sola vez.
  *
  * Cabecera `Authorization: Bearer <JWT del usuario>` (la pone `supabase.functions.invoke`).
  * Responde `{ enviadas, fallidas, borradas }`. Las suscripciones que el servicio push
@@ -31,7 +33,8 @@ const RUTA_AVISOS = '#/avisos';
 
 interface FilaSuscripcion {
   id: string;
-  cliente_id: string;
+  cliente_id: string | null;
+  trabajador_id?: string | null;
   endpoint: string;
   clave_p256dh: string;
   clave_auth: string;
@@ -167,6 +170,46 @@ async function cargarSuscripciones(admin: SupabaseClient, clienteIds: string[]):
   return (data ?? []) as FilaSuscripcion[];
 }
 
+/** Suscripciones de trabajadores (0026). */
+async function cargarSuscripcionesPersonal(admin: SupabaseClient, trabajadorIds: string[]): Promise<FilaSuscripcion[]> {
+  if (trabajadorIds.length === 0) return [];
+  const { data, error } = await admin
+    .from('suscripciones_push')
+    .select('id, cliente_id, trabajador_id, endpoint, clave_p256dh, clave_auth')
+    .in('trabajador_id', trabajadorIds);
+  if (error) throw new Error(`No se han podido leer las suscripciones del personal: ${error.message}`);
+  return (data ?? []) as FilaSuscripcion[];
+}
+
+/** Notificaciones al personal preparadas por la base de datos (cumpleaños): se mandan una vez, cuando llega su hora. */
+async function enviarPendientesPersonal(admin: SupabaseClient): Promise<ResultadoEnvio & { notificaciones: number }> {
+  const total = { enviadas: 0, fallidas: 0, borradas: 0, notificaciones: 0 };
+  const { data: pendientes, error } = await admin
+    .from('push_personal_pendientes')
+    .delete()
+    .lte('enviar_desde', new Date().toISOString())
+    .select('id, titulo, cuerpo, url, destinatarios');
+  if (error) {
+    // Sin la migración 0026 la tabla no existe: no es un fallo de los avisos de alumnos.
+    if (/does not exist|relation|schema cache/i.test(error.message)) return total;
+    throw new Error(error.message);
+  }
+  for (const fila of pendientes ?? []) {
+    total.notificaciones++;
+    try {
+      const suscripciones = await cargarSuscripcionesPersonal(admin, (fila.destinatarios ?? []) as string[]);
+      const r = await enviarATodas(suscripciones, { titulo: String(fila.titulo), cuerpo: resumen(String(fila.cuerpo ?? '')), url: String(fila.url || '#/'), etiqueta: `personal-${fila.id}` });
+      total.enviadas += r.enviadas;
+      total.fallidas += r.fallidas;
+      total.borradas += await borrarCaducadas(admin, r.caducadas);
+    } catch (e) {
+      console.warn('[enviar-push] Notificación al personal no enviada:', fila.id, (e as Error)?.message ?? e);
+      total.fallidas++;
+    }
+  }
+  return total;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Método no permitido.' }, 405);
@@ -207,16 +250,28 @@ Deno.serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   try {
-    // ── Prueba: solo al cliente autenticado ───────────────────────────────────
+    // ── Prueba: solo al usuario autenticado (cliente o trabajador) ────────────
     if (peticion.prueba === true) {
       const { data: cliente, error } = await admin.from('clientes').select('id, nombre').eq('user_id', user.id).eq('activo', true).maybeSingle();
       if (error) throw new Error(error.message);
-      if (!cliente) return json({ error: 'Tu cuenta no está vinculada a ningún cliente del centro.' }, 403);
-      const suscripciones = await cargarSuscripciones(admin, [cliente.id as string]);
+      let suscripciones: FilaSuscripcion[];
+      let nombre: string;
+      let url = RUTA_AVISOS;
+      if (cliente) {
+        suscripciones = await cargarSuscripciones(admin, [cliente.id as string]);
+        nombre = String(cliente.nombre);
+      } else {
+        const { data: trabajador, error: errorTrab } = await admin.from('trabajadores').select('id, nombre').eq('user_id', user.id).eq('activo', true).maybeSingle();
+        if (errorTrab) throw new Error(errorTrab.message);
+        if (!trabajador) return json({ error: 'Tu cuenta no está vinculada a ningún cliente ni trabajador del centro.' }, 403);
+        suscripciones = await cargarSuscripcionesPersonal(admin, [trabajador.id as string]);
+        nombre = String(trabajador.nombre);
+        url = '#/';
+      }
       const r = await enviarATodas(suscripciones, {
         titulo: 'Notificación de prueba',
-        cuerpo: `Hola, ${cliente.nombre}. Así te avisaremos de las novedades del centro.`,
-        url: RUTA_AVISOS,
+        cuerpo: cliente ? `Hola, ${nombre}. Así te avisaremos de las novedades del centro.` : `Hola, ${nombre}. Así te avisaremos de los cumpleaños y novedades del equipo.`,
+        url,
         etiqueta: 'prueba',
       });
       const borradas = await borrarCaducadas(admin, r.caducadas);
@@ -242,7 +297,11 @@ Deno.serve(async (req) => {
           total.fallidas++;
         }
       }
-      return json({ ...total, avisos: (pendientes ?? []).length });
+      const personal = await enviarPendientesPersonal(admin);
+      total.enviadas += personal.enviadas;
+      total.fallidas += personal.fallidas;
+      total.borradas += personal.borradas;
+      return json({ ...total, avisos: (pendientes ?? []).length, personal: personal.notificaciones });
     }
 
     // ── Aviso: a sus destinatarios, solo desde el personal con permiso ────────

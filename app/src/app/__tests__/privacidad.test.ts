@@ -1,7 +1,7 @@
 /** La página de privacidad se genera desde docs/PRIVACIDAD.md: comprobamos que el mini-renderizador lo cubre. */
 import { describe, expect, it } from 'vitest';
 import politicaMd from '../../../../docs/PRIVACIDAD.md?raw';
-import { lineasConsentimiento, parsearMarkdown } from '../Privacidad';
+import { bloquesDeVersion, lineasConsentimiento, lineasPapelDe, markdownDeVersion, parsearMarkdown, versionesDisponibles } from '../Privacidad';
 import { VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 
 describe('docs/PRIVACIDAD.md', () => {
@@ -28,5 +28,18 @@ describe('docs/PRIVACIDAD.md', () => {
   it('la versión de la política coincide con la fecha de "Última actualización" del .md', () => {
     expect(politicaMd).toContain('Última actualización: 27 de septiembre de 2026');
     expect(VERSION_POLITICA_PRIVACIDAD).toBe('2026-09-27');
+  });
+  it('cada versión tiene su texto: la vigente es el .md; una desconocida no existe; las archivadas van en docs/privacidad/versiones', () => {
+    expect(markdownDeVersion(VERSION_POLITICA_PRIVACIDAD)).toBe(politicaMd);
+    expect(markdownDeVersion('1999-01-01')).toBeNull();
+    expect(bloquesDeVersion('1999-01-01')).toBeNull();
+    expect(versionesDisponibles()[0]).toBe(VERSION_POLITICA_PRIVACIDAD);
+    // Toda versión archivada es una fecha y tiene los dos textos (app y papel).
+    for (const v of versionesDisponibles()) {
+      expect(v).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      const bloques = bloquesDeVersion(v)!;
+      expect(lineasPapelDe(bloques).join(' ')).toMatch(/consiente/);
+    }
+    expect(lineasPapelDe(bloquesDeVersion(VERSION_POLITICA_PRIVACIDAD)!)[0]).toMatch(/^D\.\/Dña\./);
   });
 });

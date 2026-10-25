@@ -3,12 +3,12 @@
  * previas para ver exactamente lo que verán los alumnos.
  */
 import { useState } from 'react';
-import { Cake, Eye, Gift, Save, Sparkles, Trophy } from 'lucide-react';
+import { Bell, Cake, Eye, Gift, Save, Sparkles, Trophy } from 'lucide-react';
 import { hoyISO } from '@/domain/fechas';
 import { MENSAJE_CUMPLEANOS_POR_DEFECTO, NOMBRE_MES, type ResumenAnual } from '@/domain/logros';
 import { mesAnterior, nombreMes } from '@/domain/clienteDelMes';
 import { resumenCentro, type ResumenCentro } from '@/data/logros';
-import { AreaTexto, Boton, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
+import { AreaTexto, Boton, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
 import { HistoriaCentro, HistoriaResumen, TarjetaCumpleanos, TarjetaPremioMes } from '@/features/comun/Logros';
 import { useTrabajador } from './useTrabajador';
 import { HojaClienteDelMes } from './ClienteDelMes';
@@ -43,8 +43,11 @@ function textoVentana(desde: string, hasta: string): string {
   return `del ${t(desde)} al ${t(hasta)}`;
 }
 
+export const TITULO_PEDIR_FECHA = '🎂 ¿Cuándo es tu cumpleaños?';
+export const CUERPO_PEDIR_FECHA = 'Nos gustaría felicitarte ese día. Si quieres, pon tu fecha de nacimiento en Perfil → Fecha de nacimiento (es opcional y solo la ve el equipo). ¡Gracias!';
+
 export function Sorpresas() {
-  const { db, ejecutar } = useTrabajador();
+  const { db, ejecutar, puede } = useTrabajador();
   const c = db.config;
   const inicial = {
     mensajeCumpleanos: c.mensajeCumpleanos ?? '',
@@ -60,7 +63,22 @@ export function Sorpresas() {
   const [centro, setCentro] = useState<{ anio: number; datos: ResumenCentro } | null>(null);
   const [cargandoCentro, setCargandoCentro] = useState(false);
   const [hojaPremio, setHojaPremio] = useState(false);
+  const [pedirFecha, setPedirFecha] = useState(false);
+  const [pidiendo, setPidiendo] = useState(false);
   const hoy = hoyISO();
+  const activos = db.clientes.filter((c) => c.activo);
+  const conFecha = activos.filter((c) => !!c.fechaNacimiento).length;
+  const sinFechaConApp = activos.filter((c) => !c.fechaNacimiento && !!c.userId);
+  const pedir = async () => {
+    setPidiendo(true);
+    const r = await ejecutar('publicarAviso', {
+      titulo: TITULO_PEDIR_FECHA, cuerpo: CUERPO_PEDIR_FECHA,
+      destino: { tipo: 'CLIENTES', clienteIds: sinFechaConApp.map((c) => c.id) }, importante: false,
+    });
+    setPidiendo(false);
+    setPedirFecha(false);
+    if (r.ok) toast.ok(`Aviso enviado a ${sinFechaConApp.length === 1 ? '1 alumno' : `${sinFechaConApp.length} alumnos`}.`); else toast.error(r.error);
+  };
   const anioActual = Number(hoy.slice(0, 4));
   // Hasta mediados de enero tiene más sentido el año que acaba de terminar.
   const anioCentro = hoy.slice(5) <= '01-31' ? anioActual - 1 : anioActual;
@@ -91,6 +109,10 @@ export function Sorpresas() {
             <AreaTexto etiqueta="Mensaje de felicitación" ayuda="Vacío = el mensaje de siempre." placeholder={MENSAJE_CUMPLEANOS_POR_DEFECTO} rows={4} maxLength={400}
               value={f.mensajeCumpleanos} onChange={(e) => setF({ ...f, mensajeCumpleanos: e.target.value })} />
             <Boton variante="secundario" tamano="sm" onClick={() => setVista('CUMPLE')}><Eye className="h-4 w-4" /> Ver felicitación</Boton>
+            <p className="text-sm text-ink-muted">{conFecha} de {activos.length} alumnos activos tienen puesta la fecha de nacimiento. El equipo ve en el calendario quién cumple hoy y esta semana, y los monitores reciben una notificación por la mañana (si la tienen activada en Más → Avisos en el móvil).</p>
+            {sinFechaConApp.length > 0 && puede('AVISOS_ENVIAR') && (
+              <Boton variante="secundario" tamano="sm" onClick={() => setPedirFecha(true)}><Bell className="h-4 w-4" /> Pedir la fecha a los {sinFechaConApp.length} que usan la app</Boton>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -138,6 +160,14 @@ export function Sorpresas() {
       {vista === 'PREMIO' && <TarjetaPremioMes ejemplo nombre="Ana" mesTexto={nombreMes(mesAnterior(hoy))} clases={12} preguntar onResponder={() => setVista(null)} onCerrar={() => setVista(null)} />}
       {centro && <HistoriaCentro anio={centro.anio} datos={centro.datos} actividad={actividadTop} onCerrar={() => setCentro(null)} />}
       <HojaClienteDelMes abierta={hojaPremio} onCerrar={() => setHojaPremio(false)} />
+      <Hoja abierta={pedirFecha} onCerrar={() => setPedirFecha(false)} titulo="Pedir la fecha de nacimiento">
+        <p className="text-ink-soft">Se publica un aviso (sin marcar como importante) para los <strong className="text-ink">{sinFechaConApp.length}</strong> alumnos activos con cuenta en la app que no han puesto su fecha de nacimiento.</p>
+        <div className="rounded-2xl bg-sand p-3 mt-3 text-[15px]"><p className="font-semibold">{TITULO_PEDIR_FECHA}</p><p className="text-ink-soft mt-1">{CUERPO_PEDIR_FECHA}</p></div>
+        <div className="grid gap-2 mt-4">
+          <Boton tamano="lg" ancho cargando={pidiendo} onClick={() => void pedir()}><Bell className="h-5 w-5" /> Enviar el aviso</Boton>
+          <Boton tamano="lg" ancho variante="secundario" onClick={() => setPedirFecha(false)}>Cancelar</Boton>
+        </div>
+      </Hoja>
     </Tarjeta>
   );
 }

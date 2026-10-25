@@ -5,6 +5,7 @@ import { Boton, Tarjeta } from '@/ui';
 import { itemVisible, itemsTrabajador } from './CapaTrabajador';
 import { useTrabajador } from './useTrabajador';
 import { Avatar, Encabezado, ROL_TEXTO } from './comunes';
+import { AvisosMovil } from './AvisosMovil';
 import { AMBITO_LABEL } from '@/domain/types';
 
 export function Mas() {
@@ -38,6 +39,7 @@ export function Mas() {
           </ul>
         </Tarjeta>
       )}
+      <AvisosMovil />
       <Tarjeta className="mb-4">
         <Link to="/privacidad" className="flex items-center gap-3 p-4 hover:bg-sand tap">
           <span className="h-10 w-10 rounded-xl bg-beige-100 text-ink flex items-center justify-center"><ShieldCheck className="h-5 w-5" /></span>

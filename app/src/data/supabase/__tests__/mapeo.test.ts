@@ -90,10 +90,13 @@ describe('trabajadores', () => {
   const fila: FilaTrabajador = { id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', ambito: 'SUS_CLASES', es_monitor: true, color: '#fff', activo: true, user_id: AUTH };
   it('ida y vuelta con permisos (sin user_id al escribir)', () => {
     const t = aTrabajador(fila, [{ trabajador_id: U1, permiso: 'CLIENTES_VER' }, { trabajador_id: U2, permiso: 'AVISOS_ENVIAR' }, { trabajador_id: U1, permiso: 'ASISTENCIA_REGISTRAR' }]);
-    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#fff', activo: true, userId: AUTH });
+    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#fff', activo: true, userId: AUTH, veFinanzas: false });
     const { trabajador, permisos } = deTrabajador(t);
     const { user_id: _u, ...sinUser } = fila;
     expect(trabajador).toEqual(sinUser);
+    // 0024: la columna ve_finanzas solo viaja cuando quien guarda ve las finanzas.
+    expect(deTrabajador({ ...t, veFinanzas: true }, true).trabajador).toEqual({ ...sinUser, ve_finanzas: true });
+    expect(aTrabajador({ ...fila, ve_finanzas: true }, []).veFinanzas).toBe(true);
     expect(permisos).toEqual([{ trabajador_id: U1, permiso: 'CLIENTES_VER' }, { trabajador_id: U1, permiso: 'ASISTENCIA_REGISTRAR' }]);
   });
   it('vista monitores (lo que ve un cliente)', () => {
@@ -116,7 +119,7 @@ describe('clientes', () => {
     expect(c).toEqual<Cliente>({
       id: U1, nombre: 'María', apellidos: 'García', dni: '1A', direccion: 'C/ Sol', email: 'm@x.com', telefono: '600',
       clinica: { lesiones: 'Rodilla', patologias: '', observaciones: 'Ok', actualizadaEl: '2026-02-01T10:00:00.000Z' },
-      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null, fechaNacimiento: null,
+      notificacionesPush: true, activo: true, userId: AUTH, altaEl: '2026-01-15', bajaEl: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null, consentimientoAdjunto: null, fechaNacimiento: null,
     });
     const { user_id: _u, ...sinUser } = fila;
     expect(deCliente(c)).toEqual({ ...sinUser, fecha_nacimiento: null });

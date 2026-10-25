@@ -54,6 +54,8 @@ export interface FilaTrabajador {
   /** Columna añadida en 0005_ambito.sql (default CENTRO). */
   ambito?: Ambito | null;
   es_monitor: boolean; color: string; activo: boolean; user_id: string | null;
+  /** Columna añadida en 0024_finanzas.sql (default false). */
+  ve_finanzas?: boolean | null;
 }
 export interface FilaTrabajadorPermiso { trabajador_id: string; permiso: Permiso }
 /** Vista `monitores`: lo que ve un cliente de los trabajadores (sin contacto). */
@@ -67,6 +69,8 @@ export interface FilaCliente {
   /** Consentimiento de privacidad (columnas de 0007): instante y versión de la política ('2026-09-27' o 'papel'). */
   consentimiento_el?: string | null;
   consentimiento_version?: string | null;
+  /** Foto de la hoja firmada en papel (columna de 0025): ruta en el bucket `consentimientos`. */
+  consentimiento_adjunto?: string | null;
   /** Columna de 0014 (opcional). */
   fecha_nacimiento?: string | null;
 }
@@ -94,6 +98,9 @@ export interface FilaContrato {
   // 0013 (pueden faltar si la migración no está aplicada)
   oferta?: Oferta | null; importe_centimos?: number | null; metodo_pago?: MetodoPago | null;
 }
+
+/** Vista contratos_finanzas (0024): solo devuelve filas a quien ve las finanzas. */
+export interface FilaContratoFinanzas { id: string; oferta: Oferta | null; importe_centimos: number | null; metodo_pago: MetodoPago | null }
 
 export interface FilaPago {
   id: string; contrato_id: string | null; cliente_id: string; importe_centimos: number; estado: string; proveedor: string;
@@ -261,7 +268,7 @@ export function aTrabajador(f: FilaTrabajador, permisos: FilaTrabajadorPermiso[]
     id: f.id, nombre: f.nombre, apellidos: f.apellidos, email: f.email, telefono: f.telefono, rol: f.rol,
     permisos: permisos.filter((p) => p.trabajador_id === f.id).map((p) => p.permiso),
     ambito: f.rol === 'ADMIN' ? 'CENTRO' : f.ambito ?? 'CENTRO',
-    esMonitor: f.es_monitor, color: f.color, activo: f.activo, userId: f.user_id,
+    esMonitor: f.es_monitor, color: f.color, activo: f.activo, userId: f.user_id, veFinanzas: f.ve_finanzas === true,
   };
 }
 /** Un cliente solo ve la vista `monitores`: sin contacto, rol MONITOR y sin permisos. */
@@ -272,11 +279,16 @@ export function aTrabajadorDesdeMonitor(f: FilaMonitor): Trabajador {
   };
 }
 /** No incluye user_id: la vinculación con la cuenta de acceso se hace desde Supabase, no desde la app. */
-export function deTrabajador(t: Trabajador): { trabajador: Omit<FilaTrabajador, 'user_id'>; permisos: FilaTrabajadorPermiso[] } {
+/**
+ * `conFinanzas`: solo quien ve las finanzas manda la columna ve_finanzas (el servidor la conservaría igual,
+ * pero así ni siquiera viaja).
+ */
+export function deTrabajador(t: Trabajador, conFinanzas = false): { trabajador: Omit<FilaTrabajador, 'user_id'>; permisos: FilaTrabajadorPermiso[] } {
   return {
     trabajador: {
       id: t.id, nombre: t.nombre, apellidos: t.apellidos, email: t.email, telefono: t.telefono, rol: t.rol,
       ambito: t.rol === 'ADMIN' ? 'CENTRO' : t.ambito, es_monitor: t.esMonitor, color: t.color, activo: t.activo,
+      ...(conFinanzas ? { ve_finanzas: t.veFinanzas === true } : {}),
     },
     permisos: t.permisos.map((p) => ({ trabajador_id: t.id, permiso: p })),
   };
@@ -297,6 +309,7 @@ export function aCliente(f: FilaCliente, clinica: FilaClienteClinica | null | un
     notificacionesPush: f.notificaciones_push, activo: f.activo, userId: f.user_id, altaEl: aFecha(f.alta_el), bajaEl: f.baja_el ? aFecha(f.baja_el) : null,
     fotoUrl: f.foto_url ?? null,
     consentimientoEl: aInstanteONull(f.consentimiento_el), consentimientoVersion: f.consentimiento_version ?? null,
+    consentimientoAdjunto: f.consentimiento_adjunto ?? null,
     fechaNacimiento: f.fecha_nacimiento ? aFecha(f.fecha_nacimiento) : null,
   };
 }
@@ -305,7 +318,7 @@ export function aCliente(f: FilaCliente, clinica: FilaClienteClinica | null | un
  * (la gestiona `actualizarFotoCliente` junto con el bucket) y sin el consentimiento (lo registran
  * `registrarConsentimiento`/`registrarConsentimientoPapel`); así guardar la ficha nunca los pisa.
  */
-export function deCliente(c: Cliente): Omit<FilaCliente, 'user_id' | 'foto_url' | 'consentimiento_el' | 'consentimiento_version'> {
+export function deCliente(c: Cliente): Omit<FilaCliente, 'user_id' | 'foto_url' | 'consentimiento_el' | 'consentimiento_version' | 'consentimiento_adjunto'> {
   return {
     id: c.id, nombre: c.nombre, apellidos: c.apellidos, dni: c.dni, direccion: c.direccion, email: c.email, telefono: c.telefono,
     notificaciones_push: c.notificacionesPush, activo: c.activo, alta_el: c.altaEl, baja_el: c.bajaEl,

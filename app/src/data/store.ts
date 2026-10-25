@@ -67,7 +67,7 @@ function sesionDeUsuario(db: Db, userId: string): Sesion | null {
   if (u.tipo === 'TRABAJADOR' && u.trabajadorId) {
     const t = db.trabajadores.find((x) => x.id === u.trabajadorId);
     if (!t) return null;
-    return { tipo: 'TRABAJADOR', userId: u.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol };
+    return { tipo: 'TRABAJADOR', userId: u.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true };
   }
   return null;
 }

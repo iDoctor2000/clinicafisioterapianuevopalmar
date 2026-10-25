@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { useStore } from '@/data/store';
-import { tienePermiso, type Ambito, type Clase, type Permiso, type Sesion, type Trabajador } from '@/domain/types';
+import { tienePermiso, veFinanzas as sesionVeFinanzas, type Ambito, type Clase, type Permiso, type Sesion, type Trabajador } from '@/domain/types';
 import { ambitoDe, puedeGestionarClase, recortarAlAmbito } from '@/domain/ambito';
+import { ocultarFinanzas } from '@/domain/finanzas';
 import type { Db } from '@/data/db';
 
 export type SesionTrabajador = Extract<Sesion, { tipo: 'TRABAJADOR' }>;
@@ -21,6 +22,8 @@ export function useTrabajador(): {
   trabajador: Trabajador | null;
   puede: (permiso: Permiso) => boolean;
   esAdmin: boolean;
+  /** Ve importes, ofertas, forma de pago y cobros. Sin él, `db` llega sin nada de eso. */
+  veFinanzas: boolean;
   ambito: Ambito;
   /** true si el ámbito es SUS_CLASES. */
   limitado: boolean;
@@ -33,8 +36,12 @@ export function useTrabajador(): {
   const trabajador = dbCompleta.trabajadores.find((t) => t.id === sesionBase?.trabajadorId) ?? null;
   const ambito = ambitoDe(dbCompleta, sesionBase) ?? 'CENTRO';
   const sesion = useMemo<SesionTrabajador>(() => (sesionBase ? { ...sesionBase, ambito } : sesionBase), [sesionBase, ambito]);
-  const db = useMemo(() => recortarAlAmbito(dbCompleta, sesion), [dbCompleta, sesion]);
+  const veFinanzas = sesionVeFinanzas(sesion);
+  const db = useMemo(() => {
+    const recortada = recortarAlAmbito(dbCompleta, sesion);
+    return veFinanzas ? recortada : ocultarFinanzas(recortada);
+  }, [dbCompleta, sesion, veFinanzas]);
   const puede = useCallback((p: Permiso) => tienePermiso(sesion, p), [sesion]);
   const gestionaClase = useCallback((clase: Pick<Clase, 'monitorId'>) => puedeGestionarClase(dbCompleta, sesion, clase), [dbCompleta, sesion]);
-  return { db, dbCompleta, sesion, trabajador, puede, esAdmin: sesion?.rol === 'ADMIN', ambito, limitado: ambito === 'SUS_CLASES', gestionaClase, ejecutar };
+  return { db, dbCompleta, sesion, trabajador, puede, esAdmin: sesion?.rol === 'ADMIN', veFinanzas, ambito, limitado: ambito === 'SUS_CLASES', gestionaClase, ejecutar };
 }

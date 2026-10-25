@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronRight, UserPlus, Users } from 'lucide-react';
 import type { Cliente } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
@@ -10,14 +10,25 @@ import { buscarClientes, resumenCliente } from './consultas';
 import { pagosVencidos } from '@/domain/cobros';
 import { esCumpleanos } from '@/domain/logros';
 import { AvatarCliente, CampoBusqueda, Encabezado, Segmentado } from './comunes';
+import { ChipConsentimiento, estadoConsentimiento } from './Consentimientos';
+
+type FiltroConsentimiento = 'TODOS' | 'FIRMADOS' | 'PENDIENTES';
+const FILTROS_CONSENTIMIENTO: FiltroConsentimiento[] = ['TODOS', 'FIRMADOS', 'PENDIENTES'];
 
 export function Clientes() {
   const { db, puede, limitado } = useTrabajador();
   const navigate = useNavigate();
   const [texto, setTexto] = useState('');
   const [filtro, setFiltro] = useState<'ACTIVOS' | 'TODOS'>('ACTIVOS');
+  // El panel de administración enlaza con ?consentimiento=PENDIENTES (o FIRMADOS).
+  const [params, setParams] = useSearchParams();
+  const pedido = params.get('consentimiento') as FiltroConsentimiento | null;
+  const consentimiento: FiltroConsentimiento = pedido && FILTROS_CONSENTIMIENTO.includes(pedido) ? pedido : 'TODOS';
+  const setConsentimiento = (v: FiltroConsentimiento) => setParams(v === 'TODOS' ? {} : { consentimiento: v }, { replace: true });
   const hoy = hoyISO();
-  const lista = buscarClientes(db, texto, filtro === 'ACTIVOS');
+  const base = buscarClientes(db, texto, filtro === 'ACTIVOS');
+  const lista = consentimiento === 'TODOS' ? base : base.filter((c) => (estadoConsentimiento(c) === 'PENDIENTE') === (consentimiento === 'PENDIENTES'));
+  const pendientes = base.filter((c) => estadoConsentimiento(c) === 'PENDIENTE').length;
 
   return (
     <div>
@@ -30,6 +41,12 @@ export function Clientes() {
         <CampoBusqueda valor={texto} onCambio={setTexto} placeholder="Buscar por nombre, apellidos, DNI o teléfono" className="flex-1" />
         <Segmentado valor={filtro} onCambio={setFiltro} opciones={[{ valor: 'ACTIVOS', texto: 'Activos' }, { valor: 'TODOS', texto: 'Todos' }]} />
       </div>
+      {!limitado && (
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          <span className="text-sm text-ink-muted">Consentimiento:</span>
+          <Segmentado valor={consentimiento} onCambio={setConsentimiento} opciones={[{ valor: 'TODOS', texto: 'Todos' }, { valor: 'FIRMADOS', texto: `Firmados (${base.length - pendientes})` }, { valor: 'PENDIENTES', texto: `Pendientes (${pendientes})` }]} />
+        </div>
+      )}
       {lista.length === 0 ? (
         <Vacio icono={Users} titulo="Sin resultados" texto={texto ? 'Prueba con otro nombre, DNI o teléfono.' : limitado ? 'Aquí aparecerán los clientes con reserva en alguna de tus clases.' : 'Todavía no hay clientes.'} />
       ) : (
@@ -47,6 +64,7 @@ export function Clientes() {
                         {!c.activo && <Chip tono="rojo">Baja</Chip>}
                         {pagosVencidos(db.pagos, c.id, hoy).length > 0 && <Chip tono="rojo">Pago pendiente</Chip>}
                         {esCumpleanos(c.fechaNacimiento, hoy) && <Chip tono="ambar">🎂 Cumple hoy</Chip>}
+                        {(consentimiento !== 'TODOS' || estadoConsentimiento(c) === 'PENDIENTE') && c.activo && <ChipConsentimiento cliente={c} />}
                       </span>
                       <span className="block text-sm text-ink-muted truncate">
                         {r.tarifa ? `${r.tarifa.nombre} · ${r.contrato?.modalidad === 'FIJO' ? 'horario fijo' : 'turno libre'}` : 'Sin tarifa activa'}
