@@ -125,6 +125,18 @@ select upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' 
  where k.estado = 'ACTIVO' and k.modalidad = 'FIJO' and k.fecha_fin >= public._hoy()
    and not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id where r.contrato_id = k.id and r.estado = 'RESERVADA' and c.fecha >= public._hoy());
 
+\echo '== Permisos de las tablas que usa la función de notificaciones (enviar-push usa el rol service_role)'
+select r.rolname as rol, r.rolbypassrls as salta_rls,
+       t.tabla,
+       has_table_privilege(r.rolname, t.tabla, 'SELECT') as leer,
+       has_table_privilege(r.rolname, t.tabla, 'DELETE') as borrar
+  from pg_roles r
+ cross join (values ('public.avisos_push_pendientes'), ('public.push_personal_pendientes'), ('public.avisos'), ('public.aviso_destinatarios'),
+                    ('public.clientes'), ('public.trabajadores'), ('public.suscripciones_push'), ('public.contratos')) t(tabla)
+ where r.rolname in ('service_role', 'authenticated') and to_regclass(t.tabla) is not null
+ order by r.rolname, t.tabla;
+select count(*) as avisos_push_pendientes_ahora, min(creado_el) at time zone 'Europe/Madrid' as el_mas_antiguo from public.avisos_push_pendientes;
+
 \echo '== Lista de espera y avisos push pendientes'
 select left(e.clase_id::text, 8) as clase, c.fecha, c.hora_inicio as hora, upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '.' as quien, e.reserva_cambio_id is not null as cambio, e.creado_el at time zone 'Europe/Madrid' as creada
   from public.lista_espera e join public.clases c on c.id = e.clase_id join public.clientes cl on cl.id = e.cliente_id order by c.fecha, c.hora_inicio, e.creado_el;
