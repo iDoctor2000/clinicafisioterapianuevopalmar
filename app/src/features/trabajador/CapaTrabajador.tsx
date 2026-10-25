@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon, Trophy } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { tienePermiso, type Permiso, type Sesion } from '@/domain/types';
 import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
@@ -17,6 +17,7 @@ const items: Item[] = [
   { to: '/avisos', etiqueta: 'Avisos', icono: Bell, permiso: 'AVISOS_ENVIAR', principal: true },
   { to: '/tarifas', etiqueta: 'Tarifas', icono: Tags, permiso: 'TARIFAS_GESTIONAR' },
   { to: '/estadisticas', etiqueta: 'Estadísticas', icono: BarChart3, permiso: 'ESTADISTICAS_VER' },
+  { to: '/trofeos', etiqueta: 'Trofeos', icono: Trophy, permiso: 'ESTADISTICAS_VER' },
   { to: '/equipo', etiqueta: 'Equipo', icono: UserCog, permiso: null, soloAdmin: true },
   { to: '/ajustes', etiqueta: 'Ajustes', icono: Settings, permiso: null, soloAdmin: true },
 ];

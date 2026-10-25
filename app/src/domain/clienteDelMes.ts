@@ -6,11 +6,13 @@
  *   1. Han cumplido el reto.
  *   2. Más semanas distintas con clase (no vale concentrarlo todo en una semana).
  *   3. Más clases respecto a lo que les toca por tarifa.
- *   4. Más clases y, si siguen empatados, más minutos.
+ *   4. Más clases.
+ *   Desempate: menos faltas sin avisar ("No asiste"), quien nunca ha ganado, más antigüedad en el
+ *   centro, más minutos y, si aun así empatan, el orden alfabético (así la lista es siempre la misma).
  * Quien ganó en los 3 meses anteriores va al final, para que el premio vaya rotando.
  * La última palabra es siempre del administrador.
  */
-import type { Id, ISODate, PremioMes } from './types';
+import type { Clase, Id, ISODate, PremioMes, Reserva } from './types';
 import { NOMBRE_MES, type ClaseHecha } from './logros';
 
 /** Semanas que cuenta el reto. */
@@ -82,22 +84,44 @@ export interface Candidato extends ActividadMes {
   retoCumplido: boolean;
   /** Mes en el que ganó hace poco (va al final de la lista), o null. */
   ganoEn: ISODate | null;
+  /** Faltas sin avisar ese mes (reservas marcadas "No asiste"). */
+  faltas: number;
+  /** Ha ganado alguna vez (en cualquier mes). */
+  ganoAlgunaVez: boolean;
+  /** Fecha de alta en el centro (antigüedad), si se conoce. */
+  altaEl: ISODate | null;
 }
 
-export function ordenarCandidatos(
-  actividad: ActividadMes[],
-  opts: { mes: ISODate; cupoDe: (clienteId: Id) => number; premios: PremioMes[] },
-): Candidato[] {
+export interface OpcionesCandidatos {
+  mes: ISODate;
+  cupoDe: (clienteId: Id) => number;
+  premios: PremioMes[];
+  /** Faltas sin avisar del alumno en el mes (ver faltasDelMes). Sin ella, 0 para todos. */
+  faltasDe?: (clienteId: Id) => number;
+  /** Fecha de alta del alumno (antigüedad). Sin ella no se tiene en cuenta. */
+  altaDe?: (clienteId: Id) => ISODate | null;
+  /** Nombre para el último desempate (alfabético). Sin él, el id. */
+  nombreDe?: (clienteId: Id) => string;
+}
+
+export function ordenarCandidatos(actividad: ActividadMes[], opts: OpcionesCandidatos): Candidato[] {
   // Meses "recientes": los MESES_SIN_REPETIR anteriores al premiado.
   const recientes = new Set<ISODate>();
   let m = opts.mes;
   for (let i = 0; i < MESES_SIN_REPETIR; i++) { m = mesAnterior(m); recientes.add(m); }
   const ganoEn = new Map<Id, ISODate>();
   for (const p of opts.premios) if (recientes.has(p.mes) && !ganoEn.has(p.clienteId)) ganoEn.set(p.clienteId, p.mes);
+  const ganadores = new Set(opts.premios.filter((p) => p.mes < opts.mes).map((p) => p.clienteId));
+  const nombre = (id: Id) => (opts.nombreDe ? opts.nombreDe(id) : id);
 
   const lista: Candidato[] = actividad.filter((a) => a.clases > 0).map((a) => {
     const objetivo = objetivoReto(opts.cupoDe(a.clienteId));
-    return { ...a, objetivo, retoCumplido: a.clases >= objetivo, ganoEn: ganoEn.get(a.clienteId) ?? null };
+    return {
+      ...a, objetivo, retoCumplido: a.clases >= objetivo, ganoEn: ganoEn.get(a.clienteId) ?? null,
+      faltas: opts.faltasDe ? Math.max(0, opts.faltasDe(a.clienteId)) : 0,
+      ganoAlgunaVez: ganadores.has(a.clienteId),
+      altaEl: opts.altaDe ? opts.altaDe(a.clienteId) : null,
+    };
   });
   return lista.sort((a, b) =>
     Number(!!a.ganoEn) - Number(!!b.ganoEn)
@@ -105,13 +129,38 @@ export function ordenarCandidatos(
     || b.semanas - a.semanas
     || b.clases / b.objetivo - a.clases / a.objetivo
     || b.clases - a.clases
-    || b.minutos - a.minutos);
+    || a.faltas - b.faltas
+    || Number(a.ganoAlgunaVez) - Number(b.ganoAlgunaVez)
+    || (a.altaEl ?? '9999').localeCompare(b.altaEl ?? '9999')
+    || b.minutos - a.minutos
+    || nombre(a.clienteId).localeCompare(nombre(b.clienteId), 'es'));
 }
 
-/** "12 clases en 4 semanas · reto cumplido". */
+/** Faltas sin avisar de un alumno en un mes: reservas marcadas "No asiste" en clases no canceladas de ese mes. */
+export function faltasDelMes(reservas: Reserva[], clases: Clase[], clienteId: Id, mes: ISODate): number {
+  const fin = finMes(mes);
+  const claseDe = new Map(clases.map((c) => [c.id, c]));
+  return reservas.filter((r) => {
+    if (r.clienteId !== clienteId || r.estado !== 'RESERVADA' || r.asistencia !== 'NO_ASISTE') return false;
+    const c = claseDe.get(r.claseId);
+    return !!c && c.estado !== 'CANCELADA' && c.fecha >= mes && c.fecha <= fin;
+  }).length;
+}
+
+/** Texto corto de los criterios, para enseñarlos al equipo. */
+export const CRITERIOS_CLIENTE_DEL_MES = [
+  'Primero quien cumplió el reto (las clases de su tarifa × 4).',
+  'Después quien vino más semanas distintas, y quien hizo más clases respecto a su tarifa.',
+  'Si empatan: menos faltas sin avisar, quien nunca ha ganado, más antigüedad en el centro y más minutos.',
+  `Quien ganó en los ${MESES_SIN_REPETIR} meses anteriores va al final, para que el premio vaya rotando.`,
+  'La última palabra es siempre vuestra.',
+];
+
+/** "12 clases en 4 semanas · reto cumplido · 1 falta". */
 export function motivoCandidato(c: Candidato): string {
   const partes = [`${c.clases} ${c.clases === 1 ? 'clase' : 'clases'} en ${c.semanas} ${c.semanas === 1 ? 'semana' : 'semanas'}`];
   partes.push(c.retoCumplido ? 'reto cumplido' : `reto: ${c.clases} de ${c.objetivo}`);
+  if (c.faltas > 0) partes.push(`${c.faltas} ${c.faltas === 1 ? 'falta' : 'faltas'}`);
   return partes.join(' · ');
 }
 

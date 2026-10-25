@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { PremioMes } from '../types';
 import type { ClaseHecha } from '../logros';
 import {
-  avisoGanador, finMes, inicioMes, mesAnterior, motivoCandidato, objetivoReto, ordenarCandidatos, premioVigente, retoDelMes,
+  avisoGanador, faltasDelMes, finMes, inicioMes, mesAnterior, motivoCandidato, objetivoReto, ordenarCandidatos, premioVigente, retoDelMes,
 } from '../clienteDelMes';
+import type { Clase, Reserva } from '../types';
 
 const clase = (fecha: string): ClaseHecha => ({ fecha, hora: '10:00', duracionMin: 55, actividadId: 'a', monitorId: null });
 const premio = (mes: string, clienteId: string, publico: boolean | null = null): PremioMes => ({ mes, clienteId, clases: 8, motivo: '', anunciadoEl: '', publico, nombrePublico: '' });
@@ -63,6 +64,32 @@ describe('candidatos a cliente del mes', () => {
   it('explica el motivo', () => {
     const [c] = ordenarCandidatos([{ clienteId: 'a', clases: 9, minutos: 495, semanas: 4 }], { mes: '2026-09-01', cupoDe: cupo, premios: [] });
     expect(motivoCandidato(c)).toBe('9 clases en 4 semanas · reto cumplido');
+    expect(motivoCandidato({ ...c, faltas: 2 })).toBe('9 clases en 4 semanas · reto cumplido · 2 faltas');
+  });
+  it('desempate: menos faltas, quien nunca ganó, más antigüedad, más minutos y, al final, el nombre', () => {
+    const iguales = (id: string) => ({ clienteId: id, clases: 8, minutos: 440, semanas: 4 });
+    const faltas: Record<string, number> = { falta: 1 };
+    const alta: Record<string, string> = { nuevo: '2026-06-01', veterano: '2024-01-10', novato: '2026-06-01' };
+    const lista = ordenarCandidatos(
+      [iguales('falta'), iguales('veterano'), iguales('gano-hace-mucho'), iguales('nuevo'), { ...iguales('novato'), minutos: 500 }],
+      {
+        mes: '2026-09-01', cupoDe: cupo, premios: [premio('2025-01-01', 'gano-hace-mucho')],
+        faltasDe: (id) => faltas[id] ?? 0, altaDe: (id) => alta[id] ?? null, nombreDe: (id) => id,
+      },
+    );
+    // veterano y novato/nuevo nunca ganaron y no faltaron: gana la antigüedad; entre nuevo y novato (misma alta), los minutos;
+    // quien ganó alguna vez (hace mucho) va después; quien faltó, el último.
+    expect(lista.map((c) => c.clienteId)).toEqual(['veterano', 'novato', 'nuevo', 'gano-hace-mucho', 'falta']);
+    expect(lista.find((c) => c.clienteId === 'gano-hace-mucho')?.ganoAlgunaVez).toBe(true);
+    expect(lista.find((c) => c.clienteId === 'gano-hace-mucho')?.ganoEn).toBeNull();
+  });
+  it('faltasDelMes cuenta solo las "No asiste" de clases no canceladas del mes', () => {
+    const clase = (id: string, fecha: string, estado: Clase['estado'] = 'PROGRAMADA'): Clase => ({ id, plantillaId: null, actividadId: 'a', fecha, horaInicio: '10:00', duracionMin: 55, monitorId: 'm', plazas: 8, estado, extraordinaria: false, claseAlternativaId: null, motivoCancelacion: null, canceladaEl: null, canceladaPor: null });
+    const reserva = (claseId: string, asistencia: Reserva['asistencia'], estado: Reserva['estado'] = 'RESERVADA'): Reserva => ({ id: `r-${claseId}`, claseId, clienteId: 'x', contratoId: null, origen: 'CLIENTE', estado, asistencia, recuperacionUsadaId: null, creadaEl: '', creadaPor: 'x', canceladaEl: null, canceladaPor: null });
+    const clases = [clase('c1', '2026-09-03'), clase('c2', '2026-09-10'), clase('c3', '2026-09-17', 'CANCELADA'), clase('c4', '2026-10-01')];
+    const reservas = [reserva('c1', 'NO_ASISTE'), reserva('c2', 'ASISTE'), reserva('c3', 'NO_ASISTE'), reserva('c4', 'NO_ASISTE'), reserva('c2', 'NO_ASISTE', 'CANCELADA_RECUPERABLE')];
+    expect(faltasDelMes(reservas, clases, 'x', '2026-09-01')).toBe(1);
+    expect(faltasDelMes(reservas, clases, 'otro', '2026-09-01')).toBe(0);
   });
 });
 
