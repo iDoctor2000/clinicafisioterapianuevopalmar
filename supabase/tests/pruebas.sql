@@ -1681,5 +1681,49 @@ end $$;
 delete from public.trabajador_permisos where trabajador_id = pruebas.id('tra_recep') and permiso in ('CLIENTES_EDITAR', 'CLIENTES_VER');
 do $$ begin raise notice 'OK foto del consentimiento en papel'; end $$;
 
+\echo '== 37. Cumpleaños: suscripciones push del personal y notificación matinal (0026)'
+select pruebas.sistema();
+-- Un trabajador guarda la suscripción de su móvil; no puede colgarla de otro.
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+insert into public.suscripciones_push (trabajador_id, endpoint, clave_p256dh, clave_auth) values (pruebas.id('tra_recep'), 'https://push.test/recep', 'p', 'a');
+select pruebas.espera_error(format('insert into public.suscripciones_push (trabajador_id, endpoint, clave_p256dh, clave_auth) values (%L, %L, %L, %L)', pruebas.id('tra_admin'), 'https://push.test/otro', 'p', 'a'), '%row-level security%');
+select pruebas.espera_error(format('insert into public.suscripciones_push (cliente_id, trabajador_id, endpoint, clave_p256dh, clave_auth) values (%L, %L, %L, %L, %L)', pruebas.id('cliente_a'), pruebas.id('tra_recep'), 'https://push.test/dos', 'p', 'a'), '%suscripciones_push_un_dueno%');
+do $$ begin
+  assert (select count(*) from public.suscripciones_push where trabajador_id = pruebas.id('tra_recep')) = 1, 've y guarda la suya';
+end $$;
+commit;
+select pruebas.sistema();
+-- Hoy cumple años A: la notificación queda preparada para monitores y administradores, una sola vez al día.
+update public.clientes set fecha_nacimiento = (public._hoy() - interval '30 years')::date where id = pruebas.id('cliente_a');
+do $$
+declare v_n integer;
+begin
+  v_n := public.programar_push_cumpleanos();
+  assert v_n = 1, format('cumple 1 (devuelve %s)', v_n);
+  assert (select count(*) from public.push_personal_pendientes) = 1, 'una notificación preparada';
+  assert (select titulo from public.push_personal_pendientes) like '🎂 Hoy cumple años Ana%', 'título con el nombre';
+  assert (select pruebas.id('tra_admin') = any (destinatarios) from public.push_personal_pendientes), 'va al administrador';
+  assert public.programar_push_cumpleanos() = 0, 'la segunda llamada del día no repite';
+  assert (select count(*) from public.push_personal_pendientes) = 1, 'sigue habiendo una';
+end $$;
+-- Sin cumpleaños no se prepara nada.
+delete from public.push_personal_pendientes;
+update public.clientes set fecha_nacimiento = null where id = pruebas.id('cliente_a');
+do $$ begin
+  assert public.programar_push_cumpleanos() = 0, 'nadie cumple';
+  assert (select count(*) from public.push_personal_pendientes) = 0, 'nada preparado';
+end $$;
+-- La tabla de pendientes no la lee nadie desde la app (solo la función con service_role).
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.espera_error('select count(*) from public.push_personal_pendientes', '%permission denied%');
+commit;
+select pruebas.sistema();
+delete from public.suscripciones_push where trabajador_id = pruebas.id('tra_recep');
+do $$ begin raise notice 'OK cumpleaños del personal'; end $$;
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'
