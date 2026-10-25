@@ -156,7 +156,7 @@ export function HojaConsentimiento({ cliente, abierta, onCerrar, onRegistrarPape
             {completa && <article className="mt-2 rounded-2xl border border-ink/10 bg-white p-4 max-h-[60vh] overflow-y-auto"><VistaBloques bloques={bloques} /></article>}
           </div>
         )}
-        {modo === 'DEMO' && <p className="text-xs text-ink-muted">En la demo la foto se guarda en el navegador; en producción, en un almacén privado del servidor.</p>}
+        {modo === 'DEMO' && estado === 'PAPEL' && <p className="text-xs text-ink-muted">En la demo la foto se guarda en el navegador; en producción, en un almacén privado del servidor.</p>}
       </div>
       {foto && <HojaFotoPapel cliente={cliente} onCerrar={() => setFoto(false)} />}
     </Hoja>
