@@ -1,14 +1,18 @@
 import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon, Trophy } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon, Trophy, Wallet } from 'lucide-react';
 import { useStore } from '@/data/store';
-import { tienePermiso, type Permiso, type Sesion } from '@/domain/types';
+import { tienePermiso, veFinanzas, type Permiso, type Sesion } from '@/domain/types';
 import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
 import { Avatar } from '@/ui/Avatar';
 import { cn } from '@/lib/cn';
 import { abrirWebClinica } from '@/lib/webClinica';
 
-interface Item { to: string; etiqueta: string; icono: LucideIcon; permiso: Permiso | null; principal?: boolean; /** Solo para el rol ADMIN (equipo y ajustes). */ soloAdmin?: boolean }
+interface Item {
+  to: string; etiqueta: string; icono: LucideIcon; permiso: Permiso | null; principal?: boolean;
+  /** Solo para el rol ADMIN (equipo y ajustes). */ soloAdmin?: boolean;
+  /** Solo para quien ve las finanzas (0024); para el resto no existe. */ soloFinanzas?: boolean;
+}
 
 const items: Item[] = [
   { to: '/', etiqueta: 'Calendario', icono: CalendarDays, permiso: null, principal: true },
@@ -18,6 +22,7 @@ const items: Item[] = [
   { to: '/tarifas', etiqueta: 'Tarifas', icono: Tags, permiso: 'TARIFAS_GESTIONAR' },
   { to: '/estadisticas', etiqueta: 'Estad√≠sticas', icono: BarChart3, permiso: 'ESTADISTICAS_VER' },
   { to: '/trofeos', etiqueta: 'Trofeos', icono: Trophy, permiso: 'ESTADISTICAS_VER' },
+  { to: '/cobros', etiqueta: 'Cobros', icono: Wallet, permiso: null, soloFinanzas: true },
   { to: '/equipo', etiqueta: 'Equipo', icono: UserCog, permiso: null, soloAdmin: true },
   { to: '/ajustes', etiqueta: 'Ajustes', icono: Settings, permiso: null, soloAdmin: true },
 ];
@@ -27,6 +32,7 @@ const ROL = { ADMIN: 'Administrador', MONITOR: 'Monitor/a', RECEPCION: 'Recepci√
 /** Un item es visible si el trabajador tiene su permiso y, si es solo para ADMIN, tiene ese rol. */
 export function itemVisible(item: Item, sesion: Sesion | null): boolean {
   if (item.soloAdmin && !(sesion?.tipo === 'TRABAJADOR' && sesion.rol === 'ADMIN')) return false;
+  if (item.soloFinanzas && !veFinanzas(sesion)) return false;
   return !item.permiso || tienePermiso(sesion, item.permiso);
 }
 
