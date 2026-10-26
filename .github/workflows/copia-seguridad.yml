@@ -17,6 +17,10 @@ on:
         description: 'Diagnóstico anónimo de reservas y contratos: días hacia atrás (vacío = no hacerlo)'
         default: ''
         required: false
+      revisar_cobros:
+        description: 'Revisión anónima de los cobros de todos los alumnos (sí = hacerla; o el número de una ejecución anterior para compararlos con su copia)'
+        default: ''
+        required: false
 
 permissions:
   contents: read
@@ -119,6 +123,23 @@ jobs:
         run: bash scripts/diagnostico/diagnostico.sh "${{ github.event.inputs.diagnostico_dias }}"
 
       # GitHub desactiva las tareas programadas de un repositorio público tras 60 días sin cambios.
+      - name: Revisión de cobros (sin datos personales)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.revisar_cobros != ''
+        continue-on-error: true
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          GH_TOKEN: ${{ github.token }}
+          EJECUCION: ${{ github.event.inputs.revisar_cobros }}
+        run: |
+          COPIA=""
+          if [[ "$EJECUCION" =~ ^[0-9]+$ ]]; then
+            gh run download "$EJECUCION" --repo "${{ github.repository }}" -D "${{ runner.temp }}/anterior"
+            COPIA="$(find "${{ runner.temp }}/anterior" -name 'copia-*.tar.gpg' | head -1)"
+          fi
+          bash scripts/diagnostico/cobros-revision.sh $COPIA
+
       - name: Mantener activa la tarea programada
         if: github.event_name == 'schedule'
         env:

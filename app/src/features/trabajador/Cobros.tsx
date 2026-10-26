@@ -7,7 +7,7 @@ import { Check, CircleDollarSign, History, Plus, RotateCcw, Trash2 } from 'lucid
 import type { Cliente, Contrato, MetodoPago, Oferta, Pago } from '@/domain/types';
 import { METODOS_PAGO, METODO_PAGO_LABEL, OFERTA_LABEL } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
-import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, mesDe, nombreMesAnio, pagoVencido, type CuotaPlan } from '@/domain/cobros';
+import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, mesDe, nombreMesAnio, pagoVencido, tituloCobro, type CuotaPlan } from '@/domain/cobros';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
@@ -86,7 +86,7 @@ export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimer
               <input type="checkbox" aria-label={`Incluir ${q.concepto}`} className="h-5 w-5 accent-brand-500 shrink-0" checked={on} disabled={!!ya} onChange={(e) => onExcluir(q.mes, !e.target.checked)} />
               <span className="flex-1 min-w-0">
                 <span className="font-medium block truncate">{q.concepto}</span>
-                <span className="text-sm text-ink-muted">{ya ? `Ya apuntado: ${ya.concepto} · ${euros(ya.importeCentimos)} · ${ya.estado === 'PAGADO' ? 'cobrado' : 'pendiente'}` : `Se cobra el ${fechaMedia(q.venceEl)}`}</span>
+                <span className="text-sm text-ink-muted">{ya ? `Ya apuntado: ${tituloCobro(ya)} · ${euros(ya.importeCentimos)} · ${ya.estado === 'PAGADO' ? 'cobrado' : 'pendiente'}` : `Se cobra el ${fechaMedia(q.venceEl)}`}</span>
               </span>
               {!ya && <input aria-label={`Importe de ${q.concepto}`} inputMode="decimal" value={importes[i] ?? ''} disabled={!on} onChange={(e) => onImporte(i, e.target.value)}
                 className="w-24 h-11 rounded-xl border border-ink/15 bg-white px-3 text-right font-semibold disabled:bg-sand" />}
@@ -109,14 +109,6 @@ export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimer
 // Registro de cobros (pestaña Tarifa)
 // ---------------------------------------------------------------------------
 
-/** "Noviembre 2026", o "Bono 10 · Noviembre 2026" si el concepto dice algo más que el mes (los viejos "Mes 2 · noviembre 2026" no). */
-export function tituloCobro(p: Pick<Pago, 'concepto' | 'mes'>): string {
-  const mes = nombreMesAnio(p.mes);
-  const c = p.concepto.trim();
-  if (!c || c.toLowerCase() === mes.toLowerCase() || /^(mes \d+|renovación) · /i.test(c)) return mes;
-  return `${c} · ${mes}`;
-}
-
 export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrato: Contrato | null }) {
   const { db, puede, ejecutar, veFinanzas } = useTrabajador();
   const hoy = hoyISO();
@@ -130,19 +122,20 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   const visibles = historial ? pagos : enFicha.visibles;
   const antiguos = enFicha.historial.length;
   const editable = puede('CLIENTES_EDITAR');
-  const cobrado = pagos.filter((p) => p.estado === 'PAGADO').reduce((s, p) => s + p.importeCentimos, 0);
-  const pendiente = pagos.filter((p) => p.estado === 'PENDIENTE').reduce((s, p) => s + p.importeCentimos, 0);
+  // Las cifras, de lo que se ve: con el historial cerrado, del mes en curso (y lo que se deba).
+  const cobrado = visibles.filter((p) => p.estado === 'PAGADO').reduce((s, p) => s + p.importeCentimos, 0);
+  const pendiente = visibles.filter((p) => p.estado === 'PENDIENTE').reduce((s, p) => s + p.importeCentimos, 0);
   const vencidos = pagos.filter((p) => pagoVencido(p, hoy));
 
   const cobrar = async (p: Pago) => {
     const metodo = p.metodo ?? contrato?.metodoPago ?? null;
     if (!metodo) { setEditando({ ...p, estado: 'PAGADO' }); return; }
     const r = await ejecutar('guardarPago', { pago: { ...p, estado: 'PAGADO', metodo, pagadoEl: null } });
-    if (r.ok) toast.ok(`${p.concepto}: cobrado (${METODO_PAGO_LABEL[metodo]}).`); else toast.error(r.error);
+    if (r.ok) toast.ok(`${tituloCobro(p)}: cobrado (${METODO_PAGO_LABEL[metodo]}).`); else toast.error(r.error);
   };
   const deshacer = async (p: Pago) => {
     const r = await ejecutar('guardarPago', { pago: { ...p, estado: 'PENDIENTE', pagadoEl: null } });
-    if (r.ok) toast.info(`${p.concepto}: vuelve a pendiente.`); else toast.error(r.error);
+    if (r.ok) toast.info(`${tituloCobro(p)}: vuelve a pendiente.`); else toast.error(r.error);
   };
 
   if (!veFinanzas) return null;
@@ -178,7 +171,7 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
                 <span className="font-semibold tabular-nums">{euros(p.importeCentimos)}</span>
                 {p.estado === 'PAGADO' ? <Chip tono="beige"><Check className="h-3.5 w-3.5" /> Cobrado</Chip> : vencido ? <Chip tono="rojo">Pendiente</Chip> : <Chip tono="gris">Por cobrar</Chip>}
                 {editable && (p.estado === 'PAGADO'
-                  ? <Boton tamano="sm" variante="fantasma" aria-label={`Deshacer el cobro de ${p.concepto}`} onClick={() => void deshacer(p)}><RotateCcw className="h-4 w-4" /></Boton>
+                  ? <Boton tamano="sm" variante="fantasma" aria-label={`Deshacer el cobro de ${tituloCobro(p)}`} onClick={() => void deshacer(p)}><RotateCcw className="h-4 w-4" /></Boton>
                   : <Boton tamano="sm" onClick={() => void cobrar(p)}><CircleDollarSign className="h-4 w-4" /> Cobrar</Boton>)}
               </li>
             );
@@ -262,7 +255,7 @@ function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; c
       </div>
     </Hoja>
       <Confirmacion abierta={borrar} onCerrar={() => setBorrar(false)} titulo="Borrar cobro" textoConfirmar="Borrar" peligro onConfirmar={() => void confirmarBorrar()}>
-        <p>Se borra <strong className="text-ink">{pago?.concepto}</strong> ({euros(pago?.importeCentimos)}). Si solo te equivocaste al marcarlo como cobrado, mejor usa la flecha de deshacer.</p>
+        <p>Se borra <strong className="text-ink">{pago ? tituloCobro(pago) : ''}</strong> ({euros(pago?.importeCentimos)}). Si solo te equivocaste al marcarlo como cobrado, mejor usa la flecha de deshacer.</p>
       </Confirmacion>
     </>
   );

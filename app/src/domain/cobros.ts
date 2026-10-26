@@ -43,6 +43,19 @@ export function cobrosEnLaFicha<P extends Pick<Pago, 'estado' | 'mes'>>(pagos: P
   return { visibles: pagos.filter(visible), historial: pagos.filter((p) => !visible(p)) };
 }
 
+/**
+ * Título de un cobro en la ficha: su mes ("Noviembre 2026"). El concepto solo se añade si dice algo más
+ * que el mes ("Bono 10 · Noviembre 2026"); "Noviembre", "noviembre 2026" o los nombres viejos
+ * ("Mes 2 · noviembre 2026") no.
+ */
+export function tituloCobro(p: Pick<Pago, 'concepto' | 'mes'>): string {
+  const mes = nombreMesAnio(p.mes);
+  const c = p.concepto.trim().toLowerCase();
+  const nombre = MESES[Number(p.mes.slice(5, 7)) - 1];
+  if (!c || c === mes.toLowerCase() || c === nombre || /^(mes \d+|renovación) · /.test(c)) return mes;
+  return `${p.concepto.trim()} · ${mes}`;
+}
+
 /** "45 €", "45,50 €". */
 export function euros(centimos: number | null | undefined): string {
   if (centimos == null) return '—';

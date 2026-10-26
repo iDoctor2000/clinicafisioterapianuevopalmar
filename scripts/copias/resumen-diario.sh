@@ -120,7 +120,13 @@ with
           where c.estado = 'PROGRAMADA' and c.fecha = (select d from hoy) - 1
             and exists (select 1 from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA')
             and not exists (select 1 from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA' and r.asistencia <> 'PENDIENTE')),
-        'Las medallas y el cliente del mes cuentan las clases con asistencia marcada. Se puede marcar a posteriori desde la ficha de la clase.')
+        'Las medallas y el cliente del mes cuentan las clases con asistencia marcada. Se puede marcar a posteriori desde la ficha de la clase.'),
+      -- 0029: cada cobro tiene su mes; dos cobrados el mismo mes puede ser correcto (tarifa y bono) o un apunte repetido.
+      (12, false, 'Alumnos con el mismo mes cobrado dos veces (este mes o los dos anteriores)',
+        (select count(distinct cliente_id) from (select cliente_id from public.pagos
+          where estado = 'PAGADO' and mes >= (date_trunc('month', (select d from hoy)) - interval '2 months')::date
+          group by cliente_id, mes having count(*) > 1) x),
+        'Puede ser correcto (su tarifa y un bono). Si es el mismo pago apuntado dos veces, en la app: Más → Cobros → pestaña Repetidos, y se borra el que sobre desde la ficha del alumno.')
   )
 select line from (
   select 1 as o, '## Resumen de las últimas 24 horas (' || to_char(now() at time zone 'Europe/Madrid', 'DD/MM/YYYY HH24:MI') || ', hora de Madrid)' as line

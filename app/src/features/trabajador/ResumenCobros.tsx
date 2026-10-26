@@ -9,7 +9,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, CircleDollarSign, Copy, UserX
 import type { Cliente, Pago } from '@/domain/types';
 import { METODO_PAGO_LABEL } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
-import { euros } from '@/domain/cobros';
+import { euros, tituloCobro } from '@/domain/cobros';
 import { inicioMes, mesAnterior, nombreMes } from '@/domain/clienteDelMes';
 import { resumenCobrosMes } from '@/domain/resumenCobros';
 import { nombreCompleto } from '@/data/selectores';
@@ -124,7 +124,7 @@ export function ResumenCobros() {
                   <ul className="mt-1.5 space-y-1">
                     {pagos.map((p) => (
                       <li key={p.id} className="flex items-center gap-2 text-sm rounded-xl bg-sand px-3 py-2">
-                        <span className="flex-1 min-w-0 truncate">{p.concepto || 'Cobro'} <span className="text-ink-muted">· {p.estado === 'PAGADO' ? `cobrado ${p.pagadoEl ? fechaMedia(p.pagadoEl.slice(0, 10)) : ''}` : `pendiente${p.venceEl ? `, ${fechaMedia(p.venceEl)}` : ''}`}</span></span>
+                        <span className="flex-1 min-w-0 truncate">{tituloCobro(p)} <span className="text-ink-muted">· {p.estado === 'PAGADO' ? `cobrado ${p.pagadoEl ? fechaMedia(p.pagadoEl.slice(0, 10)) : ''}` : `pendiente${p.venceEl ? `, ${fechaMedia(p.venceEl)}` : ''}`}</span></span>
                         <strong className="tabular-nums">{euros(p.importeCentimos)}</strong>
                       </li>
                     ))}
@@ -159,7 +159,7 @@ function FilaCobro({ pago, cliente, estado, detalle }: { pago: Pago; cliente: Cl
     <>
       <span className="flex-1 min-w-0">
         <span className="block font-semibold truncate">{cliente ? nombreCompleto(cliente) : 'Alumno'}</span>
-        <span className="block text-sm text-ink-muted truncate">{pago.concepto || 'Cobro'} · {detalle}</span>
+        <span className="block text-sm text-ink-muted truncate">{tituloCobro(pago)} · {detalle}</span>
       </span>
       <span className="font-semibold tabular-nums">{euros(pago.importeCentimos)}</span>
       {estado}
