@@ -4,7 +4,7 @@ import type { Contrato, Sesion } from '@/domain/types';
 import { cobrosDeRenovacion, contratosParaRenovar, finDelMesSiguiente } from '@/domain/renovaciones';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import { crearSeed } from '@/data/seed';
-import { renovarContratos, type Ctx } from '@/data/comandos';
+import { guardarCliente, renovarContratos, type Ctx } from '@/data/comandos';
 import type { Db } from '@/data/db';
 
 const ahora = new Date();
@@ -37,6 +37,26 @@ describe('renovaciones', () => {
     expect(lista.map((c) => c.id)).toContain(contrato.id);
     expect(lista.every((c) => c.estado === 'ACTIVO' && db.tarifas.find((t) => t.id === c.tarifaId)?.tipo === 'RECURRENTE')).toBe(true);
     expect(contratosParaRenovar(db, hoy, sumarDias(hoy, 3)).map((c) => c.id)).not.toContain(contrato.id); // ya llega más allá
+  });
+
+  it('0031: dar de baja a un alumno cierra su contrato, quita sus clases futuras y deja de salir para renovar', () => {
+    const { db, contrato } = preparar();
+    const juan = db.clientes.find((c) => c.id === 'juan')!;
+    const futuras = (d: Db) => d.reservas.filter((r) => r.clienteId === 'juan' && r.estado === 'RESERVADA' && d.clases.some((c) => c.id === r.claseId && c.fecha >= hoy)).length;
+    expect(futuras(db)).toBeGreaterThan(0);
+    // Solo con marcarlo de baja (sin guardar) ya no sale en la lista.
+    expect(contratosParaRenovar({ ...db, clientes: db.clientes.map((c) => (c.id === 'juan' ? { ...c, activo: false } : c)) }, hoy, finDelMesSiguiente(hoy)).map((c) => c.id)).not.toContain(contrato.id);
+    const r = guardarCliente(ctx(sesionDe(db, 'tra-jose'), db), { cliente: { ...juan, activo: false } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.db.contratos.find((c) => c.id === contrato.id)!.estado).toBe('FINALIZADO');
+    expect(r.db.contratos.some((c) => c.clienteId === 'juan' && c.estado === 'ACTIVO')).toBe(false);
+    expect(futuras(r.db)).toBe(0);
+    expect(r.db.listaEspera.some((e) => e.clienteId === 'juan')).toBe(false);
+    expect(r.db.pagos).toEqual(db.pagos); // lo que deba, sigue apuntado
+    // Guardar otra cosa de un alumno ya de baja no hace nada más.
+    const r2 = guardarCliente(ctx(sesionDe(db, 'tra-jose'), r.db), { cliente: { ...juan, activo: false, telefono: '600 000 000' } });
+    expect(r2.ok && r2.db.contratos).toEqual(r.db.contratos);
   });
 
   it('cobros: uno por mes nuevo con el importe del contrato; ninguno si ya hay cobro ese mes o no hay importe', () => {

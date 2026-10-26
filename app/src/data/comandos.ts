@@ -604,8 +604,28 @@ export function guardarCliente(ctx: Ctx, args: { cliente: Omit<Cliente, 'id'> & 
   const existente = args.cliente.id ? db.clientes.find((c) => c.id === args.cliente.id) : undefined;
   let cliente: Cliente = { ...args.cliente, id: args.cliente.id ?? nuevoId('cli') };
   if (existente && !tienePermiso(sesion, 'CLINICA_VER')) cliente = { ...cliente, clinica: existente.clinica };
-  const nuevo: Db = { ...db, clientes: existente ? db.clientes.map((c) => (c.id === cliente.id ? cliente : c)) : [...db.clientes, cliente] };
-  return ok(auditar(nuevo, sesion, ahora, existente ? 'EDITAR_CLIENTE' : 'CREAR_CLIENTE', 'cliente', cliente.id, `${cliente.nombre} ${cliente.apellidos}`), cliente);
+  let nuevo: Db = { ...db, clientes: existente ? db.clientes.map((c) => (c.id === cliente.id ? cliente : c)) : [...db.clientes, cliente] };
+  nuevo = auditar(nuevo, sesion, ahora, existente ? 'EDITAR_CLIENTE' : 'CREAR_CLIENTE', 'cliente', cliente.id, `${cliente.nombre} ${cliente.apellidos}`);
+  // 0031: dar de baja cierra su contrato, quita sus clases futuras y le saca de las listas de espera.
+  if (existente?.activo && !cliente.activo) nuevo = cerrarAlumnoDeBaja(nuevo, cliente.id, sesion, ahora);
+  return ok(nuevo, cliente);
+}
+
+/** Espejo de _cerrar_alumno_de_baja (0031). */
+function cerrarAlumnoDeBaja(db: Db, clienteId: Id, sesion: Sesion, ahora: Date): Db {
+  const hoy = aISODate(ahora);
+  const activos = db.contratos.filter((c) => c.clienteId === clienteId && c.estado === 'ACTIVO');
+  const futuras = new Set(db.clases.filter((c) => c.fecha >= hoy).map((c) => c.id));
+  const suya = (r: Reserva) => r.clienteId === clienteId && r.estado === 'RESERVADA' && futuras.has(r.claseId);
+  const nuevo: Db = {
+    ...db,
+    contratos: db.contratos.map((c) => (activos.includes(c) ? { ...c, estado: 'FINALIZADO', fechaFin: hoy < c.fechaFin ? hoy : c.fechaFin } : c)),
+    reservas: db.reservas
+      .filter((r) => !(suya(r) && r.origen === 'AUTOMATICA'))
+      .map((r) => (suya(r) ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : r)),
+    listaEspera: db.listaEspera.filter((e) => e.clienteId !== clienteId),
+  };
+  return activos.length > 0 ? auditar(nuevo, sesion, ahora, 'BAJA_CIERRA_CONTRATO', 'cliente', clienteId, `${activos.length} contrato(s) finalizado(s)`) : nuevo;
 }
 
 /** Cuota o cobro que se crea junto con el contrato (plan de cobros). */

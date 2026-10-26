@@ -69,8 +69,8 @@ export function HojaRenovarContratos({ onCerrar }: { onCerrar: () => void }) {
       .map((c) => ({ contrato: c, cliente: cliente(c.clienteId), tarifa: db.tarifas.find((t) => t.id === c.tarifaId) }))
       .sort((a, b) => (a.cliente ? nombreCompleto(a.cliente) : '').localeCompare(b.cliente ? nombreCompleto(b.cliente) : '', 'es'));
   }, [db, hoy, hasta]);
-  // Marcados: todos menos los alumnos dados de baja.
-  const [desmarcados, setDesmarcados] = useState<Set<string>>(() => new Set(contratosParaRenovar(db, hoy, finDelMesSiguiente(hoy)).filter((c) => !db.clientes.find((x) => x.id === c.clienteId)?.activo).map((c) => c.id)));
+  // Marcados: todos (los alumnos de baja ya no salen en la lista).
+  const [desmarcados, setDesmarcados] = useState<Set<string>>(() => new Set());
   const [confirmar, setConfirmar] = useState(false);
   const [renovando, setRenovando] = useState(false);
   const marcados = lista.filter((x) => !desmarcados.has(x.contrato.id));

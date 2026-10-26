@@ -116,7 +116,7 @@ export function FormularioCliente({ inicial, onGuardar, textoGuardar = 'Guardar'
       </div>
       <div className="divide-y divide-ink/5 rounded-2xl border border-ink/10 px-4">
         <Interruptor activo={d.notificacionesPush} onCambio={(v) => set('notificacionesPush', v)} etiqueta="Notificaciones en el móvil" descripcion="Recibe avisos del centro en la app." />
-        {edicion && <Interruptor activo={d.activo} onCambio={(v) => set('activo', v)} etiqueta="Cliente activo" descripcion="Un cliente de baja no aparece en la lista principal ni recibe avisos." />}
+        {edicion && <Interruptor activo={d.activo} onCambio={(v) => set('activo', v)} etiqueta="Cliente activo" descripcion={d.activo ? 'Un cliente de baja no aparece en la lista principal ni recibe avisos.' : 'Al guardar se finaliza su contrato, se le quitan las clases futuras (deja libres sus plazas) y sale de las listas de espera. Lo que deba sigue apuntado.'} />}
       </div>
       <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
         {onCancelar && <Boton type="button" variante="secundario" onClick={onCancelar}>Cancelar</Boton>}

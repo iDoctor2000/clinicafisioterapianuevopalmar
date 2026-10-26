@@ -263,7 +263,7 @@
   <h3>Renovar de golpe los contratos que terminan</h3>
   <p>La última semana de cada mes, el Calendario avisa: <strong>"77 contratos terminan el 31 de octubre"</strong>, con el botón <span class="btn">Renovar</span> (también está en la lista de Clientes: <em>Renovar contratos</em>).</p>
   <ol class="pasos">
-    <li>Sale la lista de los contratos mensuales que terminan, <strong>todos marcados</strong>. Desmarca a quien no sigue (los dados de baja salen ya desmarcados).</li>
+    <li>Sale la lista de los contratos mensuales que terminan, <strong>todos marcados</strong>. Desmarca a quien no sigue. Los alumnos dados de baja no salen: al darlos de baja su contrato se cierra solo.</li>
     <li>Arriba está la fecha <strong>"Renovar hasta"</strong>: por defecto, el último día del mes siguiente. Se puede cambiar.</li>
     <li>Pulsa <span class="btn">Renovar N contratos</span> y confirma.</li>
   </ol>
@@ -648,6 +648,7 @@
         <tr><td><code>supabase/migrations/0028_renovar_contratos.sql</code></td><td>Botón para renovar de golpe los contratos mensuales que terminan.</td></tr>
         <tr><td><code>supabase/migrations/0029_cobros_por_mes.sql</code></td><td>Cada cobro pertenece a un mes y no se duplica al hacer otra contratación al mismo alumno. Limpia los cobros pendientes repetidos y los contratos vacíos del historial que dejó el fallo anterior (lo cobrado no se toca).</td></tr>
         <tr><td><code>supabase/migrations/0030_nombres_de_cobros.sql</code></td><td>Los cobros antiguos ("Mes 1 · octubre 2026") pasan a llamarse por su mes ("Octubre 2026").</td></tr>
+        <tr><td><code>supabase/migrations/0031_baja_cierra_contrato.sql</code></td><td>Al dar de baja a un alumno se finaliza su contrato y se le quitan las clases futuras. Hace lo mismo con los que ya estaban de baja.</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
@@ -727,6 +728,9 @@
 
     <dt>Un cliente sale con "Pago pendiente" pero ya ha pagado.</dt>
     <dd>Falta apuntarlo: en su ficha → Tarifa → tarjeta Cobros, toca <em>Cobrar</em> en ese mes. La etiqueta desaparece al momento.</dd>
+
+    <dt>Una alumna vino a probar y no sigue (o un alumno deja de venir).</dt>
+    <dd>Su ficha → Editar datos → desactiva <em>Cliente activo</em> y guarda. Al darle de baja, la app finaliza su contrato, le quita las clases futuras (deja libres sus plazas) y le saca de las listas de espera. Ya no sale en la lista de clientes, ni para renovar, ni en Cobros como "sin cobro". Lo que deba sigue apuntado. Si vuelve, se le activa otra vez y se le hace una contratación nueva.</dd>
 
     <dt>He marcado un cobro que no era.</dt>
     <dd>Toca la flecha de deshacer junto a ese cobro: vuelve a pendiente. Si el cobro sobra del todo, ábrelo y bórralo.</dd>

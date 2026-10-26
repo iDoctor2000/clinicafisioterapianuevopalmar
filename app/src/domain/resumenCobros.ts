@@ -52,7 +52,7 @@ export function resumenCobrosMes(
     if (k.estado === 'CANCELADO' || !mensual.has(k.tarifaId) || k.fechaInicio > fin || k.fechaFin < mes) continue;
     if (conCobro.has(k.clienteId) || vistos.has(k.clienteId)) continue;
     const cliente = clienteDe.get(k.clienteId);
-    if (!cliente) continue;
+    if (!cliente || !cliente.activo) continue; // un alumno de baja no se reclama
     vistos.add(k.clienteId);
     sinCobro.push({ cliente, contrato: k });
   }
