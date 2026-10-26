@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, History, Pencil, RefreshCw, Tag } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, Pencil, RefreshCw, Tag } from 'lucide-react';
 import { useStore } from '@/data/store';
 import type { Categoria, Cliente, Contrato, MetodoPago, Modalidad, Oferta, Reserva, Tarifa } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
@@ -11,12 +11,11 @@ import { aCentimos, aTextoEuros, importeSugerido, planDeCobros } from '@/domain/
 import { AreaTexto, Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
-import { contratosDeCliente, ocupacionFijaDePlantilla, plantillaVista, resumenCliente, reservasDeClienteSeparadas } from './consultas';
+import { ocupacionFijaDePlantilla, plantillaVista, resumenCliente, reservasDeClienteSeparadas } from './consultas';
 import { ChipAsistencia, ChipEstadoReserva, ChipOrigen, Confirmacion, Dato, PuntoColor, Segmentado, fechaMedia, may } from './comunes';
 import { CamposPago, PlanCobros, TarjetaCobros, textoPago, type DatosPago } from './Cobros';
 
 const TIPO_TARIFA = { RECURRENTE: 'Mensual', BONO: 'Bono', CLASE_SUELTA: 'Clase suelta' } as const;
-const ESTADO_CONTRATO = { ACTIVO: { texto: 'Activo', tono: 'beige' }, FINALIZADO: { texto: 'Finalizado', tono: 'gris' }, CANCELADO: { texto: 'Cancelado', tono: 'rojo' } } as const;
 
 // ---------------------------------------------------------------------------
 // Tarifa
@@ -28,10 +27,8 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
   const [editar, setEditar] = useState(false);
   const [finalizar, setFinalizar] = useState<Contrato | null>(null);
   const [cancelarFuturas, setCancelarFuturas] = useState(true);
-  const [verAnteriores, setVerAnteriores] = useState(false);
   const hoy = hoyISO();
   const { contrato, tarifa } = resumenCliente(db, cliente, hoy);
-  const historial = contratosDeCliente(db, cliente.id).filter((c) => c.id !== contrato?.id);
   const previstas = contrato && contrato.modalidad === 'FIJO' ? sesionesPrevistas(contrato, db.plantillas, db.config).total : null;
   const reservasFuturas = finalizar ? db.reservas.filter((r) => r.contratoId === finalizar.id && r.estado === 'RESERVADA' && (db.clases.find((c) => c.id === r.claseId)?.fecha ?? '') >= hoy).length : 0;
 
@@ -109,32 +106,8 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
 
         <TarjetaCobros cliente={cliente} contrato={contrato} />
 
-        {/* Los contratos anteriores no se borran (llevan colgadas las clases a las que fue), pero no se ven
-            hasta que se piden. */}
-        {historial.length > 0 && !verAnteriores && (
-          <div className="flex justify-center">
-            <Boton variante="fantasma" tamano="sm" onClick={() => setVerAnteriores(true)}><History className="h-4 w-4" /> Contratos anteriores ({historial.length})</Boton>
-          </div>
-        )}
-        {historial.length > 0 && verAnteriores && (
-          <Tarjeta>
-            <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-              <h3 className="font-semibold flex-1">Contratos anteriores</h3>
-              <Boton variante="fantasma" tamano="sm" onClick={() => setVerAnteriores(false)}>Ocultar</Boton>
-            </div>
-            <ul className="divide-y divide-ink/5">
-              {historial.map((c) => {
-                const t = db.tarifas.find((x) => x.id === c.tarifaId);
-                return (
-                  <li key={c.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
-                    <span className="flex-1 min-w-[10rem]"><span className="font-medium">{t?.nombre ?? 'Tarifa eliminada'}</span><span className="block text-sm text-ink-muted">{fechaMedia(c.fechaInicio)} → {fechaMedia(c.fechaFin)} · {c.modalidad === 'FIJO' ? 'fijo' : 'libre'}</span></span>
-                    <Chip tono={ESTADO_CONTRATO[c.estado].tono}>{ESTADO_CONTRATO[c.estado].texto}</Chip>
-                  </li>
-                );
-              })}
-            </ul>
-          </Tarjeta>
-        )}
+        {/* Los contratos anteriores no se enseñan (el centro no los usa); siguen guardados porque llevan
+            colgadas las clases a las que fue el alumno. */}
       </div>
       <aside>
         {puede('CLIENTES_EDITAR') && <Boton ancho onClick={() => setNueva(true)}><FilePlus2 className="h-5 w-5" /> Nueva contratación</Boton>}
