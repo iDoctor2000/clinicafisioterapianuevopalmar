@@ -43,7 +43,8 @@ export function DetalleClase() {
   const puedeAsistencia = puede('ASISTENCIA_REGISTRAR') && clase.fecha <= hoy && !cancelada;
   const clientes = new Map(db.clientes.map((c) => [c.id, c]));
   const activas = vista.reservas.filter((r) => r.estado === 'RESERVADA').sort((a, b) => nombreCompleto(clientes.get(a.clienteId)).localeCompare(nombreCompleto(clientes.get(b.clienteId)), 'es'));
-  const canceladas = vista.reservas.filter((r) => r.estado !== 'RESERVADA');
+  // Quien ha vuelto a apuntarse (o se le ha vuelto a apuntar) ya no sale como cancelación (0032).
+  const canceladas = vista.reservas.filter((r) => r.estado !== 'RESERVADA' && !vista.reservas.some((x) => x.clienteId === r.clienteId && x.estado === 'RESERVADA'));
   const alternativa = clase.claseAlternativaId ? db.clases.find((c) => c.id === clase.claseAlternativaId) : null;
   const cs = clasesSueltasDe(vista);
   const espera = listaEsperaDeClase(db, clase.id);

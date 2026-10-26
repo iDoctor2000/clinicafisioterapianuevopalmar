@@ -117,7 +117,17 @@ export function reservar(ctx: Ctx, args: { claseId: Id; clienteId?: Id }): Resul
     nuevo = { ...nuevo, contratos: nuevo.contratos.map((c) => (c.id === contrato.id ? { ...c, sesionesRestantes: (c.sesionesRestantes ?? 1) - 1 } : c)) };
   }
   nuevo = auditar(nuevo, sesion, ahora, 'RESERVAR', 'reserva', reserva.id, `${nombreCliente(db, clienteId)} → ${descClase(db, clase)} (${ev.via})`);
-  return ok(nuevo, reserva);
+  return ok(anularRecuperacionMismaClase(nuevo, clienteId, clase.id), reserva);
+}
+
+/**
+ * Espejo de 0032: si el alumno vuelve a una clase que había cancelado, la recuperación que le dio esa
+ * cancelación se anula (si no la ha usado).
+ */
+function anularRecuperacionMismaClase(db: Db, clienteId: Id, claseId: Id): Db {
+  const canceladas = new Set(db.reservas.filter((r) => r.claseId === claseId && r.clienteId === clienteId && r.estado !== 'RESERVADA').map((r) => r.id));
+  if (canceladas.size === 0) return db;
+  return { ...db, recuperaciones: db.recuperaciones.filter((x) => !(x.clienteId === clienteId && x.estado === 'DISPONIBLE' && x.reservaOrigenId != null && canceladas.has(x.reservaOrigenId))) };
 }
 
 /** Cancelación por el cliente (o por un trabajador en su nombre): clasifica y genera recuperación si procede. */
@@ -350,7 +360,7 @@ export function anadirAlumno(ctx: Ctx, args: { claseId: Id; clienteId: Id; modo:
     creadaEl: ahora.toISOString(), creadaPor: sesion.userId, canceladaEl: null, canceladaPor: null,
   };
   const nuevo = auditar({ ...db, reservas: [...db.reservas, reserva] }, sesion, ahora, 'ANADIR_ALUMNO', 'reserva', reserva.id, `${nombreCliente(db, args.clienteId)} → ${descClase(db, clase)} (${args.modo})`);
-  return ok(nuevo, reserva);
+  return ok(anularRecuperacionMismaClase(nuevo, args.clienteId, clase.id), reserva);
 }
 
 /** Quita a un alumno de una clase sin penalizarle (siempre recuperable si tenía tarifa). */

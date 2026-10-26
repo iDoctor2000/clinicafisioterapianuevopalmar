@@ -1928,4 +1928,52 @@ do $$ begin
 end $$;
 
 \echo
+\echo '== 42. Volver a una clase cancelada anula la recuperación que dio (0032)'
+select pruebas.sistema();
+select pruebas.guardar('cliente_vu', 'e0000000-0000-4000-8000-0000000000f4');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cliente_vu'), 'Vuelve', 'Alaclase', '55555555V', 'vuelve@test.local', '600 000 055') on conflict (id) do nothing;
+select pruebas.como('admin');
+select pruebas.guardar('con_vu', public.crear_contrato(pruebas.id('cliente_vu'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 40, 'FIJO',
+  array[pruebas.id('pl_lun_0900')], '{}', '', null)::text);
+select pruebas.guardar('res_vu', (select r.id from public.reservas r join public.clases c on c.id = r.clase_id
+  where r.cliente_id = pruebas.id('cliente_vu') and r.estado = 'RESERVADA' and c.fecha >= public._hoy() + 3 order by c.fecha limit 1)::text);
+select pruebas.guardar('clase_vu', (select clase_id from public.reservas where id = pruebas.id('res_vu'))::text);
+-- Recepción le quita de la clase (recuperable) y después le vuelve a apuntar a la misma.
+select public.cancelar_reserva(pruebas.id('res_vu'), true);
+do $$ begin
+  assert exists (select 1 from public.recuperaciones where reserva_origen_id = pruebas.id('res_vu') and estado = 'DISPONIBLE'), 'quitarle le da una recuperación';
+end $$;
+select public.anadir_alumno(pruebas.id('clase_vu'), pruebas.id('cliente_vu'), 'MANUAL');
+do $$ begin
+  assert not exists (select 1 from public.recuperaciones where reserva_origen_id = pruebas.id('res_vu')), 'al volver, la recuperación se anula';
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('clase_vu') and cliente_id = pruebas.id('cliente_vu') and estado = 'RESERVADA'), 'está apuntado';
+  assert exists (select 1 from public.auditoria where accion = 'ANULAR_RECUPERACION' and entidad_id = pruebas.id('cliente_vu')::text), 'queda en el registro';
+end $$;
+-- Si vuelve a la misma clase USANDO esa recuperación, se gasta (no se anula) y la reserva la conserva.
+select pruebas.guardar('res_vu3', (select r.id from public.reservas r join public.clases c on c.id = r.clase_id
+  where r.cliente_id = pruebas.id('cliente_vu') and r.estado = 'RESERVADA' and r.origen = 'AUTOMATICA' and c.fecha >= public._hoy() + 3 and c.id <> pruebas.id('clase_vu') order by c.fecha desc limit 1)::text);
+select public.cancelar_reserva(pruebas.id('res_vu3'), true);
+select pruebas.guardar('rec_vu3', (select id from public.recuperaciones where reserva_origen_id = pruebas.id('res_vu3'))::text);
+select pruebas.sistema();
+insert into public.reservas (clase_id, cliente_id, contrato_id, origen, recuperacion_usada_id)
+  values ((select clase_id from public.reservas where id = pruebas.id('res_vu3')), pruebas.id('cliente_vu'), pruebas.id('con_vu'), 'RECUPERACION', pruebas.id('rec_vu3'));
+update public.recuperaciones set estado = 'USADA' where id = pruebas.id('rec_vu3');
+do $$ begin
+  assert exists (select 1 from public.recuperaciones where id = pruebas.id('rec_vu3') and estado = 'USADA'), 'la recuperación con la que vuelve se gasta, no se anula';
+  assert exists (select 1 from public.reservas where recuperacion_usada_id = pruebas.id('rec_vu3') and estado = 'RESERVADA'), 'la reserva conserva su recuperación';
+end $$;
+select pruebas.como('admin');
+-- Si la recuperación ya se usó en otra clase, no se toca.
+select pruebas.guardar('res_vu2', (select r.id from public.reservas r join public.clases c on c.id = r.clase_id
+  where r.cliente_id = pruebas.id('cliente_vu') and r.estado = 'RESERVADA' and r.origen = 'AUTOMATICA' and c.fecha >= public._hoy() + 3 and c.id <> pruebas.id('clase_vu') order by c.fecha limit 1)::text);
+select public.cancelar_reserva(pruebas.id('res_vu2'), true);
+update public.recuperaciones set estado = 'USADA' where reserva_origen_id = pruebas.id('res_vu2');
+select public.anadir_alumno((select clase_id from public.reservas where id = pruebas.id('res_vu2')), pruebas.id('cliente_vu'), 'MANUAL');
+do $$ begin
+  assert exists (select 1 from public.recuperaciones where reserva_origen_id = pruebas.id('res_vu2') and estado = 'USADA'), 'una recuperación ya usada se queda';
+  raise notice 'OK volver a la misma clase';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'
