@@ -7,7 +7,7 @@ import { Check, CircleDollarSign, History, Plus, RotateCcw, Trash2 } from 'lucid
 import type { Cliente, Contrato, MetodoPago, Oferta, Pago } from '@/domain/types';
 import { METODOS_PAGO, METODO_PAGO_LABEL, OFERTA_LABEL } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
-import { aCentimos, aTextoEuros, euros, mesDe, nombreMesAnio, pagoVencido, type CuotaPlan } from '@/domain/cobros';
+import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, mesDe, nombreMesAnio, pagoVencido, type CuotaPlan } from '@/domain/cobros';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
@@ -109,6 +109,14 @@ export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimer
 // Registro de cobros (pestaña Tarifa)
 // ---------------------------------------------------------------------------
 
+/** "Noviembre 2026", o "Bono 10 · Noviembre 2026" si el concepto dice algo más que el mes (los viejos "Mes 2 · noviembre 2026" no). */
+export function tituloCobro(p: Pick<Pago, 'concepto' | 'mes'>): string {
+  const mes = nombreMesAnio(p.mes);
+  const c = p.concepto.trim();
+  if (!c || c.toLowerCase() === mes.toLowerCase() || /^(mes \d+|renovación) · /i.test(c)) return mes;
+  return `${c} · ${mes}`;
+}
+
 export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrato: Contrato | null }) {
   const { db, puede, ejecutar, veFinanzas } = useTrabajador();
   const hoy = hoyISO();
@@ -117,11 +125,10 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   const pagos = db.pagos
     .filter((p) => p.clienteId === cliente.id && p.estado !== 'CANCELADO')
     .sort((a, b) => a.mes.localeCompare(b.mes) || (a.venceEl ?? a.creadoEl).localeCompare(b.venceEl ?? b.creadoEl));
-  // De serie: el mes en curso, los que vienen y lo pendiente de antes (deudas). Lo demás, en el historial.
-  const mesActual = mesDe(hoy);
-  const esHistorial = (p: Pago) => p.mes < mesActual && p.estado === 'PAGADO';
-  const visibles = historial ? pagos : pagos.filter((p) => !esHistorial(p));
-  const antiguos = pagos.filter(esHistorial).length;
+  // De serie, solo el mes que se está pagando (y las deudas); lo demás, detrás de "Historial de pagos".
+  const enFicha = cobrosEnLaFicha(pagos, hoy);
+  const visibles = historial ? pagos : enFicha.visibles;
+  const antiguos = enFicha.historial.length;
   const editable = puede('CLIENTES_EDITAR');
   const cobrado = pagos.filter((p) => p.estado === 'PAGADO').reduce((s, p) => s + p.importeCentimos, 0);
   const pendiente = pagos.filter((p) => p.estado === 'PENDIENTE').reduce((s, p) => s + p.importeCentimos, 0);
@@ -148,12 +155,12 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
         {editable && <Boton tamano="sm" variante="secundario" onClick={() => setEditando('nuevo')}><Plus className="h-4 w-4" /> Añadir cobro</Boton>}
       </div>
       {pagos.length > 0 && (
-        <p className="px-4 pb-2 text-sm text-ink-muted">Cobrado <strong className="text-ink">{euros(cobrado)}</strong> · Pendiente <strong className={pendiente > 0 ? 'text-rose' : 'text-ink'}>{euros(pendiente)}</strong>{!historial && antiguos > 0 && <span> · {nombreMesAnio(mesActual)} y lo pendiente</span>}</p>
+        <p className="px-4 pb-2 text-sm text-ink-muted">Cobrado <strong className="text-ink">{euros(cobrado)}</strong> · Pendiente <strong className={pendiente > 0 ? 'text-rose' : 'text-ink'}>{euros(pendiente)}</strong></p>
       )}
       {pagos.length === 0 ? (
         <p className="px-4 pb-4 text-sm text-ink-muted">Todavía no hay cobros apuntados.</p>
       ) : visibles.length === 0 ? (
-        <p className="px-4 pb-4 text-sm text-ink-muted">Nada pendiente ni apuntado para {nombreMesAnio(mesActual)}.</p>
+        <p className="px-4 pb-4 text-sm text-ink-muted">Nada pendiente ni apuntado para {nombreMesAnio(mesDe(hoy))}.</p>
       ) : (
         <ul className="divide-y divide-ink/5">
           {visibles.map((p) => {
@@ -161,7 +168,7 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
             return (
               <li key={p.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
                 <button type="button" disabled={!editable} onClick={() => setEditando(p)} className={cn('flex-1 min-w-[10rem] text-left', editable && 'tap')}>
-                  <span className="font-medium block">{p.concepto || 'Cobro'}{p.concepto.toLowerCase() !== nombreMesAnio(p.mes).toLowerCase() && <span className="text-ink-muted font-normal"> · {nombreMesAnio(p.mes)}</span>}</span>
+                  <span className="font-medium block">{tituloCobro(p)}</span>
                   <span className="block text-sm text-ink-muted">
                     {p.estado === 'PAGADO'
                       ? `Cobrado ${p.pagadoEl ? fechaMedia(p.pagadoEl.slice(0, 10)) : ''}${p.metodo ? ` · ${METODO_PAGO_LABEL[p.metodo]}` : ''}`
@@ -180,7 +187,7 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
       )}
       {antiguos > 0 && (
         <div className="px-4 pb-4 pt-2">
-          <Boton variante="fantasma" tamano="sm" onClick={() => setHistorial((v) => !v)}><History className="h-4 w-4" /> {historial ? 'Ocultar el historial' : `Historial de pagos (${antiguos})`}</Boton>
+          <Boton variante="fantasma" tamano="sm" onClick={() => setHistorial((v) => !v)}><History className="h-4 w-4" /> {historial ? 'Ver solo el mes en curso' : `Historial de pagos (${antiguos})`}</Boton>
         </div>
       )}
       {editando && (

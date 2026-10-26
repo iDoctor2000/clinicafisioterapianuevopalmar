@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aCentimos, aTextoEuros, euros, importeSugerido, importesOfertaTrimestral, mesDelPeriodo, mesesDelPeriodo, pagoVencido, planDeCobros } from '@/domain/cobros';
+import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, importeSugerido, importesOfertaTrimestral, mesDelPeriodo, mesesDelPeriodo, pagoVencido, planDeCobros } from '@/domain/cobros';
 
 const mensual = { tipo: 'RECURRENTE' as const, nombre: 'Clases dirigidas · 2 días/semana', precioCentimos: 5000,
   descripcion: 'Dos clases semanales. 50 €/mes. Oferta trimestral: 65 € (mes 1), 65 € (mes 2), 0 € (mes 3).' };
@@ -30,6 +30,21 @@ describe('cobros', () => {
     expect(plan.map((q) => q.venceEl)).toEqual(['2026-10-06', '2026-11-06', '2026-12-06']);
     expect(plan.map((q) => q.mes)).toEqual(['2026-10-01', '2026-11-01', '2026-12-01']);
     expect(plan[0].concepto).toBe('Octubre 2026');
+  });
+
+  it('la ficha enseña solo el mes que se está pagando: el último cobrado, las deudas y el que viene por cobrar', () => {
+    const p = (mes: string, estado: 'PAGADO' | 'PENDIENTE') => ({ mes, estado });
+    // 26 de octubre: pagó octubre el 7 y noviembre hoy; diciembre previsto. Solo noviembre.
+    const r = cobrosEnLaFicha([p('2026-10-01', 'PAGADO'), p('2026-11-01', 'PAGADO'), p('2026-12-01', 'PENDIENTE')], '2026-10-26');
+    expect(r.visibles.map((x) => x.mes)).toEqual(['2026-11-01']);
+    expect(r.historial.map((x) => x.mes)).toEqual(['2026-10-01', '2026-12-01']);
+    // Solo tiene octubre cobrado: se ve octubre y noviembre por cobrar (es lo próximo que hay que cobrar).
+    expect(cobrosEnLaFicha([p('2026-10-01', 'PAGADO'), p('2026-11-01', 'PENDIENTE'), p('2026-12-01', 'PENDIENTE')], '2026-10-26').visibles.map((x) => x.mes)).toEqual(['2026-10-01', '2026-11-01']);
+    // Pagó septiembre y debe octubre: septiembre ya es historial; se ven octubre (deuda) y noviembre.
+    expect(cobrosEnLaFicha([p('2026-09-01', 'PAGADO'), p('2026-10-01', 'PENDIENTE'), p('2026-11-01', 'PENDIENTE')], '2026-10-26').visibles.map((x) => x.mes)).toEqual(['2026-10-01', '2026-11-01']);
+    // Una deuda vieja no se esconde nunca.
+    expect(cobrosEnLaFicha([p('2026-08-01', 'PENDIENTE'), p('2026-10-01', 'PAGADO')], '2026-10-26').visibles.map((x) => x.mes)).toEqual(['2026-08-01', '2026-10-01']);
+    expect(cobrosEnLaFicha([], '2026-10-26')).toEqual({ visibles: [], historial: [] });
   });
 
   it('cada cuota es el mes natural que cubre: empezar el 26 de octubre es pagar noviembre, y un mes y pico es una sola cuota', () => {

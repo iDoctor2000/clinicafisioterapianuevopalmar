@@ -1815,6 +1815,12 @@ select pruebas.guardar('con_cm1', public.crear_contrato(pruebas.id('cliente_cm')
 do $$ begin
   assert (select array_agg(mes order by mes) from public.pagos where contrato_id = pruebas.id('con_cm1')) = array[date '2026-10-01', date '2026-11-01', date '2026-12-01'], 'el mes sale de la fecha de cobro';
 end $$;
+-- Un cobro con nombre viejo: la migración (idempotente, se repite aquí) le pone el mes por el nombre y lo renombra.
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, estado) values (pruebas.id('con_cm1'), pruebas.id('cliente_cm'), 'Mes 1 · julio 2026', 5000, '2026-07-06', 'PAGADO');
+update public.pagos p set mes = make_date(2026, 7, 1) where concepto = 'Mes 1 · julio 2026';
+update public.pagos set concepto = initcap((array['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'])[extract(month from mes)::int]) || ' ' || extract(year from mes)::int
+ where lower(concepto) ~ '^(mes \d+|renovación) · [a-záéíóú]+ \d{4}$';
+do $$ begin assert exists (select 1 from public.pagos where cliente_id = pruebas.id('cliente_cm') and concepto = 'Julio 2026' and mes = '2026-07-01'), 'nombre viejo normalizado'; end $$;
 -- Un cobro suelto pendiente de septiembre (deuda vieja) que no se debe perder.
 insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, estado) values (pruebas.id('con_cm1'), pruebas.id('cliente_cm'), 'Septiembre 2026', 1000, '2026-09-15', 'PENDIENTE');
 -- Contrato 2 al mismo alumno (como el 26 de octubre: "arreglar las clases"): el plan vuelve a traer octubre y noviembre.
@@ -1878,7 +1884,7 @@ begin
   assert v_pend >= 1 and v_dup >= 1, format('limpieza de pendientes (%s cerrados, %s de meses cobrados)', v_pend, v_dup);
   assert not exists (select 1 from public.contratos where id = pruebas.id('con_cm3')), 'el contrato vacío desaparece del historial';
   assert exists (select 1 from public.contratos where id = pruebas.id('con_cm1')), 'el contrato cerrado con cobros se queda';
-  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_cm') and estado = 'PAGADO') = 1, 'lo cobrado no se toca nunca';
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_cm') and estado = 'PAGADO') = 2, 'lo cobrado no se toca nunca';
   raise notice 'OK cobros por mes';
 end $$;
 

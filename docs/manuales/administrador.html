@@ -253,7 +253,7 @@
   <h3>Cambiar una contratación ya hecha</h3>
   <p>Ficha del cliente → pestaña <strong>Tarifa</strong> → <span class="btn claro">Editar contratación</span>. Puedes cambiar la fecha de fin, las franjas fijas, las sesiones que quedan de un bono, la oferta, el importe, la forma de pago y las notas. Al guardar, las reservas automáticas futuras se rehacen solas con las franjas nuevas; las clases pasadas y las reservas hechas a mano no se tocan. Para <strong>cambiar de tarifa</strong> no se edita: se crea una contratación nueva y la anterior se finaliza sola.</p>
   <h3>Apuntar los cobros</h3>
-  <p>En la misma pestaña <strong>Tarifa</strong> está la tarjeta <strong>Cobros</strong>. De serie enseña <strong>el mes en curso</strong>, los meses que vienen y cualquier cobro pendiente de antes (una deuda); los meses anteriores ya cobrados están detrás del botón <span class="btn claro">Historial de pagos (N)</span>. Cada cobro pertenece a un mes ("Noviembre 2026"): es lo que agrupa la pantalla Cobros y lo que impide que se apunte dos veces el mismo mes.</p>
+  <p>En la misma pestaña <strong>Tarifa</strong> está la tarjeta <strong>Cobros</strong>. De serie enseña solo <strong>el mes que se está pagando</strong>: el último cobrado (si el alumno pagó noviembre el 26 de octubre, se ve noviembre), lo que deba de antes y, como mucho, el mes siguiente por cobrar. Los meses cobrados anteriores y los previstos más adelante están detrás del botón <span class="btn claro">Historial de pagos (N)</span>. Cada cobro pertenece a un mes ("Noviembre 2026"): es lo que agrupa la pantalla Cobros y lo que impide que se apunte dos veces el mismo mes.</p>
   <ul>
     <li><span class="btn">Cobrar</span> junto a un mes lo marca como cobrado hoy, con la forma de pago del contrato (si no tiene, te la pregunta).</li>
     <li>La flecha de deshacer lo devuelve a pendiente, por si te equivocaste.</li>
@@ -647,6 +647,7 @@
         <tr><td><code>supabase/migrations/0026_cumpleanos_personal.sql</code></td><td>Notificación al móvil del equipo el día que un alumno cumple años. Después hay que volver a desplegar la función enviar-push.</td></tr>
         <tr><td><code>supabase/migrations/0028_renovar_contratos.sql</code></td><td>Botón para renovar de golpe los contratos mensuales que terminan.</td></tr>
         <tr><td><code>supabase/migrations/0029_cobros_por_mes.sql</code></td><td>Cada cobro pertenece a un mes y no se duplica al hacer otra contratación al mismo alumno. Limpia los cobros pendientes repetidos y los contratos vacíos del historial que dejó el fallo anterior (lo cobrado no se toca).</td></tr>
+        <tr><td><code>supabase/migrations/0030_nombres_de_cobros.sql</code></td><td>Los cobros antiguos ("Mes 1 · octubre 2026") pasan a llamarse por su mes ("Octubre 2026").</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
@@ -733,8 +734,8 @@
     <dt>Un alumno tiene el mismo mes cobrado dos veces.</dt>
     <dd>Si son dos pagos reales de meses distintos (pagó octubre y noviembre el mismo día), abre uno y cámbiale el mes. Si es un apunte repetido, ábrelo y bórralo. La pestaña <em>Repetidos</em> de la pantalla Cobros los lista todos.</dd>
 
-    <dt>No veo los cobros de meses anteriores en la ficha.</dt>
-    <dd>Están en <em>Historial de pagos</em>, debajo de la tarjeta Cobros. Lo pendiente de antes sí sale siempre.</dd>
+    <dt>No veo los cobros de meses anteriores (o los de más adelante) en la ficha.</dt>
+    <dd>Están en <em>Historial de pagos</em>, debajo de la tarjeta Cobros. Lo que se deba de antes sí sale siempre.</dd>
 
     <dt>Al contratar no sale la franja de Reformer (o la de suelo, yoga…).</dt>
     <dd>La tarifa elegida no incluye esa categoría: sale en gris con "No incluida". Elige una tarifa de esa categoría o el Pack mixto (capítulo 7).</dd>
