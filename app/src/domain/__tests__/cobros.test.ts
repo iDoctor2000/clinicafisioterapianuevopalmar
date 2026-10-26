@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aCentimos, aTextoEuros, euros, importeSugerido, importesOfertaTrimestral, mesesDelPeriodo, pagoVencido, planDeCobros } from '@/domain/cobros';
+import { aCentimos, aTextoEuros, euros, importeSugerido, importesOfertaTrimestral, mesDelPeriodo, mesesDelPeriodo, pagoVencido, planDeCobros } from '@/domain/cobros';
 
 const mensual = { tipo: 'RECURRENTE' as const, nombre: 'Clases dirigidas · 2 días/semana', precioCentimos: 5000,
   descripcion: 'Dos clases semanales. 50 €/mes. Oferta trimestral: 65 € (mes 1), 65 € (mes 2), 0 € (mes 3).' };
@@ -28,7 +28,17 @@ describe('cobros', () => {
     const plan = planDeCobros({ tarifa: mensual, inicio: '2026-10-06', fin: '2027-01-06', oferta: 'TRIMESTRAL', importeCentimos: null });
     expect(plan.map((q) => q.importeCentimos)).toEqual([6500, 6500, 0]);
     expect(plan.map((q) => q.venceEl)).toEqual(['2026-10-06', '2026-11-06', '2026-12-06']);
-    expect(plan[0].concepto).toBe('Mes 1 · octubre 2026');
+    expect(plan.map((q) => q.mes)).toEqual(['2026-10-01', '2026-11-01', '2026-12-01']);
+    expect(plan[0].concepto).toBe('Octubre 2026');
+  });
+
+  it('cada cuota es el mes natural que cubre: empezar el 26 de octubre es pagar noviembre, y un mes y pico es una sola cuota', () => {
+    expect(mesDelPeriodo('2026-10-26', '2026-11-30')).toBe('2026-11-01');
+    expect(mesDelPeriodo('2026-10-06', '2027-01-06')).toBe('2026-10-01');
+    const corto = planDeCobros({ tarifa: mensual, inicio: '2026-10-26', fin: '2026-11-30', oferta: 'NINGUNA', importeCentimos: 4500 });
+    expect(corto).toEqual([{ concepto: 'Noviembre 2026', importeCentimos: 4500, venceEl: '2026-10-26', mes: '2026-11-01' }]);
+    const tarde = planDeCobros({ tarifa: mensual, inicio: '2026-10-20', fin: '2027-01-19', oferta: 'NINGUNA', importeCentimos: null });
+    expect(tarde.map((q) => q.concepto)).toEqual(['Noviembre 2026', 'Diciembre 2026', 'Enero 2027']);
   });
 
   it('si se cambia el importe a mano, manda el importe acordado', () => {
@@ -38,7 +48,7 @@ describe('cobros', () => {
 
   it('bono o clase suelta: un único cobro', () => {
     const plan = planDeCobros({ tarifa: { tipo: 'BONO', nombre: 'Bono 10R', precioCentimos: 12000, descripcion: '' }, inicio: '2026-10-06', fin: '2027-04-06', oferta: 'NINGUNA', importeCentimos: null });
-    expect(plan).toEqual([{ concepto: 'Bono 10R', importeCentimos: 12000, venceEl: '2026-10-06' }]);
+    expect(plan).toEqual([{ concepto: 'Bono 10R', importeCentimos: 12000, venceEl: '2026-10-06', mes: '2026-10-01' }]);
   });
 
   it('formatea y lee importes en euros', () => {

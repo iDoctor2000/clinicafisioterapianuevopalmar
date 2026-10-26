@@ -1776,7 +1776,8 @@ begin
   -- Un cobro por cada mes que empieza en el periodo nuevo.
   select count(distinct date_trunc('month', d)) into v_meses from generate_series(public._hoy() + 11, public._hoy() + 40, interval '1 day') d
    where d::date = public._hoy() + 11 or extract(day from d) = 1;
-  assert (select count(*) from public.pagos where contrato_id = pruebas.id('con_rn') and concepto like 'Renovación · %' and importe_centimos = 5000 and estado = 'PENDIENTE') = v_meses,
+  -- 0029: el concepto es el nombre del mes y el cobro lleva su mes.
+  assert (select count(*) from public.pagos where contrato_id = pruebas.id('con_rn') and concepto ~ '^[A-Z][a-z]+ \d{4}$' and importe_centimos = 5000 and estado = 'PENDIENTE' and mes = date_trunc('month', vence_el)::date) = v_meses,
     format('un cobro de 50 € por mes nuevo (%s esperados)', v_meses);
 end $$;
 -- Repetirlo no hace nada (ya llega a esa fecha) ni duplica cobros.
@@ -1795,6 +1796,90 @@ select pruebas.sistema();
 do $$ begin
   assert exists (select 1 from public.auditoria where accion = 'RENOVAR_CONTRATO' and entidad_id = pruebas.id('con_rn')::text), 'queda en el registro de cambios';
   raise notice 'OK renovar contratos';
+end $$;
+
+\echo
+\echo '== 40. Cobros por mes: recontratar no duplica, los pendientes del anterior se sustituyen y limpieza (0029)'
+select pruebas.sistema();
+select pruebas.guardar('cliente_cm', 'e0000000-0000-4000-8000-0000000000f2');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cliente_cm'), 'Cobro', 'Mensual', '77777777C', 'cobro@test.local', '600 000 077') on conflict (id) do nothing;
+select pruebas.como('admin');
+-- Contrato 1 (como lo hacía la app antes): octubre cobrado, noviembre y diciembre pendientes. Sin 'mes': lo pone el disparador.
+select pruebas.guardar('con_cm1', public.crear_contrato(pruebas.id('cliente_cm'), pruebas.id('tar_dir2'), date '2026-10-06', date '2027-01-05', 'LIBRE',
+  '{}', '{}', '', null, 'NINGUNA', 5000, 'EFECTIVO',
+  jsonb_build_array(
+    jsonb_build_object('concepto', 'Octubre 2026', 'importe_centimos', 5000, 'vence_el', '2026-10-06', 'estado', 'PAGADO', 'metodo', 'EFECTIVO'),
+    jsonb_build_object('concepto', 'Noviembre 2026', 'importe_centimos', 5000, 'vence_el', '2026-11-06', 'estado', 'PENDIENTE'),
+    jsonb_build_object('concepto', 'Diciembre 2026', 'importe_centimos', 5000, 'vence_el', '2026-12-06', 'estado', 'PENDIENTE')))::text);
+do $$ begin
+  assert (select array_agg(mes order by mes) from public.pagos where contrato_id = pruebas.id('con_cm1')) = array[date '2026-10-01', date '2026-11-01', date '2026-12-01'], 'el mes sale de la fecha de cobro';
+end $$;
+-- Un cobro suelto pendiente de septiembre (deuda vieja) que no se debe perder.
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, estado) values (pruebas.id('con_cm1'), pruebas.id('cliente_cm'), 'Septiembre 2026', 1000, '2026-09-15', 'PENDIENTE');
+-- Contrato 2 al mismo alumno (como el 26 de octubre: "arreglar las clases"): el plan vuelve a traer octubre y noviembre.
+select pruebas.guardar('con_cm2', public.crear_contrato(pruebas.id('cliente_cm'), pruebas.id('tar_dir2'), date '2026-10-26', date '2026-11-30', 'LIBRE',
+  '{}', '{}', '', null, 'NINGUNA', 4500, 'EFECTIVO',
+  jsonb_build_array(
+    jsonb_build_object('concepto', 'Octubre 2026', 'importe_centimos', 4500, 'vence_el', '2026-10-26', 'mes', '2026-10-01', 'estado', 'PAGADO', 'metodo', 'EFECTIVO'),
+    jsonb_build_object('concepto', 'Noviembre 2026', 'importe_centimos', 4500, 'vence_el', '2026-11-26', 'mes', '2026-11-01', 'estado', 'PENDIENTE')))::text);
+do $$
+declare v_cli uuid := pruebas.id('cliente_cm');
+begin
+  assert (select estado from public.contratos where id = pruebas.id('con_cm1')) = 'FINALIZADO', 'el contrato anterior se cierra';
+  -- Octubre: solo el cobrado del contrato 1 (no entra otro "octubre"). Noviembre: solo uno, el del plan nuevo (45 €).
+  assert (select count(*) from public.pagos where cliente_id = v_cli and mes = '2026-10-01') = 1, 'octubre no se repite';
+  assert (select estado = 'PAGADO' and importe_centimos = 5000 from public.pagos where cliente_id = v_cli and mes = '2026-10-01'), 'el octubre cobrado se queda tal cual';
+  assert (select count(*) from public.pagos where cliente_id = v_cli and mes = '2026-11-01') = 1, 'noviembre no se repite';
+  assert (select contrato_id = pruebas.id('con_cm2') and importe_centimos = 4500 from public.pagos where cliente_id = v_cli and mes = '2026-11-01'), 'noviembre es el del plan nuevo';
+  -- Diciembre pendiente del contrato anterior: sustituido (el plan nuevo no llega a diciembre, así que desaparece).
+  assert not exists (select 1 from public.pagos where cliente_id = v_cli and mes = '2026-12-01'), 'el pendiente de diciembre del contrato anterior se quita';
+  -- La deuda de septiembre (anterior al plan nuevo) sigue ahí.
+  assert exists (select 1 from public.pagos where cliente_id = v_cli and mes = '2026-09-01' and estado = 'PENDIENTE'), 'la deuda anterior no se toca';
+  assert exists (select 1 from public.auditoria where accion = 'CREAR_CONTRATO' and entidad_id = pruebas.id('con_cm2')::text and detalle like '%1 meses ya apuntados%' and detalle like '%2 pendientes del anterior sustituidos%'), 'el registro de cambios lo cuenta (octubre ya cobrado; noviembre y diciembre pendientes sustituidos)';
+end $$;
+-- Cambiar el mes de un cobro desde la app (el 26 de octubre de 45 € era en realidad noviembre): se puede, y el disparador respeta el valor.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+update public.pagos set mes = '2027-02-01' where cliente_id = pruebas.id('cliente_cm') and mes = '2026-09-01';
+do $$ begin assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_cm') and mes = '2027-02-01') = 1, 'el mes se puede cambiar a mano'; end $$;
+update public.pagos set mes = null where cliente_id = pruebas.id('cliente_cm') and mes = '2027-02-01';
+do $$ begin assert (select mes from public.pagos where cliente_id = pruebas.id('cliente_cm') and concepto = 'Septiembre 2026') = date '2026-09-01', 'sin mes, vuelve al de la fecha de cobro'; end $$;
+commit;
+select pruebas.como('admin');
+-- Renovar crea el cobro con su mes y su nombre, y no repite un mes ya apuntado.
+do $$
+declare v jsonb;
+begin
+  v := public.renovar_contratos(array[pruebas.id('con_cm2')], date '2026-12-31');
+  assert (v->>'renovados')::int = 1 and (v->>'cobros')::int = 1, format('un cobro nuevo, diciembre (%s)', v);
+  assert (select concepto = 'Diciembre 2026' and estado = 'PENDIENTE' and importe_centimos = 4500 from public.pagos where cliente_id = pruebas.id('cliente_cm') and mes = '2026-12-01'), 'diciembre con su nombre e importe';
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_cm') and mes = '2026-11-01') = 1, 'noviembre sigue sin repetirse';
+end $$;
+-- Limpieza (la de la migración, repetida aquí): restos como los que había en producción.
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, estado) values
+  (pruebas.id('con_cm1'), pruebas.id('cliente_cm'), 'Resto pendiente', 5000, '2026-10-16', 'PENDIENTE'),   -- pendiente de contrato cerrado
+  (null, pruebas.id('cliente_cm'), 'Octubre 2026', 5000, '2026-10-16', 'PENDIENTE');                       -- pendiente suelto de un mes ya cobrado
+select pruebas.guardar('con_cm3', public.crear_contrato(pruebas.id('cliente_cm'), pruebas.id('tar_dir2'), date '2026-10-14', date '2026-10-14', 'LIBRE')::text);
+select public.finalizar_contrato(pruebas.id('con_cm3'), true);
+delete from public.reservas where contrato_id = pruebas.id('con_cm3');
+do $$
+declare v_pend integer; v_dup integer; v_con integer;
+begin
+  with b as (delete from public.pagos p using public.contratos c where c.id = p.contrato_id and c.estado <> 'ACTIVO' and p.estado = 'PENDIENTE' returning p.id) select count(*) into v_pend from b;
+  with b as (delete from public.pagos p where p.estado = 'PENDIENTE' and exists (select 1 from public.pagos q where q.cliente_id = p.cliente_id and q.mes = p.mes and q.estado = 'PAGADO') returning p.id) select count(*) into v_dup from b;
+  with vacios as (select c.id from public.contratos c where c.estado <> 'ACTIVO'
+       and not exists (select 1 from public.reservas r where r.contrato_id = c.id) and not exists (select 1 from public.pagos p where p.contrato_id = c.id)
+       and not exists (select 1 from public.recuperaciones x where x.contrato_id = c.id)),
+    f as (delete from public.contrato_franjas where contrato_id in (select id from vacios) returning 1),
+    p as (delete from public.contratos_pago where contrato_id in (select id from vacios) returning 1),
+    b as (delete from public.contratos where id in (select id from vacios) returning id) select count(*) into v_con from b;
+  assert v_pend >= 1 and v_dup >= 1, format('limpieza de pendientes (%s cerrados, %s de meses cobrados)', v_pend, v_dup);
+  assert not exists (select 1 from public.contratos where id = pruebas.id('con_cm3')), 'el contrato vacío desaparece del historial';
+  assert exists (select 1 from public.contratos where id = pruebas.id('con_cm1')), 'el contrato cerrado con cobros se queda';
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_cm') and estado = 'PAGADO') = 1, 'lo cobrado no se toca nunca';
+  raise notice 'OK cobros por mes';
 end $$;
 
 \echo

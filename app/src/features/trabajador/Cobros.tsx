@@ -3,11 +3,11 @@
  * cuotas y registro de cobros. Lo usan la contratación (nueva y editar) y la pestaña Tarifa.
  */
 import { useState } from 'react';
-import { Check, CircleDollarSign, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, CircleDollarSign, History, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import type { Cliente, Contrato, MetodoPago, Oferta, Pago } from '@/domain/types';
 import { METODOS_PAGO, METODO_PAGO_LABEL, OFERTA_LABEL } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
-import { aCentimos, aTextoEuros, euros, pagoVencido, type CuotaPlan } from '@/domain/cobros';
+import { aCentimos, aTextoEuros, euros, mesDe, nombreMesAnio, pagoVencido, type CuotaPlan } from '@/domain/cobros';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
@@ -56,31 +56,51 @@ export function textoPago(c: Pick<Contrato, 'oferta' | 'importeCentimos' | 'meto
 // Plan de cobros (al crear el contrato)
 // ---------------------------------------------------------------------------
 
-export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimeroCobrado }: {
+/**
+ * `yaApuntados`: cobros que el alumno ya tiene (cobrados o pendientes) por mes: esas cuotas salen desmarcadas
+ * con el motivo, y el servidor tampoco las crearía (0029). `excluidas`: cuotas que se han desmarcado a mano.
+ */
+export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimeroCobrado, yaApuntados, excluidas, onExcluir }: {
   plan: CuotaPlan[];
   importes: string[];
   onImporte: (i: number, texto: string) => void;
   primeroCobrado: boolean;
   onPrimeroCobrado: (v: boolean) => void;
+  yaApuntados: Pago[];
+  excluidas: Set<string>;
+  onExcluir: (mes: string, excluir: boolean) => void;
 }) {
-  const total = plan.reduce((s, _, i) => s + (aCentimos(importes[i] ?? '') ?? 0), 0);
+  const apuntado = (mes: string) => yaApuntados.find((p) => p.mes === mes);
+  const activa = (q: CuotaPlan) => !excluidas.has(q.mes) && !apuntado(q.mes);
+  const total = plan.reduce((s, q, i) => s + (activa(q) ? aCentimos(importes[i] ?? '') ?? 0 : 0), 0);
+  const primera = plan.find(activa);
   return (
     <div>
       <span className="block text-[15px] font-semibold mb-1.5">Plan de cobros <span className="text-ink-muted font-normal">· total {euros(total)}</span></span>
       <ul className="rounded-2xl border border-ink/10 divide-y divide-ink/5">
-        {plan.map((q, i) => (
-          <li key={q.venceEl + i} className="flex items-center gap-3 px-3 py-2">
-            <span className="flex-1 min-w-0"><span className="font-medium block truncate">{q.concepto}</span><span className="text-sm text-ink-muted">Se cobra el {fechaMedia(q.venceEl)}</span></span>
-            <input aria-label={`Importe de ${q.concepto}`} inputMode="decimal" value={importes[i] ?? ''} onChange={(e) => onImporte(i, e.target.value)}
-              className="w-24 h-11 rounded-xl border border-ink/15 bg-white px-3 text-right font-semibold" />
-            <span className="text-ink-muted">€</span>
-          </li>
-        ))}
+        {plan.map((q, i) => {
+          const ya = apuntado(q.mes);
+          const on = activa(q);
+          return (
+            <li key={q.mes} className={cn('flex items-center gap-3 px-3 py-2', !on && 'opacity-70')}>
+              <input type="checkbox" aria-label={`Incluir ${q.concepto}`} className="h-5 w-5 accent-brand-500 shrink-0" checked={on} disabled={!!ya} onChange={(e) => onExcluir(q.mes, !e.target.checked)} />
+              <span className="flex-1 min-w-0">
+                <span className="font-medium block truncate">{q.concepto}</span>
+                <span className="text-sm text-ink-muted">{ya ? `Ya apuntado: ${ya.concepto} · ${euros(ya.importeCentimos)} · ${ya.estado === 'PAGADO' ? 'cobrado' : 'pendiente'}` : `Se cobra el ${fechaMedia(q.venceEl)}`}</span>
+              </span>
+              {!ya && <input aria-label={`Importe de ${q.concepto}`} inputMode="decimal" value={importes[i] ?? ''} disabled={!on} onChange={(e) => onImporte(i, e.target.value)}
+                className="w-24 h-11 rounded-xl border border-ink/15 bg-white px-3 text-right font-semibold disabled:bg-sand" />}
+              {!ya && <span className="text-ink-muted">€</span>}
+            </li>
+          );
+        })}
       </ul>
-      <div className="rounded-2xl border border-ink/10 px-4 mt-2">
-        <Interruptor activo={primeroCobrado} onCambio={onPrimeroCobrado} etiqueta="El primer pago se cobra ahora" descripcion="Queda marcado como cobrado hoy, con la forma de pago elegida." />
-      </div>
-      <p className="text-sm text-ink-muted mt-2">Puedes cambiar cada importe. Los cobros se apuntan después en la ficha, pestaña Tarifa.</p>
+      {primera && (
+        <div className="rounded-2xl border border-ink/10 px-4 mt-2">
+          <Interruptor activo={primeroCobrado} onCambio={onPrimeroCobrado} etiqueta={`${primera.concepto} se cobra ahora`} descripcion="Queda marcado como cobrado hoy, con la forma de pago elegida." />
+        </div>
+      )}
+      <p className="text-sm text-ink-muted mt-2">Cada cuota es un mes. Desmarca la que no toque cobrar y cambia los importes si hace falta. Después se gestionan en la ficha, pestaña Tarifa.</p>
     </div>
   );
 }
@@ -93,9 +113,15 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   const { db, puede, ejecutar, veFinanzas } = useTrabajador();
   const hoy = hoyISO();
   const [editando, setEditando] = useState<Pago | 'nuevo' | null>(null);
+  const [historial, setHistorial] = useState(false);
   const pagos = db.pagos
     .filter((p) => p.clienteId === cliente.id && p.estado !== 'CANCELADO')
-    .sort((a, b) => (a.venceEl ?? a.creadoEl).localeCompare(b.venceEl ?? b.creadoEl));
+    .sort((a, b) => a.mes.localeCompare(b.mes) || (a.venceEl ?? a.creadoEl).localeCompare(b.venceEl ?? b.creadoEl));
+  // De serie: el mes en curso, los que vienen y lo pendiente de antes (deudas). Lo demás, en el historial.
+  const mesActual = mesDe(hoy);
+  const esHistorial = (p: Pago) => p.mes < mesActual && p.estado === 'PAGADO';
+  const visibles = historial ? pagos : pagos.filter((p) => !esHistorial(p));
+  const antiguos = pagos.filter(esHistorial).length;
   const editable = puede('CLIENTES_EDITAR');
   const cobrado = pagos.filter((p) => p.estado === 'PAGADO').reduce((s, p) => s + p.importeCentimos, 0);
   const pendiente = pagos.filter((p) => p.estado === 'PENDIENTE').reduce((s, p) => s + p.importeCentimos, 0);
@@ -122,18 +148,20 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
         {editable && <Boton tamano="sm" variante="secundario" onClick={() => setEditando('nuevo')}><Plus className="h-4 w-4" /> Añadir cobro</Boton>}
       </div>
       {pagos.length > 0 && (
-        <p className="px-4 pb-2 text-sm text-ink-muted">Cobrado <strong className="text-ink">{euros(cobrado)}</strong> · Pendiente <strong className={pendiente > 0 ? 'text-rose' : 'text-ink'}>{euros(pendiente)}</strong></p>
+        <p className="px-4 pb-2 text-sm text-ink-muted">Cobrado <strong className="text-ink">{euros(cobrado)}</strong> · Pendiente <strong className={pendiente > 0 ? 'text-rose' : 'text-ink'}>{euros(pendiente)}</strong>{!historial && antiguos > 0 && <span> · {nombreMesAnio(mesActual)} y lo pendiente</span>}</p>
       )}
       {pagos.length === 0 ? (
         <p className="px-4 pb-4 text-sm text-ink-muted">Todavía no hay cobros apuntados.</p>
+      ) : visibles.length === 0 ? (
+        <p className="px-4 pb-4 text-sm text-ink-muted">Nada pendiente ni apuntado para {nombreMesAnio(mesActual)}.</p>
       ) : (
         <ul className="divide-y divide-ink/5">
-          {pagos.map((p) => {
+          {visibles.map((p) => {
             const vencido = pagoVencido(p, hoy);
             return (
               <li key={p.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
                 <button type="button" disabled={!editable} onClick={() => setEditando(p)} className={cn('flex-1 min-w-[10rem] text-left', editable && 'tap')}>
-                  <span className="font-medium block">{p.concepto || 'Cobro'}</span>
+                  <span className="font-medium block">{p.concepto || 'Cobro'}{p.concepto.toLowerCase() !== nombreMesAnio(p.mes).toLowerCase() && <span className="text-ink-muted font-normal"> · {nombreMesAnio(p.mes)}</span>}</span>
                   <span className="block text-sm text-ink-muted">
                     {p.estado === 'PAGADO'
                       ? `Cobrado ${p.pagadoEl ? fechaMedia(p.pagadoEl.slice(0, 10)) : ''}${p.metodo ? ` · ${METODO_PAGO_LABEL[p.metodo]}` : ''}`
@@ -150,6 +178,11 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
           })}
         </ul>
       )}
+      {antiguos > 0 && (
+        <div className="px-4 pb-4 pt-2">
+          <Boton variante="fantasma" tamano="sm" onClick={() => setHistorial((v) => !v)}><History className="h-4 w-4" /> {historial ? 'Ocultar el historial' : `Historial de pagos (${antiguos})`}</Boton>
+        </div>
+      )}
       {editando && (
         <HojaCobro
           pago={editando === 'nuevo' ? null : editando} cliente={cliente} contrato={contrato}
@@ -163,9 +196,10 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
 function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; cliente: Cliente; contrato: Contrato | null; onCerrar: () => void }) {
   const { ejecutar } = useTrabajador();
   const hoy = hoyISO();
-  const [concepto, setConcepto] = useState(pago?.concepto ?? '');
+  const [concepto, setConcepto] = useState(pago?.concepto ?? nombreMesAnio(mesDe(hoy)));
   const [importe, setImporte] = useState(aTextoEuros(pago?.importeCentimos ?? contrato?.importeCentimos ?? null));
   const [vence, setVence] = useState(pago?.venceEl ?? hoy);
+  const [mes, setMes] = useState((pago?.mes ?? mesDe(hoy)).slice(0, 7));
   const [cobrado, setCobrado] = useState(pago ? pago.estado === 'PAGADO' : true);
   const [metodo, setMetodo] = useState<MetodoPago | ''>(pago?.metodo ?? contrato?.metodoPago ?? '');
   const [fechaCobro, setFechaCobro] = useState(pago?.pagadoEl?.slice(0, 10) ?? hoy);
@@ -174,12 +208,13 @@ function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; c
   const guardar = async () => {
     const centimos = aCentimos(importe);
     if (centimos == null) return toast.error('Escribe el importe en euros (por ejemplo 45 o 45,50).');
-    if (!concepto.trim()) return toast.error('Escribe un concepto (por ejemplo, "Mes 2").');
+    if (!concepto.trim()) return toast.error('Escribe un concepto (por ejemplo, "Noviembre 2026").');
+    if (!/^\d{4}-\d{2}$/.test(mes)) return toast.error('Elige el mes al que corresponde el cobro.');
     if (cobrado && !metodo) return toast.error('Elige la forma de pago.');
     const r = await ejecutar('guardarPago', {
       pago: {
         id: pago?.id, clienteId: cliente.id, contratoId: pago ? pago.contratoId : contrato?.id ?? null, concepto, importeCentimos: centimos,
-        venceEl: vence || null, estado: cobrado ? 'PAGADO' : 'PENDIENTE', metodo: metodo || null,
+        venceEl: vence || null, mes: `${mes || mesDe(vence || hoy).slice(0, 7)}-01`, estado: cobrado ? 'PAGADO' : 'PENDIENTE', metodo: metodo || null,
         pagadoEl: cobrado ? `${fechaCobro}T12:00:00.000Z` : null,
       },
     });
@@ -195,7 +230,10 @@ function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; c
     <>
     <Hoja abierta onCerrar={onCerrar} titulo={pago ? 'Cobro' : 'Añadir cobro'}>
       <div className="space-y-4">
-        <Entrada etiqueta="Concepto" value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder="Mes 2 · noviembre 2026" />
+        <div className="grid grid-cols-2 gap-3">
+          <Entrada etiqueta="Mes al que corresponde" ayuda="Es lo que agrupa la pantalla Cobros" type="month" value={mes} onChange={(e) => { setMes(e.target.value); if (!pago && /^\d{4}-\d{2}$/.test(e.target.value) && (!concepto.trim() || /^[A-Z][a-z]+ \d{4}$/.test(concepto))) setConcepto(nombreMesAnio(`${e.target.value}-01`)); }} />
+          <Entrada etiqueta="Concepto" value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder="Noviembre 2026" />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Entrada etiqueta="Importe (€)" inputMode="decimal" value={importe} onChange={(e) => setImporte(e.target.value)} placeholder="45" />
           <Entrada etiqueta="Se cobra el" type="date" value={vence} onChange={(e) => setVence(e.target.value)} />

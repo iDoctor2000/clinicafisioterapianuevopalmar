@@ -41,10 +41,10 @@ describe('renovaciones', () => {
 
   it('cobros: uno por mes nuevo con el importe del contrato; ninguno si ya hay cobro ese mes o no hay importe', () => {
     const c = { fechaFin: '2026-10-31', importeCentimos: 5200, clienteId: 'x' } as Contrato;
-    expect(cobrosDeRenovacion(c, '2026-11-30', [])).toEqual([{ concepto: 'Renovación · noviembre 2026', importeCentimos: 5200, venceEl: '2026-11-01' }]);
-    expect(cobrosDeRenovacion(c, '2027-01-31', []).map((q) => q.venceEl)).toEqual(['2026-11-01', '2026-12-01', '2027-01-01']);
-    expect(cobrosDeRenovacion(c, '2026-11-30', [{ clienteId: 'x', estado: 'PENDIENTE', venceEl: '2026-11-07' }])).toEqual([]);
-    expect(cobrosDeRenovacion(c, '2026-11-30', [{ clienteId: 'x', estado: 'CANCELADO', venceEl: '2026-11-07' }])).toHaveLength(1);
+    expect(cobrosDeRenovacion(c, '2026-11-30', [])).toEqual([{ concepto: 'Noviembre 2026', importeCentimos: 5200, venceEl: '2026-11-01', mes: '2026-11-01' }]);
+    expect(cobrosDeRenovacion(c, '2027-01-31', []).map((q) => q.mes)).toEqual(['2026-11-01', '2026-12-01', '2027-01-01']);
+    expect(cobrosDeRenovacion(c, '2026-11-30', [{ clienteId: 'x', estado: 'PENDIENTE', mes: '2026-11-01' }])).toEqual([]);
+    expect(cobrosDeRenovacion(c, '2026-11-30', [{ clienteId: 'x', estado: 'CANCELADO', mes: '2026-11-01' }])).toHaveLength(1);
     expect(cobrosDeRenovacion({ ...c, importeCentimos: null }, '2026-11-30', [])).toEqual([]);
   });
 
@@ -61,7 +61,7 @@ describe('renovaciones', () => {
     if (r.db.clases.some((c) => c.fecha > contrato.fechaFin && c.fecha <= hasta && contrato.franjasFijas.some((f) => f.plantillaId === c.plantillaId))) {
       expect(fechas.some((f) => f > contrato.fechaFin)).toBe(true);
     }
-    expect(r.db.pagos.filter((p) => p.contratoId === contrato.id && p.concepto.startsWith('Renovación'))).toHaveLength(r.valor.cobros);
+    expect(r.db.pagos.filter((p) => p.contratoId === contrato.id && p.mes > contrato.fechaFin)).toHaveLength(r.valor.cobros);
     expect(r.valor.cobros).toBeGreaterThan(0);
     expect(r.db.auditoria[0]).toMatchObject({ accion: 'RENOVAR_CONTRATO', entidadId: contrato.id });
     // Otra vez: ya llega a esa fecha, se salta.

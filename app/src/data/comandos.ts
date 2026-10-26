@@ -21,6 +21,7 @@ import {
 } from '@/domain/rules';
 import { indexar, nuevoId, type Db } from './db';
 import { cobrosDeRenovacion } from '@/domain/renovaciones';
+import { mesDe } from '@/domain/cobros';
 import { portadaOrdenada } from './selectores';
 
 export type Resultado<T = void> = { ok: true; db: Db; valor: T } | { ok: false; error: string };
@@ -608,7 +609,7 @@ export function guardarCliente(ctx: Ctx, args: { cliente: Omit<Cliente, 'id'> & 
 }
 
 /** Cuota o cobro que se crea junto con el contrato (plan de cobros). */
-export type CobroNuevo = Pick<Pago, 'concepto' | 'importeCentimos' | 'venceEl' | 'estado' | 'metodo' | 'pagadoEl'>;
+export type CobroNuevo = Pick<Pago, 'concepto' | 'importeCentimos' | 'venceEl' | 'mes' | 'estado' | 'metodo' | 'pagadoEl'>;
 
 export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 'creadoEl' | 'creadoPor' | 'estado'>; cobros?: CobroNuevo[]; incluirPasadas?: boolean }): Resultado<Contrato> {
   const { db, sesion, ahora } = ctx;
@@ -634,11 +635,17 @@ export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 
   const sigue = (r: Reserva) => { const c = claseDe.get(r.claseId); return !!c && !!c.plantillaId && franjasNuevas.has(c.plantillaId) && c.fecha <= contrato.fechaFin; };
   nuevo = { ...nuevo, reservas: nuevo.reservas.filter((r) => !fijaPrevia(r) || sigue(r)).map((r) => (fijaPrevia(r) && sigue(r) ? { ...r, contratoId: contrato.id } : r)) };
   const reservas = generarReservasAutomaticas(contrato, nuevo.clases.filter((c) => args.incluirPasadas || c.fecha >= hoy), nuevo.reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
-  const pagos = (args.cobros ?? []).map((q): Pago => ({
+  // 0029: los pendientes del contrato anterior desde el primer mes del plan nuevo se sustituyen, y el plan
+  // no repite un mes que el alumno ya tenga apuntado (cobrado o pendiente).
+  const plan = (args.cobros ?? []).map((q) => ({ ...q, mes: q.mes ?? mesDe(q.venceEl ?? contrato.fechaInicio) }));
+  const primerMes = plan.map((q) => q.mes).sort()[0];
+  const pagosPrevios = nuevo.pagos.filter((p) => !(primerMes && previos.has(p.contratoId ?? '') && p.estado === 'PENDIENTE' && p.mes >= primerMes));
+  const yaApuntado = (mes: string) => pagosPrevios.some((p) => p.clienteId === contrato.clienteId && p.estado !== 'CANCELADO' && p.mes === mes);
+  const pagos = plan.filter((q) => !yaApuntado(q.mes)).map((q): Pago => ({
     ...q, id: nuevoId('pag'), contratoId: contrato.id, clienteId: contrato.clienteId, creadoEl: ahora.toISOString(),
     pagadoEl: q.estado === 'PAGADO' ? q.pagadoEl ?? ahora.toISOString() : null,
   }));
-  nuevo = { ...nuevo, reservas, pagos: [...nuevo.pagos, ...pagos] };
+  nuevo = { ...nuevo, reservas, pagos: [...pagosPrevios, ...pagos] };
   return ok(auditar(nuevo, sesion, ahora, 'CREAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${tarifa.nombre} ${contrato.fechaInicio}→${contrato.fechaFin}`), contrato);
 }
 
@@ -727,6 +734,7 @@ export function guardarPago(ctx: Ctx, args: { pago: Omit<Pago, 'id' | 'creadoEl'
   const existente = args.pago.id ? db.pagos.find((p) => p.id === args.pago.id) : undefined;
   const pago: Pago = {
     ...args.pago, concepto: args.pago.concepto.trim(), id: existente?.id ?? nuevoId('pag'), creadoEl: existente?.creadoEl ?? ahora.toISOString(),
+    mes: mesDe(args.pago.mes || args.pago.venceEl || aISODate(ahora)),
     pagadoEl: args.pago.estado === 'PAGADO' ? args.pago.pagadoEl ?? ahora.toISOString() : null,
   };
   const nuevo: Db = { ...db, pagos: existente ? db.pagos.map((p) => (p.id === pago.id ? pago : p)) : [...db.pagos, pago] };

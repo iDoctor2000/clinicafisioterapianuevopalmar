@@ -17,9 +17,9 @@ export interface ResumenCobrosMes {
   totales: { cobrado: number; pendiente: number; vencido: number; porMetodo: { metodo: MetodoPago | null; total: number; n: number }[] };
 }
 
-/** Mes (AAAA-MM) al que pertenece un cobro. */
-export function mesDeCobro(p: Pick<Pago, 'venceEl' | 'pagadoEl' | 'creadoEl'>): string {
-  return (p.venceEl ?? p.pagadoEl ?? p.creadoEl ?? '').slice(0, 7);
+/** Mes (AAAA-MM) al que pertenece un cobro: el que lleva apuntado (0029). */
+export function mesDeCobro(p: Pick<Pago, 'mes'>): string {
+  return p.mes.slice(0, 7);
 }
 
 function finMes(mes: ISODate): ISODate {

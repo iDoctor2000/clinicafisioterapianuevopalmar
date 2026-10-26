@@ -243,8 +243,8 @@
     <li>Fíjate en que <strong>cada tarifa da acceso solo a su categoría</strong>: las de "Clases dirigidas" a suelo, funcional, geronto, yoga, barre…; las de "Reformer + Torre" a Reformer; el Pack mixto a una de cada. En la lista de franjas, las que la tarifa no incluye salen en gris con "No incluida" y un aviso debajo lo explica. Si una franja de Reformer "no sale", no es un fallo del horario: es que la tarifa elegida no la incluye.</li>
     <li>Elige la <strong>modalidad</strong>: <em>Horario fijo</em> (siempre las mismas clases, por ejemplo lunes y miércoles a las 10:00; marca las franjas y la app le reserva esas clases automáticamente cada semana) o <em>Turno libre</em> (el cliente reserva cada vez la clase que quiera). Junto a cada franja ves <strong>cuántas de sus plazas ya tienen alumno fijo</strong> (por ejemplo "6/8 fijos"). Si está <span style="color:#b4473f;font-weight:600">Completa</span>, la app avisa pero te deja marcarla igualmente: tú decides si hay sitio (por ejemplo, porque alguien va a dejarla).</li>
     <li>En el apartado <strong>Pago</strong> elige la <strong>oferta</strong> (ninguna, trimestral o familiar), el <strong>importe</strong> y la <strong>forma de pago</strong> (efectivo, tarjeta, Bizum, transferencia o domiciliación). Con la oferta trimestral, los importes del cartel (por ejemplo 65 € / 65 € / 0 €) se rellenan solos.</li>
-    <li>Debajo sale el <strong>plan de cobros</strong>: un cobro por mes (o uno solo si es un bono). Puedes cambiar cualquier importe. Si el cliente paga en ese momento, activa <em>El primer pago se cobra ahora</em>.</li>
-    <li>Toca <span class="btn">Crear contratación</span>. Si ya tenía una tarifa, la anterior se finaliza sola y queda en el historial. Si era de horario fijo, sus clases fijas pasan a la contratación nueva (las de franjas que siguen); las de franjas que ya no tiene se quitan.</li>
+    <li>Debajo sale el <strong>plan de cobros</strong>: un cobro por <strong>mes natural</strong> ("Noviembre 2026"), o uno solo si es un bono. Una contratación que empieza a final de mes (el 26 de octubre hasta el 30 de noviembre) es un solo cobro, el de noviembre. Puedes cambiar cualquier importe y <strong>desmarcar</strong> un mes que no toque cobrar. Si el alumno ya tiene apuntado el cobro de alguno de esos meses (por ejemplo, porque le estás haciendo otra contratación para arreglarle las clases), ese mes sale en gris con "Ya apuntado" y no se vuelve a crear. Si el cliente paga en ese momento, activa <em>… se cobra ahora</em>.</li>
+    <li>Toca <span class="btn">Crear contratación</span>. Si ya tenía una tarifa, la anterior se finaliza sola y queda en el historial; sus cobros <strong>pendientes</strong> de los meses del plan nuevo se quitan (los sustituye el plan nuevo) y los ya cobrados se conservan. Si era de horario fijo, sus clases fijas pasan a la contratación nueva (las de franjas que siguen); las de franjas que ya no tiene se quitan.</li>
   </ol>
   <div class="caja ojo">
     <div class="t">Para cambiar de tarifa, no uses "Finalizar contrato"</div>
@@ -253,12 +253,12 @@
   <h3>Cambiar una contratación ya hecha</h3>
   <p>Ficha del cliente → pestaña <strong>Tarifa</strong> → <span class="btn claro">Editar contratación</span>. Puedes cambiar la fecha de fin, las franjas fijas, las sesiones que quedan de un bono, la oferta, el importe, la forma de pago y las notas. Al guardar, las reservas automáticas futuras se rehacen solas con las franjas nuevas; las clases pasadas y las reservas hechas a mano no se tocan. Para <strong>cambiar de tarifa</strong> no se edita: se crea una contratación nueva y la anterior se finaliza sola.</p>
   <h3>Apuntar los cobros</h3>
-  <p>En la misma pestaña <strong>Tarifa</strong> está la tarjeta <strong>Cobros</strong>, con lo cobrado y lo pendiente:</p>
+  <p>En la misma pestaña <strong>Tarifa</strong> está la tarjeta <strong>Cobros</strong>. De serie enseña <strong>el mes en curso</strong>, los meses que vienen y cualquier cobro pendiente de antes (una deuda); los meses anteriores ya cobrados están detrás del botón <span class="btn claro">Historial de pagos (N)</span>. Cada cobro pertenece a un mes ("Noviembre 2026"): es lo que agrupa la pantalla Cobros y lo que impide que se apunte dos veces el mismo mes.</p>
   <ul>
     <li><span class="btn">Cobrar</span> junto a un mes lo marca como cobrado hoy, con la forma de pago del contrato (si no tiene, te la pregunta).</li>
     <li>La flecha de deshacer lo devuelve a pendiente, por si te equivocaste.</li>
-    <li>Tocando un cobro puedes cambiar el importe, la fecha o la forma de pago, o borrarlo.</li>
-    <li><span class="btn claro">Añadir cobro</span> sirve para un pago suelto (una clase suelta, un material…).</li>
+    <li>Tocando un cobro puedes cambiar el <strong>mes al que corresponde</strong>, el importe, la fecha o la forma de pago, o borrarlo. Si alguien pagó noviembre el 26 de octubre y quedó apuntado en octubre, ábrelo y cambia el mes a noviembre: no hace falta borrarlo y crearlo de nuevo.</li>
+    <li><span class="btn claro">Añadir cobro</span> sirve para un pago suelto (una clase suelta, un material…) o para apuntar a mano el mes que falte. Elige primero el mes: el concepto se rellena solo.</li>
   </ul>
   <h3>Renovar de golpe los contratos que terminan</h3>
   <p>La última semana de cada mes, el Calendario avisa: <strong>"77 contratos terminan el 31 de octubre"</strong>, con el botón <span class="btn">Renovar</span> (también está en la lista de Clientes: <em>Renovar contratos</em>).</p>
@@ -267,7 +267,7 @@
     <li>Arriba está la fecha <strong>"Renovar hasta"</strong>: por defecto, el último día del mes siguiente. Se puede cambiar.</li>
     <li>Pulsa <span class="btn">Renovar N contratos</span> y confirma.</li>
   </ol>
-  <p>Cada contrato marcado se <strong>alarga</strong> hasta esa fecha: es el mismo contrato, con la misma tarifa, las mismas clases fijas, sus recuperaciones y su forma de pago. Los alumnos de horario fijo quedan apuntados a sus clases del mes nuevo, y se crea el cobro pendiente del mes ("Renovación · noviembre 2026") con el importe de su contrato, salvo que ya tenga un cobro ese mes. Los bonos y las clases sueltas no salen aquí: se renuevan desde la ficha con <em>Nueva contratación</em>. Si alguien no tenía que renovarse, en su ficha usa <em>Finalizar contrato</em>.</p>
+  <p>Cada contrato marcado se <strong>alarga</strong> hasta esa fecha: es el mismo contrato, con la misma tarifa, las mismas clases fijas, sus recuperaciones y su forma de pago. Los alumnos de horario fijo quedan apuntados a sus clases del mes nuevo, y se crea el cobro pendiente de cada mes nuevo ("Noviembre 2026") con el importe de su contrato, salvo que ya tenga un cobro apuntado ese mes. Los bonos y las clases sueltas no salen aquí: se renuevan desde la ficha con <em>Nueva contratación</em>. Si alguien no tenía que renovarse, en su ficha usa <em>Finalizar contrato</em>.</p>
   <div class="caja ojo">
     <div class="t">"Pago pendiente"</div>
     <p>Cuando llega la fecha de un cobro y no está marcado como cobrado, el cliente sale con la etiqueta roja <strong>Pago pendiente</strong> en la lista de clientes y en su ficha. Así, de un vistazo, sabes a quién hay que recordárselo.</p>
@@ -646,6 +646,7 @@
         <tr><td><code>supabase/migrations/0025_consentimiento_adjunto.sql</code></td><td>Foto de la hoja de consentimiento firmada en papel (almacén privado del personal).</td></tr>
         <tr><td><code>supabase/migrations/0026_cumpleanos_personal.sql</code></td><td>Notificación al móvil del equipo el día que un alumno cumple años. Después hay que volver a desplegar la función enviar-push.</td></tr>
         <tr><td><code>supabase/migrations/0028_renovar_contratos.sql</code></td><td>Botón para renovar de golpe los contratos mensuales que terminan.</td></tr>
+        <tr><td><code>supabase/migrations/0029_cobros_por_mes.sql</code></td><td>Cada cobro pertenece a un mes y no se duplica al hacer otra contratación al mismo alumno. Limpia los cobros pendientes repetidos y los contratos vacíos del historial que dejó el fallo anterior (lo cobrado no se toca).</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
@@ -729,6 +730,12 @@
     <dt>He marcado un cobro que no era.</dt>
     <dd>Toca la flecha de deshacer junto a ese cobro: vuelve a pendiente. Si el cobro sobra del todo, ábrelo y bórralo.</dd>
 
+    <dt>Un alumno tiene el mismo mes cobrado dos veces.</dt>
+    <dd>Si son dos pagos reales de meses distintos (pagó octubre y noviembre el mismo día), abre uno y cámbiale el mes. Si es un apunte repetido, ábrelo y bórralo. La pestaña <em>Repetidos</em> de la pantalla Cobros los lista todos.</dd>
+
+    <dt>No veo los cobros de meses anteriores en la ficha.</dt>
+    <dd>Están en <em>Historial de pagos</em>, debajo de la tarjeta Cobros. Lo pendiente de antes sí sale siempre.</dd>
+
     <dt>Al contratar no sale la franja de Reformer (o la de suelo, yoga…).</dt>
     <dd>La tarifa elegida no incluye esa categoría: sale en gris con "No incluida". Elige una tarifa de esa categoría o el Pack mixto (capítulo 7).</dd>
 
@@ -775,8 +782,8 @@
     <dt>Tarifa</dt><dd>Lo que contrata un cliente: recurrente (X clases por semana) o bono (N sesiones).</dd>
     <dt>Contratación (contrato)</dt><dd>La tarifa asignada a un cliente con sus fechas, sus clases fijas y sus datos de pago. Es lo que ves en la pestaña Tarifa de su ficha. Se puede editar; para cambiar de tarifa se hace una nueva.</dd>
     <dt>Oferta</dt><dd>Condición especial al contratar: trimestral (los importes del cartel, por ejemplo 65 / 65 / 0 €) o familiar (importe acordado a mano).</dd>
-    <dt>Plan de cobros</dt><dd>Los pagos previstos de una contratación: uno por mes, o uno solo si es un bono. Se crea al contratar.</dd>
-    <dt>Cobro</dt><dd>Cada pago del plan, o uno suelto. Está "por cobrar", "pendiente" (ya ha llegado su fecha) o "cobrado".</dd>
+    <dt>Plan de cobros</dt><dd>Los pagos previstos de una contratación: uno por mes natural, o uno solo si es un bono. Se crea al contratar y no repite un mes que el alumno ya tenga apuntado.</dd>
+    <dt>Cobro</dt><dd>Cada pago del plan, o uno suelto. Pertenece a un mes ("Noviembre 2026") y está "por cobrar", "pendiente" (ya ha llegado su fecha) o "cobrado".</dd>
     <dt>Pago pendiente</dt><dd>Etiqueta roja que sale en un cliente cuando un cobro ha llegado a su fecha sin apuntarse como cobrado.</dd>
     <dt>Turno fijo</dt><dd>Reservas automáticas semanales de un cliente en las mismas clases.</dd>
     <dt>Recuperación</dt><dd>Clase devuelta al cliente por cancelar a tiempo o porque el centro canceló. Caduca.</dd>

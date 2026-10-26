@@ -5,6 +5,7 @@
  * Los tipos `Fila*` reflejan las columnas de supabase/migrations/0001_esquema.sql.
  * Las funciones `a*` van de fila → dominio y las `de*` de dominio → fila.
  */
+import { mesDe } from '@/domain/cobros';
 import type {
   EntradaListaEspera,
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, DiaSemana, EstadoClase,
@@ -105,6 +106,8 @@ export interface FilaContratoFinanzas { id: string; oferta: Oferta | null; impor
 export interface FilaPago {
   id: string; contrato_id: string | null; cliente_id: string; importe_centimos: number; estado: string; proveedor: string;
   concepto?: string | null; vence_el?: string | null; pagado_el: string | null; creado_el: string;
+  /** Mes al que corresponde (0029). Si falta (migración sin aplicar), se deduce de la fecha de cobro. */
+  mes?: string | null;
 }
 export interface FilaContratoFranja { contrato_id: string; plantilla_id: string }
 
@@ -389,13 +392,14 @@ export function aPago(f: FilaPago): Pago {
     id: f.id, contratoId: f.contrato_id, clienteId: f.cliente_id, concepto: f.concepto ?? '', importeCentimos: f.importe_centimos,
     venceEl: f.vence_el ? aFecha(f.vence_el) : null, estado, metodo: METODOS.has(f.proveedor) ? (f.proveedor as MetodoPago) : null,
     pagadoEl: f.pagado_el ? aInstante(f.pagado_el) : null, creadoEl: aInstante(f.creado_el),
+    mes: f.mes ? mesDe(aFecha(f.mes)) : mesDe(f.vence_el ? aFecha(f.vence_el) : f.pagado_el ? aFecha(f.pagado_el) : aFecha(f.creado_el)),
   };
 }
 
 export function dePago(p: Omit<Pago, 'creadoEl'>): Record<string, unknown> {
   return {
     id: p.id, contrato_id: p.contratoId, cliente_id: p.clienteId, concepto: p.concepto, importe_centimos: p.importeCentimos,
-    vence_el: p.venceEl, estado: p.estado, proveedor: p.metodo ?? 'SIN_INDICAR', pagado_el: p.estado === 'PAGADO' ? p.pagadoEl ?? new Date().toISOString() : null,
+    vence_el: p.venceEl, mes: p.mes, estado: p.estado, proveedor: p.metodo ?? 'SIN_INDICAR', pagado_el: p.estado === 'PAGADO' ? p.pagadoEl ?? new Date().toISOString() : null,
   };
 }
 

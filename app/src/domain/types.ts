@@ -227,6 +227,8 @@ export interface Pago {
   clienteId: Id;
   concepto: string;
   importeCentimos: number;
+  /** Mes al que corresponde el cobro (día 1, AAAA-MM-01). Es lo que agrupa la pantalla Cobros y lo que evita duplicados. */
+  mes: ISODate;
   /** Fecha en la que toca cobrarlo (null = sin fecha). */
   venceEl: ISODate | null;
   estado: EstadoPago;
