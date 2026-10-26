@@ -28,6 +28,21 @@ export function nombreMesAnio(mes: ISODate): string {
   return `${n.charAt(0).toUpperCase()}${n.slice(1)} ${a}`;
 }
 
+/**
+ * Lo que enseña la tarjeta Cobros de la ficha sin abrir el historial: el mes que se está pagando y nada
+ * más. Es decir, el último mes cobrado si es el mes en curso o uno posterior (si el alumno pagó noviembre
+ * el 26 de octubre, se ve noviembre y octubre pasa al historial), las deudas (pendientes de meses ya
+ * llegados) y, como mucho, el mes que viene por cobrar. Lo cobrado de meses anteriores y lo previsto más
+ * allá van al historial.
+ */
+export function cobrosEnLaFicha<P extends Pick<Pago, 'estado' | 'mes'>>(pagos: P[], hoy: ISODate): { visibles: P[]; historial: P[] } {
+  const mesActual = mesDe(hoy);
+  const mesSiguiente = mesDe(sumarMeses(mesActual, 1));
+  const ultimoCobrado = pagos.filter((p) => p.estado === 'PAGADO').map((p) => p.mes).sort().at(-1);
+  const visible = (p: P) => (p.estado === 'PAGADO' ? p.mes === ultimoCobrado && p.mes >= mesActual : p.mes <= mesSiguiente);
+  return { visibles: pagos.filter(visible), historial: pagos.filter((p) => !visible(p)) };
+}
+
 /** "45 €", "45,50 €". */
 export function euros(centimos: number | null | undefined): string {
   if (centimos == null) return '—';
