@@ -86,7 +86,7 @@ export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimer
               <input type="checkbox" aria-label={`Incluir ${q.concepto}`} className="h-5 w-5 accent-brand-500 shrink-0" checked={on} disabled={!!ya} onChange={(e) => onExcluir(q.mes, !e.target.checked)} />
               <span className="flex-1 min-w-0">
                 <span className="font-medium block truncate">{q.concepto}</span>
-                <span className="text-sm text-ink-muted">{ya ? `Ya apuntado: ${ya.concepto} · ${euros(ya.importeCentimos)} · ${ya.estado === 'PAGADO' ? 'cobrado' : 'pendiente'}` : `Se cobra el ${fechaMedia(q.venceEl)}`}</span>
+                <span className="text-sm text-ink-muted">{ya ? `Ya apuntado: ${tituloCobro(ya)} · ${euros(ya.importeCentimos)} · ${ya.estado === 'PAGADO' ? 'cobrado' : 'pendiente'}` : `Se cobra el ${fechaMedia(q.venceEl)}`}</span>
               </span>
               {!ya && <input aria-label={`Importe de ${q.concepto}`} inputMode="decimal" value={importes[i] ?? ''} disabled={!on} onChange={(e) => onImporte(i, e.target.value)}
                 className="w-24 h-11 rounded-xl border border-ink/15 bg-white px-3 text-right font-semibold disabled:bg-sand" />}
@@ -131,11 +131,11 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
     const metodo = p.metodo ?? contrato?.metodoPago ?? null;
     if (!metodo) { setEditando({ ...p, estado: 'PAGADO' }); return; }
     const r = await ejecutar('guardarPago', { pago: { ...p, estado: 'PAGADO', metodo, pagadoEl: null } });
-    if (r.ok) toast.ok(`${p.concepto}: cobrado (${METODO_PAGO_LABEL[metodo]}).`); else toast.error(r.error);
+    if (r.ok) toast.ok(`${tituloCobro(p)}: cobrado (${METODO_PAGO_LABEL[metodo]}).`); else toast.error(r.error);
   };
   const deshacer = async (p: Pago) => {
     const r = await ejecutar('guardarPago', { pago: { ...p, estado: 'PENDIENTE', pagadoEl: null } });
-    if (r.ok) toast.info(`${p.concepto}: vuelve a pendiente.`); else toast.error(r.error);
+    if (r.ok) toast.info(`${tituloCobro(p)}: vuelve a pendiente.`); else toast.error(r.error);
   };
 
   if (!veFinanzas) return null;
@@ -171,7 +171,7 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
                 <span className="font-semibold tabular-nums">{euros(p.importeCentimos)}</span>
                 {p.estado === 'PAGADO' ? <Chip tono="beige"><Check className="h-3.5 w-3.5" /> Cobrado</Chip> : vencido ? <Chip tono="rojo">Pendiente</Chip> : <Chip tono="gris">Por cobrar</Chip>}
                 {editable && (p.estado === 'PAGADO'
-                  ? <Boton tamano="sm" variante="fantasma" aria-label={`Deshacer el cobro de ${p.concepto}`} onClick={() => void deshacer(p)}><RotateCcw className="h-4 w-4" /></Boton>
+                  ? <Boton tamano="sm" variante="fantasma" aria-label={`Deshacer el cobro de ${tituloCobro(p)}`} onClick={() => void deshacer(p)}><RotateCcw className="h-4 w-4" /></Boton>
                   : <Boton tamano="sm" onClick={() => void cobrar(p)}><CircleDollarSign className="h-4 w-4" /> Cobrar</Boton>)}
               </li>
             );
@@ -255,7 +255,7 @@ function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; c
       </div>
     </Hoja>
       <Confirmacion abierta={borrar} onCerrar={() => setBorrar(false)} titulo="Borrar cobro" textoConfirmar="Borrar" peligro onConfirmar={() => void confirmarBorrar()}>
-        <p>Se borra <strong className="text-ink">{pago?.concepto}</strong> ({euros(pago?.importeCentimos)}). Si solo te equivocaste al marcarlo como cobrado, mejor usa la flecha de deshacer.</p>
+        <p>Se borra <strong className="text-ink">{pago ? tituloCobro(pago) : ''}</strong> ({euros(pago?.importeCentimos)}). Si solo te equivocaste al marcarlo como cobrado, mejor usa la flecha de deshacer.</p>
       </Confirmacion>
     </>
   );
