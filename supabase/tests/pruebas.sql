@@ -1889,4 +1889,43 @@ begin
 end $$;
 
 \echo
+\echo '== 41. Dar de baja a un alumno cierra su contrato y libera sus plazas (0031)'
+select pruebas.sistema();
+select pruebas.guardar('cliente_bj', 'e0000000-0000-4000-8000-0000000000f3');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cliente_bj'), 'Prueba', 'De un día', '66666666B', 'baja@test.local', '600 000 066') on conflict (id) do nothing;
+select pruebas.como('admin');
+select pruebas.guardar('con_bj', public.crear_contrato(pruebas.id('cliente_bj'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 40, 'FIJO',
+  array[pruebas.id('pl_mie_0900')], '{}', '', null, 'NINGUNA', 4000, 'EFECTIVO',
+  jsonb_build_array(jsonb_build_object('concepto', 'Deuda', 'importe_centimos', 4000, 'vence_el', public._hoy(), 'estado', 'PENDIENTE')))::text);
+do $$ begin
+  assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
+           where r.cliente_id = pruebas.id('cliente_bj') and r.estado = 'RESERVADA' and c.fecha >= public._hoy()) > 0, 'tiene clases fijas futuras';
+end $$;
+-- Recepción/administración la da de baja desde la app (escritura directa en clientes, como la app).
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+update public.clientes set activo = false where id = pruebas.id('cliente_bj');
+commit;
+select pruebas.sistema();
+do $$
+declare v_cli uuid := pruebas.id('cliente_bj');
+begin
+  assert (select estado from public.contratos where id = pruebas.id('con_bj')) = 'FINALIZADO', 'el contrato se finaliza';
+  assert (select fecha_fin from public.contratos where id = pruebas.id('con_bj')) <= public._hoy(), 'termina hoy';
+  assert not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id
+                      where r.cliente_id = v_cli and r.estado = 'RESERVADA' and c.fecha >= public._hoy()), 'sin clases futuras';
+  assert exists (select 1 from public.pagos where cliente_id = v_cli and estado = 'PENDIENTE'), 'lo que debe sigue apuntado';
+  assert exists (select 1 from public.auditoria where accion = 'BAJA_CIERRA_CONTRATO' and entidad_id = v_cli::text), 'queda en el registro de cambios';
+  assert public._cerrar_alumno_de_baja(v_cli) = 0, 'segunda vez sin efecto';
+end $$;
+-- No se renueva (ya no tiene contrato activo).
+select pruebas.como('admin');
+do $$ begin
+  assert (public.renovar_contratos(array[pruebas.id('con_bj')], public._hoy() + 60)->>'renovados')::int = 0, 'no se renueva';
+  raise notice 'OK baja cierra contrato';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

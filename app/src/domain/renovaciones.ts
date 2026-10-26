@@ -3,7 +3,7 @@
  * contrato hasta la fecha elegida (conserva franjas, reservas, recuperaciones y datos de pago) y
  * crear el cobro de cada mes nuevo con su importe. Lógica pura, compartida por la demo y la pantalla.
  */
-import type { Contrato, ISODate, Pago, Tarifa } from './types';
+import type { Cliente, Contrato, ISODate, Pago, Tarifa } from './types';
 import { sumarDias } from './fechas';
 import { mesDe, nombreMesAnio } from './cobros';
 
@@ -20,10 +20,12 @@ export function finDelMesSiguiente(fecha: ISODate): ISODate {
 }
 
 /** Contratos que se pueden renovar hasta `hasta`: activos, de tarifa mensual, que terminan en los próximos días y antes de `hasta`. */
-export function contratosParaRenovar(db: { contratos: Contrato[]; tarifas: Tarifa[] }, hoy: ISODate, hasta: ISODate, dias = DIAS_AVISO_RENOVACION): Contrato[] {
+export function contratosParaRenovar(db: { contratos: Contrato[]; tarifas: Tarifa[]; clientes: Pick<Cliente, 'id' | 'activo'>[] }, hoy: ISODate, hasta: ISODate, dias = DIAS_AVISO_RENOVACION): Contrato[] {
   const limite = sumarDias(hoy, dias);
+  // Los alumnos de baja no se renuevan (0031: al darlos de baja se cierra su contrato).
+  const deBaja = new Set(db.clientes.filter((c) => !c.activo).map((c) => c.id));
   return db.contratos.filter((c) => {
-    if (c.estado !== 'ACTIVO' || c.fechaFin >= hasta || c.fechaFin > limite) return false;
+    if (c.estado !== 'ACTIVO' || c.fechaFin >= hasta || c.fechaFin > limite || deBaja.has(c.clienteId)) return false;
     return db.tarifas.find((t) => t.id === c.tarifaId)?.tipo === 'RECURRENTE';
   });
 }
