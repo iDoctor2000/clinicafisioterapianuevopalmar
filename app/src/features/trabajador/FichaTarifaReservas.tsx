@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, Pencil, RefreshCw, Tag } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FilePlus2, History, Pencil, RefreshCw, Tag } from 'lucide-react';
 import { useStore } from '@/data/store';
 import type { Categoria, Cliente, Contrato, MetodoPago, Modalidad, Oferta, Reserva, Tarifa } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
@@ -28,6 +28,7 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
   const [editar, setEditar] = useState(false);
   const [finalizar, setFinalizar] = useState<Contrato | null>(null);
   const [cancelarFuturas, setCancelarFuturas] = useState(true);
+  const [verAnteriores, setVerAnteriores] = useState(false);
   const hoy = hoyISO();
   const { contrato, tarifa } = resumenCliente(db, cliente, hoy);
   const historial = contratosDeCliente(db, cliente.id).filter((c) => c.id !== contrato?.id);
@@ -108,9 +109,19 @@ export function PestanaTarifa({ cliente }: { cliente: Cliente }) {
 
         <TarjetaCobros cliente={cliente} contrato={contrato} />
 
-        {historial.length > 0 && (
+        {/* Los contratos anteriores no se borran (llevan colgadas las clases a las que fue), pero no se ven
+            hasta que se piden. */}
+        {historial.length > 0 && !verAnteriores && (
+          <div className="flex justify-center">
+            <Boton variante="fantasma" tamano="sm" onClick={() => setVerAnteriores(true)}><History className="h-4 w-4" /> Contratos anteriores ({historial.length})</Boton>
+          </div>
+        )}
+        {historial.length > 0 && verAnteriores && (
           <Tarjeta>
-            <h3 className="px-4 pt-4 pb-2 font-semibold">Historial de contratos</h3>
+            <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+              <h3 className="font-semibold flex-1">Contratos anteriores</h3>
+              <Boton variante="fantasma" tamano="sm" onClick={() => setVerAnteriores(false)}>Ocultar</Boton>
+            </div>
             <ul className="divide-y divide-ink/5">
               {historial.map((c) => {
                 const t = db.tarifas.find((x) => x.id === c.tarifaId);

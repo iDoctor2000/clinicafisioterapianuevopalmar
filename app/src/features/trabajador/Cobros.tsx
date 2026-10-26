@@ -7,7 +7,7 @@ import { Check, CircleDollarSign, History, Plus, RotateCcw, Trash2 } from 'lucid
 import type { Cliente, Contrato, MetodoPago, Oferta, Pago } from '@/domain/types';
 import { METODOS_PAGO, METODO_PAGO_LABEL, OFERTA_LABEL } from '@/domain/types';
 import { hoyISO } from '@/domain/fechas';
-import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, mesDe, nombreMesAnio, pagoVencido, type CuotaPlan } from '@/domain/cobros';
+import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, mesDe, nombreMesAnio, pagoVencido, tituloCobro, type CuotaPlan } from '@/domain/cobros';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
@@ -109,14 +109,6 @@ export function PlanCobros({ plan, importes, onImporte, primeroCobrado, onPrimer
 // Registro de cobros (pestaña Tarifa)
 // ---------------------------------------------------------------------------
 
-/** "Noviembre 2026", o "Bono 10 · Noviembre 2026" si el concepto dice algo más que el mes (los viejos "Mes 2 · noviembre 2026" no). */
-export function tituloCobro(p: Pick<Pago, 'concepto' | 'mes'>): string {
-  const mes = nombreMesAnio(p.mes);
-  const c = p.concepto.trim();
-  if (!c || c.toLowerCase() === mes.toLowerCase() || /^(mes \d+|renovación) · /i.test(c)) return mes;
-  return `${c} · ${mes}`;
-}
-
 export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrato: Contrato | null }) {
   const { db, puede, ejecutar, veFinanzas } = useTrabajador();
   const hoy = hoyISO();
@@ -130,8 +122,9 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   const visibles = historial ? pagos : enFicha.visibles;
   const antiguos = enFicha.historial.length;
   const editable = puede('CLIENTES_EDITAR');
-  const cobrado = pagos.filter((p) => p.estado === 'PAGADO').reduce((s, p) => s + p.importeCentimos, 0);
-  const pendiente = pagos.filter((p) => p.estado === 'PENDIENTE').reduce((s, p) => s + p.importeCentimos, 0);
+  // Las cifras, de lo que se ve: con el historial cerrado, del mes en curso (y lo que se deba).
+  const cobrado = visibles.filter((p) => p.estado === 'PAGADO').reduce((s, p) => s + p.importeCentimos, 0);
+  const pendiente = visibles.filter((p) => p.estado === 'PENDIENTE').reduce((s, p) => s + p.importeCentimos, 0);
   const vencidos = pagos.filter((p) => pagoVencido(p, hoy));
 
   const cobrar = async (p: Pago) => {

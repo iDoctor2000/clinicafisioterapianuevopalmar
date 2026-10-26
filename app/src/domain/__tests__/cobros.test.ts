@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, importeSugerido, importesOfertaTrimestral, mesDelPeriodo, mesesDelPeriodo, pagoVencido, planDeCobros } from '@/domain/cobros';
+import { aCentimos, aTextoEuros, cobrosEnLaFicha, euros, tituloCobro, importeSugerido, importesOfertaTrimestral, mesDelPeriodo, mesesDelPeriodo, pagoVencido, planDeCobros } from '@/domain/cobros';
 
 const mensual = { tipo: 'RECURRENTE' as const, nombre: 'Clases dirigidas · 2 días/semana', precioCentimos: 5000,
   descripcion: 'Dos clases semanales. 50 €/mes. Oferta trimestral: 65 € (mes 1), 65 € (mes 2), 0 € (mes 3).' };
@@ -45,6 +45,15 @@ describe('cobros', () => {
     // Una deuda vieja no se esconde nunca.
     expect(cobrosEnLaFicha([p('2026-08-01', 'PENDIENTE'), p('2026-10-01', 'PAGADO')], '2026-10-26').visibles.map((x) => x.mes)).toEqual(['2026-08-01', '2026-10-01']);
     expect(cobrosEnLaFicha([], '2026-10-26')).toEqual({ visibles: [], historial: [] });
+  });
+
+  it('el título de un cobro es su mes; el concepto solo si dice algo más', () => {
+    const t = (concepto: string) => tituloCobro({ concepto, mes: '2026-11-01' });
+    expect(t('Noviembre')).toBe('Noviembre 2026');
+    expect(t('noviembre 2026')).toBe('Noviembre 2026');
+    expect(t('Mes 2 · noviembre 2026')).toBe('Noviembre 2026');
+    expect(t('')).toBe('Noviembre 2026');
+    expect(t('Bono 10')).toBe('Bono 10 · Noviembre 2026');
   });
 
   it('cada cuota es el mes natural que cubre: empezar el 26 de octubre es pagar noviembre, y un mes y pico es una sola cuota', () => {
