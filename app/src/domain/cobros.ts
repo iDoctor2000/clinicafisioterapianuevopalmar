@@ -12,6 +12,20 @@ export interface CuotaPlan {
   concepto: string;
   importeCentimos: number;
   venceEl: ISODate;
+  /** Mes al que corresponde (día 1). */
+  mes: ISODate;
+}
+
+/** Primer día del mes de una fecha. */
+export function mesDe(fecha: ISODate): ISODate {
+  return `${fecha.slice(0, 7)}-01`;
+}
+
+/** "Noviembre 2026". */
+export function nombreMesAnio(mes: ISODate): string {
+  const [a, m] = mes.split('-').map(Number);
+  const n = MESES[m - 1] ?? '';
+  return `${n.charAt(0).toUpperCase()}${n.slice(1)} ${a}`;
 }
 
 /** "45 €", "45,50 €". */
@@ -66,14 +80,24 @@ export function mesesDelPeriodo(inicio: ISODate, fin: ISODate): number {
   return Math.max(1, n);
 }
 
-function mesAnio(fecha: ISODate): string {
-  const [a, m] = fecha.split('-').map(Number);
-  return `${MESES[m - 1]} ${a}`;
+/**
+ * Mes natural al que corresponde el periodo de un mes de contrato que empieza en `inicio`: el mes en el
+ * que cae la mitad del periodo. Así un contrato que empieza el 26 de octubre paga "Noviembre", y uno que
+ * empieza el 6 de octubre paga "Octubre".
+ */
+export function mesDelPeriodo(inicio: ISODate, fin: ISODate): ISODate {
+  const finPeriodo = sumarMeses(inicio, 1) < fin ? sumarMeses(inicio, 1) : fin;
+  const a = new Date(`${inicio}T00:00:00Z`).getTime();
+  const b = new Date(`${finPeriodo}T00:00:00Z`).getTime();
+  const mitad = new Date(a + (b - a) / 2);
+  return `${mitad.getUTCFullYear()}-${String(mitad.getUTCMonth() + 1).padStart(2, '0')}-01`;
 }
 
 /**
  * Plan de cobros propuesto al crear un contrato.
- *  - Mensual: una cuota por mes (con la oferta trimestral, los importes de la oferta: 45 / 45 / 0…).
+ *  - Mensual: una cuota por cada mes de contrato, a nombre del mes natural que cubre (26 oct → "Noviembre");
+ *    si dos periodos caen en el mismo mes natural (contrato de un mes y pocos días), se deja uno.
+ *    Con la oferta trimestral, los importes de la oferta: 45 / 45 / 0…
  *  - Bono o clase suelta: un único cobro el día de inicio.
  * `importeCentimos` es el importe acordado (por mes o total); si es null se usa el de la tarifa.
  */
@@ -86,14 +110,18 @@ export function planDeCobros(args: {
 }): CuotaPlan[] {
   const { tarifa, inicio, fin, oferta } = args;
   const base = args.importeCentimos ?? tarifa.precioCentimos ?? 0;
-  if (tarifa.tipo !== 'RECURRENTE') return [{ concepto: tarifa.nombre, importeCentimos: base, venceEl: inicio }];
+  if (tarifa.tipo !== 'RECURRENTE') return [{ concepto: tarifa.nombre, importeCentimos: base, venceEl: inicio, mes: mesDe(inicio) }];
   const trimestral = oferta === 'TRIMESTRAL' ? importesOfertaTrimestral(tarifa.descripcion) : null;
   // Con la oferta trimestral, si el importe acordado se ha cambiado a mano, manda el importe acordado.
   const usarOferta = trimestral && (args.importeCentimos == null || args.importeCentimos === trimestral[0]);
-  return Array.from({ length: mesesDelPeriodo(inicio, fin) }, (_, k) => {
+  const cuotas: CuotaPlan[] = [];
+  for (let k = 0; k < mesesDelPeriodo(inicio, fin); k++) {
     const venceEl = sumarMeses(inicio, k);
-    return { concepto: `Mes ${k + 1} · ${mesAnio(venceEl)}`, importeCentimos: usarOferta ? trimestral[k % trimestral.length] : base, venceEl };
-  });
+    const mes = mesDelPeriodo(venceEl, fin);
+    if (cuotas.some((q) => q.mes === mes)) continue;
+    cuotas.push({ concepto: nombreMesAnio(mes), importeCentimos: usarOferta ? trimestral[cuotas.length % trimestral.length] : base, venceEl, mes });
+  }
+  return cuotas;
 }
 
 /** Cuota sin cobrar cuya fecha ya ha llegado. */

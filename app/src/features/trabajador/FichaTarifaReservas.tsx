@@ -221,7 +221,9 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
   // Importes de cada cuota cambiados a mano (posición → texto). Se descartan si cambia el plan.
   const [ajustes, setAjustes] = useState<Record<number, string>>({});
   const [primeroCobrado, setPrimeroCobrado] = useState(false);
+  const [excluidas, setExcluidas] = useState<Set<string>>(new Set());
   const [guardando, setGuardando] = useState(false);
+  const yaApuntados = db.pagos.filter((p) => p.clienteId === cliente.id && p.estado !== 'CANCELADO');
   const [incluirPasadas, setIncluirPasadas] = useState(false);
   const tarifa: Tarifa | undefined = tarifas.find((t) => t.id === tarifaId);
   const fin = finManual ?? (tarifa ? fechaFinPorDefecto(tarifa, inicio, sumarMeses) : inicio);
@@ -238,7 +240,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
     if (fin < inicio) return toast.error('La fecha de fin debe ser posterior al inicio.');
     if (modalidadReal === 'FIJO' && franjas.length === 0) return toast.error('Elige al menos una franja fija.');
     if (importeTexto.trim() && importeCentimos == null) return toast.error('El importe no es válido: escríbelo en euros (por ejemplo 45 o 45,50).');
-    const cuotas = plan.map((q, i) => ({ ...q, importeCentimos: aCentimos(importesPlan[i]) }));
+    const cuotas = plan.map((q, i) => ({ ...q, importeCentimos: aCentimos(importesPlan[i]) })).filter((q) => !excluidas.has(q.mes) && !yaApuntados.some((p) => p.mes === q.mes));
     if (cuotas.some((q) => q.importeCentimos == null)) return toast.error('Revisa los importes del plan de cobros.');
     if (primeroCobrado && !metodo) return toast.error('Elige la forma de pago para apuntar el primer cobro.');
     if (guardando) return; // un segundo toque no crea otra contratación
@@ -251,7 +253,7 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
       },
       incluirPasadas: modalidadReal === 'FIJO' && inicio < hoy && incluirPasadas,
       cobros: cuotas.map((q, i) => ({
-        concepto: q.concepto, importeCentimos: q.importeCentimos!, venceEl: q.venceEl,
+        concepto: q.concepto, importeCentimos: q.importeCentimos!, venceEl: q.venceEl, mes: q.mes,
         estado: i === 0 && primeroCobrado ? 'PAGADO' : 'PENDIENTE', metodo: i === 0 && primeroCobrado ? metodo || null : null, pagadoEl: null,
       })),
     });
@@ -304,7 +306,8 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
               setMetodo(d.metodo);
             }} />
           {plan.length > 0 && (
-            <PlanCobros plan={plan} importes={importesPlan} onImporte={(i, t) => setAjustes({ ...ajustes, [i]: t })} primeroCobrado={primeroCobrado} onPrimeroCobrado={setPrimeroCobrado} />
+            <PlanCobros plan={plan} importes={importesPlan} onImporte={(i, t) => setAjustes({ ...ajustes, [i]: t })} primeroCobrado={primeroCobrado} onPrimeroCobrado={setPrimeroCobrado}
+              yaApuntados={yaApuntados} excluidas={excluidas} onExcluir={(mes, ex) => setExcluidas((s) => { const n = new Set(s); if (ex) n.add(mes); else n.delete(mes); return n; })} />
           )}
         </div>}
 

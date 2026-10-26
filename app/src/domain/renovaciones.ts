@@ -5,8 +5,7 @@
  */
 import type { Contrato, ISODate, Pago, Tarifa } from './types';
 import { sumarDias } from './fechas';
-
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+import { mesDe, nombreMesAnio } from './cobros';
 
 /** Días antes del fin en que un contrato ya sale para renovar. */
 export const DIAS_AVISO_RENOVACION = 14;
@@ -42,9 +41,9 @@ function mesesNuevos(desde: ISODate, hasta: ISODate): ISODate[] {
 }
 
 /** Cobros que crea la renovación (igual que el servidor): uno por mes nuevo, si hay importe y no hay ya un cobro de ese alumno ese mes. */
-export function cobrosDeRenovacion(contrato: Contrato, hasta: ISODate, pagos: Pick<Pago, 'clienteId' | 'estado' | 'venceEl'>[]): { concepto: string; importeCentimos: number; venceEl: ISODate }[] {
+export function cobrosDeRenovacion(contrato: Contrato, hasta: ISODate, pagos: Pick<Pago, 'clienteId' | 'estado' | 'mes'>[]): { concepto: string; importeCentimos: number; venceEl: ISODate; mes: ISODate }[] {
   if (contrato.importeCentimos == null) return [];
   return mesesNuevos(sumarDias(contrato.fechaFin, 1), hasta)
-    .filter((venceEl) => !pagos.some((p) => p.clienteId === contrato.clienteId && p.estado !== 'CANCELADO' && p.venceEl?.slice(0, 7) === venceEl.slice(0, 7)))
-    .map((venceEl) => ({ concepto: `Renovación · ${MESES[Number(venceEl.slice(5, 7)) - 1]} ${venceEl.slice(0, 4)}`, importeCentimos: contrato.importeCentimos!, venceEl }));
+    .filter((venceEl) => !pagos.some((p) => p.clienteId === contrato.clienteId && p.estado !== 'CANCELADO' && p.mes === mesDe(venceEl)))
+    .map((venceEl) => ({ concepto: nombreMesAnio(mesDe(venceEl)), importeCentimos: contrato.importeCentimos!, venceEl, mes: mesDe(venceEl) }));
 }

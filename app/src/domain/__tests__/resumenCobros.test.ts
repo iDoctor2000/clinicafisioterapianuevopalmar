@@ -7,7 +7,10 @@ const tarifas = [{ id: 'mensual', tipo: 'RECURRENTE' }, { id: 'bono', tipo: 'BON
 const contrato = (clienteId: string, tarifaId = 'mensual', fechaInicio = '2026-10-01', fechaFin = '2026-10-31', estado: Contrato['estado'] = 'ACTIVO') =>
   ({ id: `k-${clienteId}`, clienteId, tarifaId, fechaInicio, fechaFin, estado, importeCentimos: 5200 } as Contrato);
 let n = 0;
-const pago = (clienteId: string, o: Partial<Pago>): Pago => ({ id: `p${++n}`, contratoId: null, clienteId, concepto: 'Octubre', importeCentimos: 5200, venceEl: '2026-10-01', estado: 'PENDIENTE', metodo: null, pagadoEl: null, creadoEl: '2026-10-01T10:00:00Z', ...o });
+const pago = (clienteId: string, o: Partial<Pago>): Pago => {
+  const base = { id: `p${++n}`, contratoId: null, clienteId, concepto: 'Octubre', importeCentimos: 5200, venceEl: '2026-10-01', estado: 'PENDIENTE' as const, metodo: null, pagadoEl: null, creadoEl: '2026-10-01T10:00:00Z', ...o };
+  return { ...base, mes: o.mes ?? `${(base.venceEl ?? '2026-10-01').slice(0, 7)}-01` };
+};
 
 describe('resumen de cobros del mes', () => {
   const db = {
@@ -37,9 +40,10 @@ describe('resumen de cobros del mes', () => {
   it('repetidos: más de un cobro el mismo mes', () => {
     expect(r.duplicados.map((d) => [d.cliente.id, d.pagos.length])).toEqual([['ana', 2]]);
   });
-  it('el mes de un cobro: su fecha de cobro, si no la de pago, si no la de creación', () => {
-    expect(mesDeCobro({ venceEl: '2026-11-07', pagadoEl: '2026-10-30T10:00:00Z', creadoEl: '2026-10-01T00:00:00Z' })).toBe('2026-11');
-    expect(mesDeCobro({ venceEl: null, pagadoEl: '2026-10-30T10:00:00Z', creadoEl: '2026-09-01T00:00:00Z' })).toBe('2026-10');
-    expect(mesDeCobro({ venceEl: null, pagadoEl: null, creadoEl: '2026-09-01T00:00:00Z' })).toBe('2026-09');
+  it('el mes de un cobro es el que lleva apuntado, no el de su fecha de cobro', () => {
+    expect(mesDeCobro({ mes: '2026-11-01' })).toBe('2026-11');
+    const r2 = resumenCobrosMes({ ...db, pagos: [pago('ana', { estado: 'PAGADO', metodo: 'EFECTIVO', pagadoEl: '2026-10-26T10:00:00Z', venceEl: '2026-10-26', mes: '2026-11-01' })] }, '2026-11-01', '2026-10-26');
+    expect(r2.pagados).toHaveLength(1);
+    expect(resumenCobrosMes({ ...db, pagos: r2.pagados }, '2026-10-01', '2026-10-26').pagados).toHaveLength(0);
   });
 });

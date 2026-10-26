@@ -184,6 +184,7 @@ const impl: Impl = {
       p_cobros: (args.cobros ?? []).map((q) => ({
         concepto: q.concepto, importe_centimos: q.importeCentimos, vence_el: q.venceEl, estado: q.estado, metodo: q.metodo,
         pagado_el: q.estado === 'PAGADO' ? q.pagadoEl ?? new Date().toISOString() : null,
+        mes: q.mes,
       })),
       // Solo si se pide: así, sin la migración 0019, crear contratos sigue funcionando como antes.
       ...(args.incluirPasadas ? { p_incluir_pasadas: true } : {}),

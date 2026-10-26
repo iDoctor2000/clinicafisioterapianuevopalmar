@@ -21,8 +21,8 @@ describe('contratos con cobros', () => {
     const r = crearContrato(c0, {
       contrato: { clienteId: cliente.id, tarifaId: 'tar-dir2', fechaInicio: hoy, fechaFin: hoy, modalidad: 'LIBRE', franjasFijas: [], sesionesRestantes: null, actividadesPermitidasIds: [], notas: '', oferta: 'TRIMESTRAL', importeCentimos: 6500, metodoPago: 'BIZUM' },
       cobros: [
-        { concepto: 'Mes 1', importeCentimos: 6500, venceEl: hoy, estado: 'PAGADO', metodo: 'BIZUM', pagadoEl: null },
-        { concepto: 'Mes 2', importeCentimos: 6500, venceEl: hoy, estado: 'PENDIENTE', metodo: null, pagadoEl: null },
+        { concepto: 'Mes 1', importeCentimos: 6500, venceEl: hoy, mes: `${hoy.slice(0, 7)}-01`, estado: 'PAGADO', metodo: 'BIZUM', pagadoEl: null },
+        { concepto: 'Mes 2', importeCentimos: 6500, venceEl: hoy, mes: `${hoy.slice(0, 4)}-${String((Number(hoy.slice(5, 7)) % 12) + 1).padStart(2, '0')}-01`, estado: 'PENDIENTE', metodo: null, pagadoEl: null },
       ],
     });
     expect(r.ok).toBe(true);
@@ -31,6 +31,31 @@ describe('contratos con cobros', () => {
     expect(pagos).toHaveLength(2);
     expect(pagos[0].pagadoEl).not.toBeNull();
     expect(r.valor.oferta).toBe('TRIMESTRAL');
+  });
+
+  it('0029: al recontratar no se repite un mes ya apuntado y los pendientes del contrato anterior se sustituyen', () => {
+    const c0 = ctx();
+    // Juan tiene cobros: el primero pagado y el resto pendientes.
+    const previo = c0.db.contratos.find((k) => k.id === 'con-juan')!;
+    const pagados = c0.db.pagos.filter((p) => p.clienteId === 'juan' && p.estado === 'PAGADO');
+    const pendientes = c0.db.pagos.filter((p) => p.clienteId === 'juan' && p.estado === 'PENDIENTE');
+    expect(pagados.length).toBe(1);
+    expect(pendientes.length).toBeGreaterThan(0);
+    const mesPagado = pagados[0].mes;
+    const r = crearContrato(c0, {
+      contrato: { ...previo, clienteId: 'juan', fechaInicio: hoy, fechaFin: hoy, oferta: 'NINGUNA', importeCentimos: 5000, metodoPago: 'EFECTIVO' },
+      cobros: [
+        { concepto: 'Repetido', importeCentimos: 5000, venceEl: hoy, mes: mesPagado, estado: 'PENDIENTE', metodo: null, pagadoEl: null },
+        { concepto: 'Nuevo', importeCentimos: 5000, venceEl: hoy, mes: '2099-01-01', estado: 'PENDIENTE', metodo: null, pagadoEl: null },
+      ],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const deJuan = r.db.pagos.filter((p) => p.clienteId === 'juan');
+    expect(deJuan.filter((p) => p.mes === mesPagado)).toHaveLength(1); // el cobrado se queda, el repetido no entra
+    expect(deJuan.some((p) => p.concepto === 'Nuevo')).toBe(true);
+    // Los pendientes del contrato anterior de meses >= el primer mes del plan (el pagado) han desaparecido.
+    expect(deJuan.filter((p) => p.contratoId === previo.id && p.estado === 'PENDIENTE' && p.mes >= mesPagado)).toHaveLength(0);
   });
 
   it('editar: cambiar la franja rehace las reservas automáticas futuras', () => {

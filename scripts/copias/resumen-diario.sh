@@ -166,7 +166,8 @@ select line from (
                  and (to_regclass('storage.buckets') is null or exists (select 1 from storage.buckets where id = 'consentimientos'))),
         ('0026', to_regclass('public.push_personal_pendientes') is not null),
         ('0027', to_regclass('public.contratos_pago') is not null),
-        ('0028', to_regprocedure('public.renovar_contratos(uuid[], date)') is not null))
+        ('0028', to_regprocedure('public.renovar_contratos(uuid[], date)') is not null),
+        ('0029', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'pagos' and column_name = 'mes')))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'
