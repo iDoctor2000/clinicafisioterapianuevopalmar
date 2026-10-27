@@ -12,8 +12,9 @@ export function caducidadRecuperacion(
 }
 
 /** Categorías donde puede usarse una recuperación originada en `categoriaOrigen` según la tarifa. */
-export function categoriasPermitidasRecuperacion(categoriaOrigen: Categoria, tarifa: Pick<Tarifa, 'recuperacion'> | null): Categoria[] {
-  const extra = tarifa?.recuperacion.categoriasExtra ?? [];
+export function categoriasPermitidasRecuperacion(categoriaOrigen: Categoria, tarifa: Pick<Tarifa, 'recuperacion' | 'clasesTambienEn'> | null): Categoria[] {
+  // 0034: si las clases de la tarifa valen en otra categoría, sus recuperaciones también.
+  const extra = [...(tarifa?.recuperacion.categoriasExtra ?? []), ...(tarifa?.clasesTambienEn ?? [])];
   return Array.from(new Set<Categoria>([categoriaOrigen, ...extra]));
 }
 

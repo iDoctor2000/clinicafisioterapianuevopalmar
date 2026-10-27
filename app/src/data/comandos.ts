@@ -202,6 +202,7 @@ function contextoCambio(db: Db, ahora: Date, reserva: Reserva | null, claseDesti
     actividadOrigen: claseOrigen ? db.actividades.find((a) => a.id === claseOrigen.actividadId) ?? null : null,
     actividadDestino: db.actividades.find((a) => a.id === claseDestino.actividadId)!,
     contrato: reserva?.contratoId ? db.contratos.find((c) => c.id === reserva.contratoId) ?? null : null,
+    tarifa: reserva?.contratoId ? db.tarifas.find((t) => t.id === db.contratos.find((c) => c.id === reserva.contratoId)?.tarifaId) ?? null : null,
     config: db.config, ahora,
   };
 }

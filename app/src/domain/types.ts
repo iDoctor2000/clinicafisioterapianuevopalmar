@@ -117,6 +117,8 @@ export interface Tarifa {
   /** Solo BONO: número de sesiones y categoría. */
   bono: { sesiones: number; categoria: Categoria; validezMeses: number } | null;
   recuperacion: ReglasRecuperacion;
+  /** Categorías en las que también valen las clases de la tarifa, a cambio de las suyas (0034). Ej.: Reformer → ['DIRIGIDA']. */
+  clasesTambienEn: Categoria[];
   /** Precio en céntimos (preparado para pagos online). null = consultar. */
   precioCentimos: number | null;
   activa: boolean;

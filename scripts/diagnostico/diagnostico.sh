@@ -49,8 +49,11 @@ select now() at time zone 'Europe/Madrid' as ahora_madrid, public._hoy() as hoy;
 select minutos_antelacion_cancelacion, dias_ventana_reserva, recuperacion_caduca_con_contrato, dias_caducidad_recuperacion, dias_generacion_clases from public.config_centro;
 select fecha, motivo from public.dias_cierre where fecha between public._hoy() - 7 and public._hoy() + 60 order by fecha;
 
-\echo '== Tarifas (reglas de recuperación)'
-select left(id::text, 8) as id, nombre, tipo, recuperacion_permitida, recuperacion_max_pendientes, activa from public.tarifas order by orden, nombre;
+\echo '== Tarifas (clases por semana, categorías "también", reglas de recuperación)'
+select left(t.id::text, 8) as id, t.nombre, t.tipo,
+       (select string_agg(c.sesiones_semana || ' ' || c.categoria, ' + ' order by c.categoria) from public.tarifa_cupos c where c.tarifa_id = t.id) as cupos,
+       t.bono_categoria, t.cupo_categorias_extra as tambien_en, t.recuperacion_permitida, t.recuperacion_categorias_extra as recupera_tambien_en, t.recuperacion_max_pendientes, t.activa
+  from public.tarifas t order by t.orden, t.nombre;
 
 \echo '== Franjas del horario (todas, incluidas eliminadas)'
 select left(p.id::text, 8) as id, p.dia_semana as dia, p.hora_inicio as hora, a.nombre as actividad, p.plazas, p.activa, p.vigencia_desde, p.vigencia_hasta,

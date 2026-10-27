@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { evaluarReserva, type ContextoReserva } from '../rules';
-import { actDirigida, actReformer, actividadesPorId, clase, config, contrato, recuperacion, reserva, tarifaBonoDir, tarifaDir2, tarifaMixta } from './fixtures';
+import { actDirigida, actReformer, actividadesPorId, clase, config, contrato, recuperacion, reserva, tarifaBonoDir, tarifaDir2, tarifaMixta, tarifaRef1 } from './fixtures';
 
 const ahora = new Date(2026, 9, 5, 10, 0); // lunes 5 oct 2026
 
@@ -100,12 +100,52 @@ describe('evaluarReserva – recuperaciones', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('con horario fijo, otra clase solo con recuperación', () => {
+  it('con horario fijo: otra clase solo con recuperación mientras tenga su clase de la semana; si no la tiene, a cambio', () => {
     const fijo = contrato({ modalidad: 'FIJO', franjasFijas: [{ plantillaId: 'p-mar-18' }] });
+    const habitual = clase(); // k1, martes 6, su franja
     expect(evaluarReserva(ctx({ contrato: fijo })).ok).toBe(true); // su clase habitual
     const otra = clase({ id: 'k5', plantillaId: 'p-jue-18', fecha: '2026-10-08' });
-    expect((evaluarReserva(ctx({ contrato: fijo, clase: otra })) as { codigo: string }).codigo).toBe('HORARIO_FIJO');
-    expect(evaluarReserva(ctx({ contrato: fijo, clase: otra, recuperaciones: [recuperacion()] })).ok).toBe(true);
+    const k2 = clase({ id: 'k2', fecha: '2026-10-07' });
+    // Tiene sus dos clases de la semana reservadas → otra solo con recuperación.
+    const conSuyas = { contrato: fijo, clase: otra, clasesPorId: new Map([[habitual.id, habitual], [k2.id, k2]]), reservasCliente: [reserva({ claseId: 'k1', origen: 'AUTOMATICA' }), reserva({ id: 'r2', claseId: 'k2', origen: 'AUTOMATICA' })] };
+    expect((evaluarReserva(ctx(conSuyas)) as { codigo: string }).codigo).toBe('HORARIO_FIJO');
+    expect(evaluarReserva(ctx({ ...conSuyas, recuperaciones: [recuperacion()] })).ok).toBe(true);
+    // 0034: canceló una sin antelación (sin recuperación): la clase de la semana está gastada igualmente.
+    expect(evaluarReserva(ctx({ ...conSuyas, reservasCliente: [reserva({ claseId: 'k1', origen: 'AUTOMATICA' }), reserva({ id: 'r2', claseId: 'k2', origen: 'AUTOMATICA', estado: 'CANCELADA_NO_RECUPERABLE' })] })).ok).toBe(false);
+    // Canceló con antelación y tiene la recuperación: con horario fijo esa clase sigue gastada (el derecho está en la recuperación) y se usa esta.
+    const r = evaluarReserva(ctx({ ...conSuyas, reservasCliente: [reserva({ claseId: 'k1', origen: 'AUTOMATICA' }), reserva({ id: 'r2', claseId: 'k2', origen: 'AUTOMATICA', estado: 'CANCELADA_RECUPERABLE' })], recuperaciones: [recuperacion({ reservaOrigenId: 'r2' })] }));
+    expect(r.ok && r.via).toBe('RECUPERACION');
+    // Se la canceló el centro (con recuperación): igual, va con la recuperación, no dos veces.
+    const centro = evaluarReserva(ctx({ ...conSuyas, reservasCliente: [reserva({ claseId: 'k1', origen: 'AUTOMATICA' }), reserva({ id: 'r2', claseId: 'k2', origen: 'AUTOMATICA', estado: 'CANCELADA_CENTRO' })], recuperaciones: [recuperacion({ reservaOrigenId: 'r2' })] }));
+    expect(centro.ok && centro.via).toBe('RECUPERACION');
+    // Esa semana no tiene ninguna de sus clases (p. ej. no había plaza): puede usar una a cambio.
+    const sin = evaluarReserva(ctx({ contrato: fijo, clase: otra }));
+    expect(sin.ok && sin.via).toBe('CUPO_SEMANAL');
+  });
+
+  it('0034: una tarifa de Reformer puede ir a una dirigida a cambio de su clase; una de dirigidas a Reformer no', () => {
+    const ref = contrato({ tarifaId: 't-ref1', modalidad: 'FIJO', franjasFijas: [{ plantillaId: 'p-lun-10' }] });
+    const reformerLunes = clase({ id: 'kr', plantillaId: 'p-lun-10', actividadId: 'a-ref', fecha: '2026-10-05', horaInicio: '10:00' });
+    const funcionalMartes = clase({ id: 'kf', plantillaId: 'p-mar-18', fecha: '2026-10-06' });
+    // Con su Reformer reservado, la dirigida necesita recuperación (y la de Reformer vale ahí).
+    const con = { tarifa: tarifaRef1, contrato: ref, clase: funcionalMartes, clasesPorId: new Map([[reformerLunes.id, reformerLunes]]) };
+    const bloqueada = evaluarReserva(ctx({ ...con, reservasCliente: [reserva({ claseId: 'kr', origen: 'AUTOMATICA' })] }));
+    expect(!bloqueada.ok && bloqueada.codigo).toBe('HORARIO_FIJO');
+    // Con su Reformer gastado (cancelado sin antelación) y una recuperación de Reformer: la recuperación vale en la dirigida.
+    const conRec = evaluarReserva(ctx({ ...con, reservasCliente: [reserva({ claseId: 'kr', origen: 'AUTOMATICA', estado: 'CANCELADA_NO_RECUPERABLE' })], recuperaciones: [recuperacion({ categoriaOrigen: 'REFORMER', categoriasPermitidas: ['REFORMER', 'DIRIGIDA'] })] }));
+    expect(conRec.ok && conRec.via).toBe('RECUPERACION');
+    // Sin su Reformer esa semana: la dirigida vale a cambio.
+    const aCambio = evaluarReserva(ctx({ ...con, reservasCliente: [] }));
+    expect(aCambio.ok && aCambio.via).toBe('CUPO_SEMANAL');
+    // Turno libre: la dirigida cuenta contra su total semanal.
+    const libre = contrato({ tarifaId: 't-ref1' });
+    const l1 = evaluarReserva(ctx({ tarifa: tarifaRef1, contrato: libre, clase: funcionalMartes }));
+    expect(l1.ok && l1.mensaje).toContain('a cambio');
+    const l2 = evaluarReserva(ctx({ tarifa: tarifaRef1, contrato: libre, clase: funcionalMartes, clasesPorId: new Map([[reformerLunes.id, reformerLunes]]), reservasCliente: [reserva({ claseId: 'kr' })] }));
+    expect(!l2.ok && l2.codigo).toBe('CUPO_AGOTADO');
+    // Al revés no: dirigidas → Reformer sigue bloqueado.
+    const inversa = evaluarReserva(ctx({ clase: reformerLunes, actividad: actReformer }));
+    expect(!inversa.ok && inversa.codigo).toBe('ACTIVIDAD_NO_PERMITIDA');
   });
 });
 

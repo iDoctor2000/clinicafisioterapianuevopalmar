@@ -45,7 +45,7 @@ export interface FilaActividad {
 export interface FilaTarifa {
   id: string; nombre: string; descripcion: string; tipo: TipoTarifa;
   bono_sesiones: number | null; bono_categoria: Categoria | null; bono_validez_meses: number | null;
-  recuperacion_permitida: boolean; recuperacion_categorias_extra: Categoria[]; recuperacion_max_pendientes: number | null;
+  recuperacion_permitida: boolean; recuperacion_categorias_extra: Categoria[]; recuperacion_max_pendientes: number | null; cupo_categorias_extra?: Categoria[];
   precio_centimos: number | null; activa: boolean; orden: number;
 }
 export interface FilaTarifaCupo { tarifa_id: string; categoria: Categoria; sesiones_semana: number }
@@ -243,6 +243,7 @@ export function aTarifa(f: FilaTarifa, cupos: FilaTarifaCupo[]): Tarifa {
       ? { sesiones: f.bono_sesiones, categoria: f.bono_categoria, validezMeses: f.bono_validez_meses ?? 6 }
       : null,
     recuperacion: { permitida: f.recuperacion_permitida, categoriasExtra: f.recuperacion_categorias_extra ?? [], maxPendientes: f.recuperacion_max_pendientes },
+    clasesTambienEn: f.cupo_categorias_extra ?? [],
     precioCentimos: f.precio_centimos, activa: f.activa, orden: f.orden,
   };
 }
@@ -256,6 +257,7 @@ export function deTarifa(t: Tarifa): { tarifa: FilaTarifa; cupos: FilaTarifaCupo
       recuperacion_permitida: t.recuperacion.permitida,
       recuperacion_categorias_extra: t.recuperacion.categoriasExtra,
       recuperacion_max_pendientes: t.recuperacion.maxPendientes,
+      cupo_categorias_extra: t.clasesTambienEn,
       precio_centimos: t.precioCentimos, activa: t.activa, orden: t.orden,
     },
     cupos: (t.tipo === 'RECURRENTE' ? t.cupos : []).map((c) => ({ tarifa_id: t.id, categoria: c.categoria, sesiones_semana: c.sesionesSemana })),

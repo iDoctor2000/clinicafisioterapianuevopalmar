@@ -33,20 +33,26 @@ export function consumeCupo(r: Pick<Reserva, 'estado' | 'origen'>): boolean {
   return r.estado === 'RESERVADA' || r.estado === 'CANCELADA_NO_RECUPERABLE';
 }
 
-/** Reservas del contrato que consumen cupo en la misma semana y categoría que la clase. */
+/**
+ * Reservas del contrato que consumen cupo en la misma semana que la clase (categoría null = todas, 0034).
+ * Con `estricto` (horario fijo), una cancelación que dio recuperación también cuenta: el derecho está en la recuperación.
+ */
 export function cupoConsumidoEnSemana(
   contrato: Pick<Contrato, 'id'>,
-  categoria: Categoria,
+  categoria: Categoria | null,
   fecha: string,
   reservas: Reserva[],
   clasesPorId: Map<string, Clase>,
   actividadesPorId: Map<string, Actividad>,
+  estricto: { recuperaciones: Pick<Recuperacion, 'reservaOrigenId'>[] } | null = null,
 ): number {
+  const conRecuperacion = new Set((estricto?.recuperaciones ?? []).map((x) => x.reservaOrigenId).filter((x): x is string => x != null));
   return reservas.filter((r) => {
-    if (r.contratoId !== contrato.id || !consumeCupo(r)) return false;
+    if (r.contratoId !== contrato.id) return false;
+    if (!consumeCupo(r) && !(r.origen !== 'RECUPERACION' && conRecuperacion.has(r.id))) return false;
     const c = clasesPorId.get(r.claseId);
     if (!c || !mismaSemana(c.fecha, fecha)) return false;
-    return actividadesPorId.get(c.actividadId)?.categoria === categoria;
+    return categoria == null || actividadesPorId.get(c.actividadId)?.categoria === categoria;
   }).length;
 }
 
@@ -132,8 +138,11 @@ export function evaluarReserva(ctx: ContextoReserva): EvaluacionReserva {
     return bloqueo('ACTIVIDAD_NO_PERMITIDA', `Tu tarifa no incluye ${actividad.nombre}.`);
   }
 
+  // 0034: la categoría de la clase no es de la tarifa, pero vale a cambio de una de las suyas.
+  const tambien = tarifa.clasesTambienEn.includes(actividad.categoria);
+
   if (tarifa.tipo === 'BONO' && tarifa.bono) {
-    if (tarifa.bono.categoria !== actividad.categoria) {
+    if (tarifa.bono.categoria !== actividad.categoria && !tambien) {
       if (recuperacion) return { ok: true, via: 'RECUPERACION', recuperacionId: recuperacion.id, mensaje: 'Se utilizará una recuperación.' };
       return bloqueo('ACTIVIDAD_NO_PERMITIDA', `Tu bono es de ${CATEGORIA_LABEL[tarifa.bono.categoria]}.`);
     }
@@ -146,23 +155,27 @@ export function evaluarReserva(ctx: ContextoReserva): EvaluacionReserva {
 
   if (tarifa.tipo === 'RECURRENTE') {
     const cupo = tarifa.cupos.find((c) => c.categoria === actividad.categoria);
-    if (!cupo) {
+    // Con cupo propio se cuenta por categoría; "a cambio", contra el total semanal de la tarifa.
+    let limite: number;
+    let categoriaCupo: Categoria | null;
+    if (cupo) { limite = cupo.sesionesSemana; categoriaCupo = actividad.categoria; }
+    else if (tambien) { limite = tarifa.cupos.reduce((s, c) => s + c.sesionesSemana, 0); categoriaCupo = null; }
+    else {
       if (recuperacion) return { ok: true, via: 'RECUPERACION', recuperacionId: recuperacion.id, mensaje: 'Se utilizará una recuperación.' };
       return bloqueo('ACTIVIDAD_NO_PERMITIDA', `Tu tarifa no incluye ${CATEGORIA_LABEL[actividad.categoria].toLowerCase()}.`);
     }
-    if (contrato.modalidad === 'FIJO') {
-      // Con horario fijo las reservas se generan automáticamente; fuera de él solo con recuperación.
-      const esFranjaFija = clase.plantillaId != null && contrato.franjasFijas.some((f) => f.plantillaId === clase.plantillaId);
-      if (esFranjaFija) return { ok: true, via: 'CUPO_SEMANAL', mensaje: 'Es tu clase habitual.' };
-      if (recuperacion) return { ok: true, via: 'RECUPERACION', recuperacionId: recuperacion.id, mensaje: 'Se utilizará una recuperación.' };
-      return bloqueo('HORARIO_FIJO', 'Tienes horario fijo. Para asistir a otra clase necesitas una recuperación disponible.');
+    const fijo = contrato.modalidad === 'FIJO';
+    if (fijo && clase.plantillaId != null && contrato.franjasFijas.some((f) => f.plantillaId === clase.plantillaId)) {
+      return { ok: true, via: 'CUPO_SEMANAL', mensaje: 'Es tu clase habitual.' };
     }
-    const usadas = cupoConsumidoEnSemana(contrato, actividad.categoria, clase.fecha, ctx.reservasCliente, ctx.clasesPorId, ctx.actividadesPorId);
-    if (usadas < cupo.sesionesSemana) {
-      return { ok: true, via: 'CUPO_SEMANAL', mensaje: `Clase ${usadas + 1} de ${cupo.sesionesSemana} de esta semana.` };
+    // 0034: con horario fijo, fuera de su franja solo si esa semana no tiene su clase ni recuperación por ella.
+    const usadas = cupoConsumidoEnSemana(contrato, categoriaCupo, clase.fecha, ctx.reservasCliente, ctx.clasesPorId, ctx.actividadesPorId, fijo ? { recuperaciones: ctx.recuperaciones } : null);
+    if (usadas < limite) {
+      return { ok: true, via: 'CUPO_SEMANAL', mensaje: fijo ? 'A cambio de tu clase habitual de esta semana.' : tambien ? `Clase ${usadas + 1} de ${limite} de esta semana (a cambio de una de las tuyas).` : `Clase ${usadas + 1} de ${limite} de esta semana.` };
     }
     if (recuperacion) return { ok: true, via: 'RECUPERACION', recuperacionId: recuperacion.id, mensaje: 'Semana completa: se utilizará una recuperación.' };
-    return bloqueo('CUPO_AGOTADO', `Ya tienes las ${cupo.sesionesSemana} clases de esta semana.`);
+    if (fijo) return bloqueo('HORARIO_FIJO', 'Tienes horario fijo y esta semana ya tienes tu clase. Para asistir a otra necesitas una recuperación disponible.');
+    return bloqueo('CUPO_AGOTADO', `Ya tienes las ${limite} clases de esta semana.`);
   }
 
   // CLASE_SUELTA: solo la introduce el personal.
