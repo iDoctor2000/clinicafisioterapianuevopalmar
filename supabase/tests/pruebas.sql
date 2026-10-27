@@ -1976,4 +1976,84 @@ do $$ begin
 end $$;
 
 \echo
+\echo '== 43. Cambiar el horario no cancela lo ya dado; deshacerlo reactiva; Reactivar clase (0033)'
+select pruebas.sistema();
+select pruebas.como('admin');
+-- Franja de los lunes 09:00 con alumnos fijos (cliente_b). La próxima clase, dentro de al menos 2 días.
+select pruebas.guardar('clase_33', (select c.id from public.clases c where c.plantilla_id = pruebas.id('pl_lun_0900') and c.estado = 'PROGRAMADA'
+  and c.fecha >= public._hoy() + 2 and exists (select 1 from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') order by c.fecha limit 1)::text);
+select pruebas.guardar('fecha_33', (select fecha from public.clases where id = pruebas.id('clase_33'))::text);
+select pruebas.guardar('res_33', (select array_agg(id order by id) from public.reservas where clase_id = pruebas.id('clase_33') and estado = 'RESERVADA')::text);
+-- Como el 27/10: «Vigente desde» el día después de esa clase.
+update public.plantillas_clase set vigencia_desde = current_setting('pruebas.fecha_33')::date + 1 where id = pruebas.id('pl_lun_0900');
+select pruebas.guardar('r33a', public.plantilla_aplicar_cambios(pruebas.id('pl_lun_0900'))::text);
+do $$ begin
+  assert (current_setting('pruebas.r33a')::jsonb ->> 'canceladas')::int >= 1, 'cancela las de antes de la fecha';
+  assert (select estado from public.clases where id = pruebas.id('clase_33')) = 'CANCELADA', 'la clase queda cancelada';
+  assert (select count(*) from public.recuperaciones where reserva_origen_id = any (current_setting('pruebas.res_33')::uuid[]) and estado = 'DISPONIBLE') >= 1, 'con recuperación';
+  assert exists (select 1 from public.avisos where destino_clase_id = pruebas.id('clase_33') and titulo like 'Clase cancelada:%'), 'y aviso';
+end $$;
+-- Se deshace el cambio: la clase vuelve con sus alumnos, sin recuperación ni aviso de cancelada, y con aviso de que se mantiene.
+update public.plantillas_clase set vigencia_desde = null where id = pruebas.id('pl_lun_0900');
+select pruebas.guardar('r33b', public.plantilla_aplicar_cambios(pruebas.id('pl_lun_0900'))::text);
+do $$ begin
+  assert (current_setting('pruebas.r33b')::jsonb ->> 'reactivadas')::int >= 1, format('reactiva (%s)', current_setting('pruebas.r33b'));
+  assert (select estado from public.clases where id = pruebas.id('clase_33')) = 'PROGRAMADA', 'la clase vuelve';
+  assert (select count(*) from public.reservas where id = any (current_setting('pruebas.res_33')::uuid[]) and estado = 'RESERVADA') = cardinality(current_setting('pruebas.res_33')::uuid[]), 'sus alumnos vuelven a tener plaza';
+  assert not exists (select 1 from public.recuperaciones where reserva_origen_id = any (current_setting('pruebas.res_33')::uuid[])), 'la recuperación se retira';
+  assert not exists (select 1 from public.avisos where destino_clase_id = pruebas.id('clase_33') and titulo like 'Clase cancelada:%'), 'el aviso de cancelada desaparece';
+  assert exists (select 1 from public.avisos where destino_clase_id = pruebas.id('clase_33') and titulo like 'Clase de nuevo programada:%'), 'aviso de que se mantiene';
+  assert exists (select 1 from public.auditoria where accion = 'REACTIVAR_CLASE' and entidad_id = pruebas.id('clase_33')::text), 'queda en el registro';
+end $$;
+-- Una clase de HOY que ya ha empezado no se toca al cambiar la franja.
+select pruebas.guardar('clase_hoy33', (select id from public.clases where plantilla_id = pruebas.id('pl_lun_0900') and estado = 'PROGRAMADA' and fecha = public._hoy() limit 1)::text);
+do $$ begin
+  if current_setting('pruebas.clase_hoy33') = '' then
+    insert into public.clases (id, plantilla_id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas)
+    select 'e0000000-0000-4000-8000-00000000c333', p.id, p.actividad_id, public._hoy(), '00:05', 55, p.monitor_id, 8 from public.plantillas_clase p where p.id = pruebas.id('pl_lun_0900')
+    on conflict (plantilla_id, fecha) do nothing;
+    perform set_config('pruebas.clase_hoy33', 'e0000000-0000-4000-8000-00000000c333', false);
+  else
+    update public.clases set hora_inicio = '00:05' where id = pruebas.id('clase_hoy33');
+  end if;
+end $$;
+insert into public.reservas (clase_id, cliente_id, origen, asistencia) values (pruebas.id('clase_hoy33'), pruebas.id('cliente_a'), 'MANUAL', 'ASISTE') on conflict do nothing;
+update public.plantillas_clase set activa = false where id = pruebas.id('pl_lun_0900');
+select public.plantilla_aplicar_cambios(pruebas.id('pl_lun_0900'));
+do $$ begin
+  assert (select estado from public.clases where id = pruebas.id('clase_hoy33')) = 'PROGRAMADA', 'la clase de hoy ya dada no se toca';
+  assert (select estado from public.clases where id = pruebas.id('clase_33')) = 'CANCELADA', 'las futuras sí se cancelan al desactivar';
+end $$;
+update public.plantillas_clase set activa = true where id = pruebas.id('pl_lun_0900');
+select public.plantilla_aplicar_cambios(pruebas.id('pl_lun_0900'));
+do $$ begin assert (select estado from public.clases where id = pruebas.id('clase_33')) = 'PROGRAMADA', 'al reactivar la franja vuelven'; end $$;
+-- Reactivar a mano una clase cancelada con una alumna que había usado una recuperación: la recuperación se vuelve a gastar.
+select pruebas.sistema();
+insert into public.recuperaciones (id, cliente_id, contrato_id, categoria_origen, categorias_permitidas, motivo, caduca_el)
+  values ('e0000000-0000-4000-8000-00000000d333', pruebas.id('cliente_a'), pruebas.id('con_a'), 'DIRIGIDA', array['DIRIGIDA']::public.categoria[], 'AUTORIZACION_MANUAL', public._hoy() + 60) on conflict do nothing;
+update public.recuperaciones set estado = 'DISPONIBLE', usada_en_reserva_id = null where id = 'e0000000-0000-4000-8000-00000000d333';
+delete from public.reservas where clase_id = pruebas.id('clase_33') and cliente_id = pruebas.id('cliente_a');
+insert into public.reservas (id, clase_id, cliente_id, contrato_id, origen, recuperacion_usada_id)
+  values ('e0000000-0000-4000-8000-00000000e333', pruebas.id('clase_33'), pruebas.id('cliente_a'), pruebas.id('con_a'), 'RECUPERACION', 'e0000000-0000-4000-8000-00000000d333');
+update public.recuperaciones set estado = 'USADA', usada_en_reserva_id = 'e0000000-0000-4000-8000-00000000e333' where id = 'e0000000-0000-4000-8000-00000000d333';
+select pruebas.como('admin');
+select public.cancelar_clase(pruebas.id('clase_33'), 'Por error', null, true);
+do $$ begin assert (select estado from public.recuperaciones where id = 'e0000000-0000-4000-8000-00000000d333') = 'DISPONIBLE', 'al cancelar se le devuelve la recuperación'; end $$;
+select pruebas.guardar('r33c', public.reactivar_clase(pruebas.id('clase_33'))::text);
+do $$ begin
+  assert (current_setting('pruebas.r33c')::jsonb ->> 'vuelven')::int >= 1, 'vuelven';
+  assert (select estado from public.reservas where id = 'e0000000-0000-4000-8000-00000000e333') = 'RESERVADA', 'la plaza con recuperación vuelve';
+  assert (select estado from public.recuperaciones where id = 'e0000000-0000-4000-8000-00000000d333') = 'USADA', 'y la recuperación se vuelve a gastar';
+end $$;
+select pruebas.espera_error(format('select public.reactivar_clase(%L)', pruebas.id('clase_33')), '%no está cancelada%');
+-- Sin permiso de cancelar clases, no se puede reactivar.
+begin;
+set local role authenticated;
+select pruebas.como('a');
+select pruebas.espera_error(format('select public.reactivar_clase(%L)', pruebas.id('clase_33')), '%No tienes permiso%');
+commit;
+select pruebas.sistema();
+do $$ begin raise notice 'OK horario sin sorpresas'; end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

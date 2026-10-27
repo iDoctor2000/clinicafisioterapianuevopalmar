@@ -81,7 +81,9 @@ describe('renovaciones', () => {
     if (r.db.clases.some((c) => c.fecha > contrato.fechaFin && c.fecha <= hasta && contrato.franjasFijas.some((f) => f.plantillaId === c.plantillaId))) {
       expect(fechas.some((f) => f > contrato.fechaFin)).toBe(true);
     }
-    expect(r.db.pagos.filter((p) => p.contratoId === contrato.id && p.mes > contrato.fechaFin)).toHaveLength(r.valor.cobros);
+    // Un cobro por cada mes que empieza en el periodo nuevo (desde el día siguiente al fin anterior; el mes se compara como mes).
+    const primerMesNuevo = `${sumarDias(contrato.fechaFin, 1).slice(0, 7)}-01`;
+    expect(r.db.pagos.filter((p) => p.contratoId === contrato.id && p.mes >= primerMesNuevo)).toHaveLength(r.valor.cobros);
     expect(r.valor.cobros).toBeGreaterThan(0);
     expect(r.db.auditoria[0]).toMatchObject({ accion: 'RENOVAR_CONTRATO', entidadId: contrato.id });
     // Otra vez: ya llega a esa fecha, se salta.

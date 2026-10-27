@@ -472,11 +472,77 @@ function cancelarClaseInterna(db: Db, sesion: Sesion, ahora: Date, clase: Clase,
   return { db: nuevo, afectados: afectadas.length, avisoId };
 }
 
+/**
+ * Espejo de _reactivar_clase (0033): la clase vuelve a estar programada, las plazas que quitó la
+ * cancelación vuelven (salvo que ya se haya gastado lo que se devolvió), se retira la recuperación
+ * que dio la cancelación, desaparece el aviso de "Clase cancelada" y, si es futura, se avisa.
+ */
+function reactivarClaseInterna(db: Db, sesion: Sesion, ahora: Date, clase: Clase, avisar: boolean): { db: Db; vuelven: number; sinPlaza: number; avisoId: Id | null } {
+  const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
+  const futura = new Date(`${clase.fecha}T${clase.horaInicio}`) > ahora;
+  let contratos = db.contratos;
+  let recuperaciones = db.recuperaciones;
+  const vuelven: Reserva[] = [];
+  let sinPlaza = 0;
+  for (const r of db.reservas.filter((x) => x.claseId === clase.id && x.estado === 'CANCELADA_CENTRO' && clase.canceladaEl != null && x.canceladaEl === clase.canceladaEl)) {
+    if (r.origen === 'RECUPERACION' && r.recuperacionUsadaId) {
+      if (!recuperaciones.some((x) => x.id === r.recuperacionUsadaId && x.estado === 'DISPONIBLE')) { sinPlaza += 1; continue; }
+      recuperaciones = recuperaciones.map((x) => (x.id === r.recuperacionUsadaId ? { ...x, estado: 'USADA', usadaEnReservaId: r.id } : x));
+    } else if (r.origen === 'BONO' && r.contratoId) {
+      if ((contratos.find((c) => c.id === r.contratoId)?.sesionesRestantes ?? 0) < 1) { sinPlaza += 1; continue; }
+      contratos = contratos.map((c) => (c.id === r.contratoId ? { ...c, sesionesRestantes: (c.sesionesRestantes ?? 1) - 1 } : c));
+    }
+    vuelven.push(r);
+  }
+  const ids = new Set(vuelven.map((r) => r.id));
+  // La recuperación que dio la cancelación (de esa misma plaza) se retira si no se ha usado.
+  recuperaciones = recuperaciones.filter((x) => !(x.estado === 'DISPONIBLE' && x.reservaOrigenId != null && ids.has(x.reservaOrigenId)));
+  let nuevo: Db = {
+    ...db, contratos, recuperaciones,
+    clases: db.clases.map((c) => (c.id === clase.id ? { ...c, estado: 'PROGRAMADA', motivoCancelacion: null, claseAlternativaId: null, canceladaEl: null, canceladaPor: null } : c)),
+    reservas: db.reservas.map((r) => (ids.has(r.id) ? { ...r, estado: 'RESERVADA', canceladaEl: null, canceladaPor: null } : r)),
+    avisos: db.avisos.filter((a) => !(a.destino.tipo === 'CLASE' && a.destino.claseId === clase.id && a.titulo.startsWith('Clase cancelada:'))),
+  };
+  let avisoId: Id | null = null;
+  if (avisar && futura && vuelven.length > 0) {
+    const aviso: Aviso = {
+      id: nuevoId('avi'), titulo: `Clase de nuevo programada: ${actividad.nombre} ${clase.fecha.slice(8, 10)}/${clase.fecha.slice(5, 7)} ${clase.horaInicio}`,
+      cuerpo: 'Al final la clase se mantiene: sigues apuntado/a. Si por la cancelación te dimos una recuperación, se ha retirado. Perdona las molestias.',
+      destino: { tipo: 'CLASE', claseId: clase.id }, destinatariosIds: Array.from(new Set(vuelven.map((r) => r.clienteId))), importante: true,
+      publicadoEl: ahora.toISOString(), publicadoPor: sesion.userId,
+    };
+    nuevo = { ...nuevo, avisos: [aviso, ...nuevo.avisos] };
+    avisoId = aviso.id;
+  }
+  nuevo = auditar(nuevo, sesion, ahora, 'REACTIVAR_CLASE', 'clase', clase.id, `${descClase(db, clase)} · ${vuelven.length} alumnos vuelven a tener plaza`);
+  return { db: nuevo, vuelven: vuelven.length, sinPlaza, avisoId };
+}
+
+/** Vuelve a programar una clase cancelada (0033). */
+export function reactivarClase(ctx: Ctx, args: { claseId: Id }): Resultado<{ vuelven: number; sinPlaza: number }> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLASES_CREAR_CANCELAR');
+  if (e) return fallo(e);
+  const clase = db.clases.find((c) => c.id === args.claseId);
+  if (!clase) return fallo('La clase no existe.');
+  const ea = exigirClaseMia(db, sesion, clase);
+  if (ea) return fallo(ea);
+  if (clase.estado !== 'CANCELADA') return fallo('La clase no está cancelada.');
+  const r = reactivarClaseInterna(db, sesion, ahora, clase, true);
+  return ok(r.db, { vuelven: r.vuelven, sinPlaza: r.sinPlaza });
+}
+
+/** Ha empezado ya (o ha pasado) una clase: los cambios de horario no la tocan (0033). */
+function yaEmpezada(c: Pick<Clase, 'fecha' | 'horaInicio'>, ahora: Date): boolean {
+  return new Date(`${c.fecha}T${c.horaInicio}`) <= ahora;
+}
+
 /** Clases futuras de una franja con alumnos que dejarían de impartirse con estos datos (activa / vigencia). */
-export function clasesQueSeCancelarian(db: Db, p: Pick<PlantillaClase, 'id' | 'activa' | 'vigenciaDesde' | 'vigenciaHasta'>, hoy: ISODate): { clases: Clase[]; alumnos: number } {
+export function clasesQueSeCancelarian(db: Db, p: Pick<PlantillaClase, 'id' | 'activa' | 'vigenciaDesde' | 'vigenciaHasta'>, ahora: Date): { clases: Clase[]; alumnos: number } {
   const fuera = (c: Clase) => !p.activa || (!!p.vigenciaDesde && c.fecha < p.vigenciaDesde) || (!!p.vigenciaHasta && c.fecha > p.vigenciaHasta);
   const conAlumnos = (c: Clase) => db.reservas.some((r) => r.claseId === c.id && r.estado === 'RESERVADA' && r.origen !== 'AUTOMATICA');
-  const clases = db.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy && fuera(c) && conAlumnos(c));
+  const clases = db.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && !yaEmpezada(c, ahora) && fuera(c) && conAlumnos(c))
+    .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio));
   const ids = new Set(clases.map((c) => c.id));
   return { clases, alumnos: db.reservas.filter((r) => ids.has(r.claseId) && r.estado === 'RESERVADA').length };
 }
@@ -499,7 +565,7 @@ export function crearClaseExtraordinaria(ctx: Ctx, args: { actividadId: Id; fech
  * automáticas (horario fijo, que se regeneran) y se conservan las que tienen reservas de
  * clientes o del centro. Devuelve cuántas se han conservado para avisar al administrador.
  */
-export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id } }): Resultado<{ plantilla: PlantillaClase; conservadas: number; canceladas: number; afectados: number; avisoIds: Id[] }> {
+export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id } }): Resultado<{ plantilla: PlantillaClase; conservadas: number; canceladas: number; afectados: number; reactivadas: number; avisoIds: Id[] }> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'HORARIOS_GESTIONAR');
   if (e) return fallo(e);
@@ -510,11 +576,12 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
   let conservadas = 0;
   let canceladas = 0;
   let afectados = 0;
+  let reactivadas = 0;
   const avisoIds: Id[] = [];
   if (existe) {
-    const hoy = aISODate(ahora);
     const soloAutomatica = (r: Reserva) => r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA';
-    const futuras = nuevo.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy);
+    // 0033: lo que ya ha empezado (también lo de hoy ya dado) no se toca.
+    const futuras = nuevo.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && !yaEmpezada(c, ahora));
     const borrables = new Set(futuras.filter((c) => nuevo.reservas.every((r) => r.claseId !== c.id || soloAutomatica(r))).map((c) => c.id));
     conservadas = futuras.length - borrables.size;
     // Las conservadas mantienen su día y hora (sus alumnos ya cuentan con ellas), pero toman la
@@ -530,7 +597,7 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
     // 0021: si ahora hay más plazas, entran los de la lista de espera.
     for (const id of conservar) nuevo = promoverListaEspera(nuevo, sesion, ahora, id);
     // 0020: las que tienen alumnos y la franja ya no se imparte ese día se cancelan avisando (con recuperación).
-    for (const c of clasesQueSeCancelarian(nuevo, p, hoy).clases) {
+    for (const c of clasesQueSeCancelarian(nuevo, p, ahora).clases) {
       const r = cancelarClaseInterna(nuevo, sesion, ahora, c, 'Esta clase deja de impartirse', null, true);
       nuevo = r.db;
       canceladas += 1;
@@ -538,10 +605,19 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
       if (r.avisoId) avisoIds.push(r.avisoId);
     }
     conservadas -= canceladas;
+    // 0033: las canceladas por dejar de impartirse que con este cambio vuelven a tocar, se reactivan.
+    const toca = (c: Clase) => p.activa && !p.eliminadaEl && (!p.vigenciaDesde || c.fecha >= p.vigenciaDesde) && (!p.vigenciaHasta || c.fecha <= p.vigenciaHasta)
+      && !nuevo.config.diasCierre.some((d) => d.fecha === c.fecha);
+    for (const c of nuevo.clases.filter((x) => x.plantillaId === p.id && x.estado === 'CANCELADA' && x.motivoCancelacion === 'Esta clase deja de impartirse' && !yaEmpezada(x, ahora) && toca(x))) {
+      const r = reactivarClaseInterna(nuevo, sesion, ahora, c, true);
+      nuevo = r.db;
+      reactivadas += 1;
+      if (r.avisoId) avisoIds.push(r.avisoId);
+    }
   }
   nuevo = generarClasesPendientes(nuevo, ahora);
-  const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas; ${canceladas} canceladas` : `${p.diaSemana} ${p.horaInicio}`;
-  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas, canceladas, afectados, avisoIds });
+  const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas; ${canceladas} canceladas; ${reactivadas} reactivadas` : `${p.diaSemana} ${p.horaInicio}`;
+  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas, canceladas, afectados, reactivadas, avisoIds });
 }
 
 /**
