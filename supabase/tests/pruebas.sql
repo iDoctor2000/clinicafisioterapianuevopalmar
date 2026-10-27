@@ -2215,4 +2215,43 @@ select pruebas.sistema();
 do $$ begin raise notice 'OK registro de errores'; end $$;
 
 \echo
+\echo '== 46. Informe de uso para el bot de Telegram (0036): completo, sin nombres y solo para el servidor'
+select pruebas.sistema();
+delete from public.errores_app;
+insert into public.errores_app (user_id, tipo_usuario, tipo, mensaje) values
+  (pruebas.id('u_a'), 'ALUMNO', 'pantalla', 'No se puede eliminar: la tienen como clase fija Ana Libre, Berta. Escribe a ana@test.local'),
+  (pruebas.id('u_a'), 'ALUMNO', 'pantalla', 'No se puede eliminar: la tienen como clase fija Ana Libre, Berta. Escribe a ana@test.local'),
+  (null, 'SIN_SESION', 'fallo', 'Error JS: algo');
+do $$
+declare v jsonb := public.informe_uso(7); v_top text;
+begin
+  assert v ? 'alumnos' and v ? 'equipo' and v ? 'avisos' and v ? 'lista' and v ? 'senales' and v ? 'errores', format('apartados (%s)', v);
+  assert (v -> 'alumnos' ->> 'activos')::int = (select count(*) from public.clientes where activo), 'alumnos activos';
+  assert (v -> 'errores' ->> 'total')::int = 3 and (v -> 'errores' ->> 'personas')::int = 2, format('errores (%s)', v -> 'errores');
+  v_top := (v -> 'errores' -> 'top' -> 0 ->> 'mensaje');
+  assert v_top not like '%Ana Libre%' and v_top not like '%Berta%' and v_top not like '%@%', format('sin nombres ni correos (%s)', v_top);
+  assert v_top like '%A.L.%' and v_top like '%[correo]%', format('con iniciales (%s)', v_top);
+  assert (v -> 'errores' -> 'top' -> 0 ->> 'veces')::int = 2, 'agrupado';
+  assert not exists (select 1 from jsonb_array_elements(v -> 'equipo') e where e ->> 'quien' !~ '^[A-ZÁÉÍÓÚÑ]\.[A-ZÁÉÍÓÚÑ]?\.?$'), format('equipo con iniciales (%s)', v -> 'equipo');
+  assert (public.informe_uso(500) ->> 'dias')::int = 90, 'como mucho 90 días';
+end $$;
+-- Solo el servidor (service_role) puede pedirlo.
+begin;
+set local role service_role;
+do $$ begin assert public.informe_uso(1) ? 'alumnos', 'service_role sí'; end $$;
+commit;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.espera_error('select public.informe_uso(7)', '%permission denied%');
+commit;
+begin;
+set local role anon;
+select pruebas.espera_error('select public.informe_uso(7)', '%permission denied%');
+commit;
+select pruebas.sistema();
+delete from public.errores_app;
+do $$ begin raise notice 'OK informe para Telegram'; end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'
