@@ -2254,4 +2254,58 @@ delete from public.errores_app;
 do $$ begin raise notice 'OK informe para Telegram'; end $$;
 
 \echo
+\echo '== 47. Un cobro pendiente no puede ser de un mes sin contrato (0037)'
+select pruebas.sistema();
+select pruebas.guardar('cliente_fc', 'e0000000-0000-4000-8000-0000000000f6');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cliente_fc'), 'Fuera', 'Decontrato', '33333333F', 'fuera@test.local', '600 000 033') on conflict (id) do nothing;
+select pruebas.guardar('mes0_fc', date_trunc('month', public._hoy())::date::text);
+select pruebas.como('admin');
+-- Como Carolina: oferta trimestral desde este mes, este mes pendiente y los dos siguientes por cobrar.
+select pruebas.guardar('con_fc1', public.crear_contrato(pruebas.id('cliente_fc'), pruebas.id('tar_dir2'), pruebas.fecha('mes0_fc'), (pruebas.fecha('mes0_fc') + interval '3 months' - interval '1 day')::date, 'LIBRE',
+  '{}', '{}', '', null, 'TRIMESTRAL', 6500, 'TARJETA',
+  jsonb_build_array(
+    jsonb_build_object('concepto', 'm0', 'importe_centimos', 6500, 'vence_el', pruebas.fecha('mes0_fc'), 'mes', pruebas.fecha('mes0_fc'), 'estado', 'PENDIENTE'),
+    jsonb_build_object('concepto', 'm1', 'importe_centimos', 6500, 'vence_el', (pruebas.fecha('mes0_fc') + interval '1 month')::date, 'mes', (pruebas.fecha('mes0_fc') + interval '1 month')::date, 'estado', 'PENDIENTE'),
+    jsonb_build_object('concepto', 'm2', 'importe_centimos', 0, 'vence_el', (pruebas.fecha('mes0_fc') + interval '2 months')::date, 'mes', (pruebas.fecha('mes0_fc') + interval '2 months')::date, 'estado', 'PENDIENTE')))::text);
+-- Se le da de baja: este mes se queda (deuda); los meses siguientes, fuera.
+update public.clientes set activo = false where id = pruebas.id('cliente_fc');
+do $$ begin
+  assert exists (select 1 from public.pagos where cliente_id = pruebas.id('cliente_fc') and mes = pruebas.fecha('mes0_fc') and estado = 'PENDIENTE'), 'la deuda de este mes se queda';
+  assert not exists (select 1 from public.pagos where cliente_id = pruebas.id('cliente_fc') and mes > pruebas.fecha('mes0_fc')), 'los meses siguientes se quitan';
+  assert exists (select 1 from public.auditoria where accion = 'COBROS_FUERA_DE_CONTRATO' and entidad_id = pruebas.id('con_fc1')::text), 'queda en el registro';
+end $$;
+-- Vuelve: contratación nueva desde hoy hasta fin del mes siguiente con su cobro del mes siguiente. Se crea (no está "ya apuntado").
+update public.clientes set activo = true where id = pruebas.id('cliente_fc');
+select pruebas.guardar('con_fc2', public.crear_contrato(pruebas.id('cliente_fc'), pruebas.id('tar_dir2'), public._hoy(), (pruebas.fecha('mes0_fc') + interval '2 months' - interval '1 day')::date, 'LIBRE',
+  '{}', '{}', '', null, 'NINGUNA', 5000, 'TARJETA',
+  jsonb_build_array(jsonb_build_object('concepto', 'm1 nuevo', 'importe_centimos', 5000, 'vence_el', public._hoy(), 'mes', (pruebas.fecha('mes0_fc') + interval '1 month')::date, 'estado', 'PAGADO', 'metodo', 'TARJETA')))::text);
+do $$ begin
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_fc') and mes = (pruebas.fecha('mes0_fc') + interval '1 month')::date) = 1, 'un solo cobro del mes siguiente';
+  assert (select contrato_id = pruebas.id('con_fc2') and estado = 'PAGADO' and importe_centimos = 5000 from public.pagos where cliente_id = pruebas.id('cliente_fc') and mes = (pruebas.fecha('mes0_fc') + interval '1 month')::date), 'el del contrato nuevo';
+end $$;
+-- Un pendiente de un contrato cerrado del mismo mes que el plan nuevo también se sustituye (aunque no fuera el activo).
+select pruebas.sistema();
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, mes, estado)
+  values (pruebas.id('con_fc1'), pruebas.id('cliente_fc'), 'resto', 6500, (pruebas.fecha('mes0_fc') + interval '1 month')::date, (pruebas.fecha('mes0_fc') + interval '1 month')::date, 'PENDIENTE');
+-- (el disparador no lo quita porque el contrato no ha cambiado; la limpieza de la migración sí, por ser posterior a su fin)
+do $$
+declare v_n integer;
+begin
+  with b as (delete from public.pagos p using public.contratos c where c.id = p.contrato_id and p.estado = 'PENDIENTE' and p.mes > date_trunc('month', c.fecha_fin)::date returning p.id)
+  select count(*) into v_n from b;
+  assert v_n >= 1, 'la limpieza lo quita';
+end $$;
+-- Acortar un contrato quita los pendientes de después; lo cobrado se queda.
+select pruebas.como('admin');
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, mes, estado)
+  values (pruebas.id('con_fc2'), pruebas.id('cliente_fc'), 'futuro', 5000, (pruebas.fecha('mes0_fc') + interval '1 month')::date, (pruebas.fecha('mes0_fc') + interval '1 month')::date, 'PENDIENTE');
+select public.editar_contrato(pruebas.id('con_fc2'), public._hoy(), null, '', 'NINGUNA', 5000, 'TARJETA', null);
+do $$ begin
+  assert not exists (select 1 from public.pagos where contrato_id = pruebas.id('con_fc2') and estado = 'PENDIENTE' and mes > pruebas.fecha('mes0_fc')), 'acortar quita los pendientes de después';
+  assert exists (select 1 from public.pagos where contrato_id = pruebas.id('con_fc2') and estado = 'PAGADO'), 'lo cobrado se queda';
+  raise notice 'OK cobros fuera de contrato';
+end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

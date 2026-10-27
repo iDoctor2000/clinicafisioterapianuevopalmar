@@ -698,6 +698,12 @@ export function guardarCliente(ctx: Ctx, args: { cliente: Omit<Cliente, 'id'> & 
   return ok(nuevo, cliente);
 }
 
+/** Espejo del disparador de 0037: un cobro pendiente no puede ser de un mes posterior al fin de su contrato. */
+function quitarCobrosFueraDeContrato(db: Db, contratos: Pick<Contrato, 'id' | 'fechaFin'>[]): Db {
+  const fin = new Map(contratos.map((c) => [c.id, mesDe(c.fechaFin)]));
+  return { ...db, pagos: db.pagos.filter((p) => !(p.contratoId != null && fin.has(p.contratoId) && p.estado === 'PENDIENTE' && p.mes > fin.get(p.contratoId)!)) };
+}
+
 /** Espejo de _cerrar_alumno_de_baja (0031). */
 function cerrarAlumnoDeBaja(db: Db, clienteId: Id, sesion: Sesion, ahora: Date): Db {
   const hoy = aISODate(ahora);
@@ -707,6 +713,8 @@ function cerrarAlumnoDeBaja(db: Db, clienteId: Id, sesion: Sesion, ahora: Date):
   const nuevo: Db = {
     ...db,
     contratos: db.contratos.map((c) => (activos.includes(c) ? { ...c, estado: 'FINALIZADO', fechaFin: hoy < c.fechaFin ? hoy : c.fechaFin } : c)),
+    // 0037: los pendientes de meses posteriores al cierre no son deuda.
+    pagos: db.pagos.filter((p) => !(activos.some((c) => c.id === p.contratoId) && p.estado === 'PENDIENTE' && p.mes > mesDe(hoy))),
     reservas: db.reservas
       .filter((r) => !(suya(r) && r.origen === 'AUTOMATICA'))
       .map((r) => (suya(r) ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: sesion.userId } : r)),
@@ -746,7 +754,8 @@ export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 
   // no repite un mes que el alumno ya tenga apuntado (cobrado o pendiente).
   const plan = (args.cobros ?? []).map((q) => ({ ...q, mes: q.mes ?? mesDe(q.venceEl ?? contrato.fechaInicio) }));
   const primerMes = plan.map((q) => q.mes).sort()[0];
-  const pagosPrevios = nuevo.pagos.filter((p) => !(primerMes && previos.has(p.contratoId ?? '') && p.estado === 'PENDIENTE' && p.mes >= primerMes));
+  // 0037: de cualquier contrato anterior del alumno (también los cerrados por una baja), no solo del activo.
+  const pagosPrevios = nuevo.pagos.filter((p) => !(primerMes && p.clienteId === contrato.clienteId && p.contratoId != null && p.contratoId !== contrato.id && p.estado === 'PENDIENTE' && p.mes >= primerMes));
   const yaApuntado = (mes: string) => pagosPrevios.some((p) => p.clienteId === contrato.clienteId && p.estado !== 'CANCELADO' && p.mes === mes);
   const pagos = plan.filter((q) => !yaApuntado(q.mes)).map((q): Pago => ({
     ...q, id: nuevoId('pag'), contratoId: contrato.id, clienteId: contrato.clienteId, creadoEl: ahora.toISOString(),
@@ -801,7 +810,7 @@ export function editarContrato(ctx: Ctx, args: { contratoId: Id; cambios: Cambio
   };
   let reservas = db.reservas.filter((r) => !sobra(r));
   reservas = generarReservasAutomaticas(contrato, db.clases.filter((c) => args.cambios.incluirPasadas || c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
-  const nuevo: Db = { ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas };
+  const nuevo: Db = quitarCobrosFueraDeContrato({ ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas }, [contrato]);
   return ok(auditar(nuevo, sesion, ahora, 'EDITAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: fin ${contrato.fechaFin}`), contrato);
 }
 
@@ -902,6 +911,7 @@ export function finalizarContrato(ctx: Ctx, args: { contratoId: Id; cancelarRese
   const nuevo: Db = {
     ...db,
     contratos: db.contratos.map((c) => (c.id === args.contratoId ? { ...c, estado: 'CANCELADO', fechaFin: hoy < c.fechaFin ? hoy : c.fechaFin } : c)),
+    pagos: db.pagos.filter((p) => { const c = db.contratos.find((k) => k.id === args.contratoId); return !(c && p.contratoId === c.id && p.estado === 'PENDIENTE' && p.mes > mesDe(hoy < c.fechaFin ? hoy : c.fechaFin)); }),
     // 0023: las clases fijas futuras se quitan (el horario fijo va con el contrato); las demás se cancelan por el centro.
     reservas: args.cancelarReservasFuturas
       ? db.reservas

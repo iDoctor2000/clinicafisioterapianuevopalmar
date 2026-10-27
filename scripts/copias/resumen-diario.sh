@@ -180,7 +180,8 @@ select line from (
         ('0033', to_regprocedure('public.reactivar_clase(uuid)') is not null),
         ('0034', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'tarifas' and column_name = 'cupo_categorias_extra')),
         ('0035', to_regclass('public.errores_app') is not null),
-        ('0036', to_regprocedure('public.informe_uso(integer)') is not null))
+        ('0036', to_regprocedure('public.informe_uso(integer)') is not null),
+        ('0037', exists (select 1 from pg_trigger where tgname = 'contratos_cobros_fuera')))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

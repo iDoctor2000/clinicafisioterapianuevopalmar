@@ -53,7 +53,10 @@ describe('renovaciones', () => {
     expect(r.db.contratos.some((c) => c.clienteId === 'juan' && c.estado === 'ACTIVO')).toBe(false);
     expect(futuras(r.db)).toBe(0);
     expect(r.db.listaEspera.some((e) => e.clienteId === 'juan')).toBe(false);
-    expect(r.db.pagos).toEqual(db.pagos); // lo que deba, sigue apuntado
+    // 0037: lo que deba de este mes o antes sigue apuntado; los pendientes de meses posteriores, fuera.
+    const mesHoy = `${hoy.slice(0, 7)}-01`;
+    expect(r.db.pagos.filter((p) => p.mes <= mesHoy)).toEqual(db.pagos.filter((p) => p.mes <= mesHoy));
+    expect(r.db.pagos.some((p) => p.contratoId === contrato.id && p.estado === 'PENDIENTE' && p.mes > mesHoy)).toBe(false);
     // Guardar otra cosa de un alumno ya de baja no hace nada más.
     const r2 = guardarCliente(ctx(sesionDe(db, 'tra-jose'), r.db), { cliente: { ...juan, activo: false, telefono: '600 000 000' } });
     expect(r2.ok && r2.db.contratos).toEqual(r.db.contratos);

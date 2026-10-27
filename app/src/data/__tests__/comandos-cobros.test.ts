@@ -58,6 +58,22 @@ describe('contratos con cobros', () => {
     expect(deJuan.filter((p) => p.contratoId === previo.id && p.estado === 'PENDIENTE' && p.mes >= mesPagado)).toHaveLength(0);
   });
 
+  it('0037: la contratación nueva sustituye los pendientes de un contrato anterior ya cerrado (no los ve como "ya apuntados")', () => {
+    const c0 = ctx();
+    const previo = c0.db.contratos.find((k) => k.id === 'con-juan')!;
+    const db1 = { ...c0.db, contratos: c0.db.contratos.map((k) => (k.id === previo.id ? { ...k, estado: 'FINALIZADO' as const } : k)),
+      pagos: [...c0.db.pagos, { id: 'resto', contratoId: previo.id, clienteId: 'juan', concepto: 'Resto', importeCentimos: 6500, venceEl: '2099-01-01', mes: '2099-01-01', estado: 'PENDIENTE' as const, metodo: null, pagadoEl: null, creadoEl: hoy }] };
+    const r = crearContrato({ ...c0, db: db1 }, {
+      contrato: { ...previo, fechaInicio: hoy, fechaFin: hoy, oferta: 'NINGUNA', importeCentimos: 5000, metodoPago: 'EFECTIVO' },
+      cobros: [{ concepto: 'Nuevo', importeCentimos: 5000, venceEl: hoy, mes: '2099-01-01', estado: 'PENDIENTE', metodo: null, pagadoEl: null }],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const enero = r.db.pagos.filter((p) => p.clienteId === 'juan' && p.mes === '2099-01-01');
+    expect(enero).toHaveLength(1);
+    expect(enero[0].concepto).toBe('Nuevo');
+  });
+
   it('editar: cambiar la franja rehace las reservas automáticas futuras', () => {
     const c0 = ctx();
     const contrato = c0.db.contratos.find((c) => c.id === 'con-juan')!;

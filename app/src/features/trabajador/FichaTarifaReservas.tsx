@@ -207,7 +207,9 @@ function HojaNuevaContratacion({ cliente, onCerrar }: { cliente: Cliente; onCerr
   const [primeroCobrado, setPrimeroCobrado] = useState(false);
   const [excluidas, setExcluidas] = useState<Set<string>>(new Set());
   const [guardando, setGuardando] = useState(false);
-  const yaApuntados = db.pagos.filter((p) => p.clienteId === cliente.id && p.estado !== 'CANCELADO');
+  // Lo que el plan nuevo no puede repetir: lo cobrado y los pendientes sueltos. Los pendientes de contratos
+  // anteriores los sustituye el plan (0029/0037), así que no cuentan como "ya apuntado".
+  const yaApuntados = db.pagos.filter((p) => p.clienteId === cliente.id && p.estado !== 'CANCELADO' && !(p.estado === 'PENDIENTE' && p.contratoId != null));
   const [incluirPasadas, setIncluirPasadas] = useState(false);
   const tarifa: Tarifa | undefined = tarifas.find((t) => t.id === tarifaId);
   const fin = finManual ?? (tarifa ? fechaFinPorDefecto(tarifa, inicio, sumarMeses) : inicio);
