@@ -175,7 +175,7 @@ select pruebas.espera_error(format('select public.reservar(%L)', pruebas.clase(p
 \echo
 \echo '== 5. Horario fijo (cliente B): no puede reservar fuera de su franja sin recuperación'
 select pruebas.como('b');
-select pruebas.espera_error(format('select public.reservar(%L)', pruebas.id('cl_lun_0900')), 'Tienes horario fijo.%');
+select pruebas.espera_error(format('select public.reservar(%L)', pruebas.id('cl_lun_0900')), 'Tienes horario fijo%');
 select pruebas.espera_error(format('select public.reservar(%L)', pruebas.id('cl_mar_1800')), 'Ya tienes plaza en esta clase.');
 
 \echo
@@ -1307,7 +1307,7 @@ update public.recuperaciones set estado = 'CADUCADA' where cliente_id = pruebas.
 begin;
 set local role authenticated;
 select pruebas.como('b');
-select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_x')), 'Tienes horario fijo.%');
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_x')), 'Tienes horario fijo%');
 select pruebas.como('admin');
 select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_x')), 'Solo los alumnos%');
 do $$ begin assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x')) = 2, 'el personal ve toda la lista'; end $$;
@@ -2054,6 +2054,127 @@ select pruebas.espera_error(format('select public.reactivar_clase(%L)', pruebas.
 commit;
 select pruebas.sistema();
 do $$ begin raise notice 'OK horario sin sorpresas'; end $$;
+
+\echo
+\echo '== 44. Reformer puede cambiar su clase por una dirigida; dirigidas a Reformer no (0034)'
+select pruebas.sistema();
+-- En la prueba los datos de ejemplo se cargan después de las migraciones: se repite aquí el ajuste que la 0034 hace con los datos reales.
+update public.tarifas t
+   set cupo_categorias_extra = array['DIRIGIDA']::public.categoria[]
+ where not ('DIRIGIDA' = any (t.cupo_categorias_extra))
+   and ((t.tipo = 'RECURRENTE'
+         and exists (select 1 from public.tarifa_cupos c where c.tarifa_id = t.id and c.categoria = 'REFORMER')
+         and not exists (select 1 from public.tarifa_cupos c where c.tarifa_id = t.id and c.categoria = 'DIRIGIDA'))
+        or (t.tipo = 'BONO' and t.bono_categoria = 'REFORMER'));
+do $$ begin
+  assert (select cupo_categorias_extra from public.tarifas where id = 'b0000000-0000-4000-8000-000000000003') = array['DIRIGIDA']::public.categoria[], 'Reformer 2 días: también dirigidas';
+  assert (select cupo_categorias_extra from public.tarifas where id = 'b0000000-0000-4000-8000-000000000007') = array['DIRIGIDA']::public.categoria[], 'Bono Reformer: también dirigidas';
+  assert (select cupo_categorias_extra from public.tarifas where id = 'b0000000-0000-4000-8000-000000000001') = '{}', 'Dirigidas: nada';
+  assert (select cupo_categorias_extra from public.tarifas where id = 'b0000000-0000-4000-8000-000000000005') = '{}', 'Mixta: nada (ya tiene las dos)';
+  assert public._categorias_permitidas_recuperacion('REFORMER', 'b0000000-0000-4000-8000-000000000003') = array['DIRIGIDA', 'REFORMER']::public.categoria[], 'sus recuperaciones valen en dirigidas';
+end $$;
+-- Alumna con Reformer 2 días/semana, horario fijo (lunes y miércoles 10:00). Semana que viene.
+select pruebas.guardar('cliente_rf', 'e0000000-0000-4000-8000-0000000000f5');
+select set_config('pruebas.u_rf', '20000000-0000-4000-8000-0000000000f5', false);
+insert into auth.users (id, email) values (pruebas.id('u_rf'), 'refor@test.local') on conflict (id) do nothing;
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_id) values
+  (pruebas.id('cliente_rf'), 'Refor', 'Mera', '44444444R', 'refor@test.local', '600 000 044', pruebas.id('u_rf')) on conflict (id) do nothing;
+select pruebas.como('admin');
+select pruebas.guardar('con_rf', public.crear_contrato(pruebas.id('cliente_rf'), 'b0000000-0000-4000-8000-000000000003', public._hoy(), public._hoy() + 60, 'FIJO',
+  array['d0000000-0000-4000-8000-000000000004'::uuid, 'd0000000-0000-4000-8000-000000000005'::uuid])::text);
+select pruebas.guardar('sem_rf', (public._inicio_semana(public._hoy()) + 7)::text);
+select pruebas.guardar('cl_rf_lun', pruebas.clase('d0000000-0000-4000-8000-000000000004', pruebas.fecha('sem_rf'))::text);           -- lunes 10:00 reformer (suya)
+-- Dos clases dirigidas de esa semana, programadas y con plaza (otros bloques cancelan alguna).
+select pruebas.guardar('cl_rf_mar', (select c.id from public.clases c join public.actividades a on a.id = c.actividad_id
+  where a.categoria = 'DIRIGIDA' and c.estado = 'PROGRAMADA' and c.fecha between pruebas.fecha('sem_rf') and pruebas.fecha('sem_rf') + 6
+    and c.plazas > (select count(*) from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA')
+  order by c.fecha, c.hora_inicio limit 1)::text);
+select pruebas.guardar('cl_rf_jue', (select c.id from public.clases c join public.actividades a on a.id = c.actividad_id
+  where a.categoria = 'DIRIGIDA' and c.estado = 'PROGRAMADA' and c.fecha between pruebas.fecha('sem_rf') and pruebas.fecha('sem_rf') + 6
+    and c.plazas > (select count(*) from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') and c.id <> pruebas.id('cl_rf_mar')
+  order by c.fecha, c.hora_inicio limit 1)::text);
+do $$
+declare r jsonb;
+begin
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_rf_lun') and cliente_id = pruebas.id('cliente_rf') and estado = 'RESERVADA'), 'tiene su Reformer del lunes';
+  -- Con sus dos Reformer de la semana: la dirigida solo con recuperación.
+  r := public._evaluar_reserva(pruebas.id('cl_rf_mar'), pruebas.id('cliente_rf'));
+  assert (r->>'ok')::boolean = false and r->>'codigo' = 'HORARIO_FIJO', format('con sus clases, bloqueada (%s)', r);
+end $$;
+-- Cancela su Reformer del lunes con antelación: la recuperación (válida en dirigidas) es lo que usa en el martes; con
+-- horario fijo esa clase no cuenta dos veces. Después ya tiene sus dos: una tercera, no.
+select pruebas.como('rf');
+select public.cancelar_reserva((select id from public.reservas where clase_id = pruebas.id('cl_rf_lun') and cliente_id = pruebas.id('cliente_rf')));
+do $$
+declare r jsonb;
+begin
+  assert exists (select 1 from public.recuperaciones where cliente_id = pruebas.id('cliente_rf') and estado = 'DISPONIBLE' and 'DIRIGIDA' = any (categorias_permitidas)), 'la recuperación de Reformer vale en dirigidas';
+  r := public._evaluar_reserva(pruebas.id('cl_rf_mar'), pruebas.id('cliente_rf'));
+  assert (r->>'ok')::boolean and r->>'via' = 'RECUPERACION', format('con la recuperación, no dos veces (%s)', r);
+  perform public.reservar(pruebas.id('cl_rf_mar'));
+  r := public._evaluar_reserva(pruebas.id('cl_rf_jue'), pruebas.id('cliente_rf'));
+  assert (r->>'ok')::boolean = false and r->>'codigo' = 'HORARIO_FIJO', format('una tercera no (%s)', r);
+end $$;
+-- Esa semana no tiene plaza en su Reformer del miércoles (la clase estaba llena): puede usar esa clase en una dirigida a cambio.
+select pruebas.sistema();
+delete from public.reservas where cliente_id = pruebas.id('cliente_rf') and clase_id = pruebas.clase('d0000000-0000-4000-8000-000000000005', pruebas.fecha('sem_rf') + 2);
+select pruebas.como('rf');
+do $$
+declare r jsonb;
+begin
+  r := public._evaluar_reserva(pruebas.id('cl_rf_jue'), pruebas.id('cliente_rf'));
+  assert (r->>'ok')::boolean and r->>'via' = 'CUPO_SEMANAL' and r->>'mensaje' like 'A cambio%', format('sin su clase esa semana, a cambio (%s)', r);
+end $$;
+-- Turno libre con la misma tarifa: dos clases a la semana, de Reformer o dirigidas, no tres.
+select pruebas.sistema();
+update public.contratos set modalidad = 'LIBRE' where id = pruebas.id('con_rf');
+delete from public.contrato_franjas where contrato_id = pruebas.id('con_rf');
+delete from public.reservas where cliente_id = pruebas.id('cliente_rf') and clase_id in (select id from public.clases where fecha >= pruebas.fecha('sem_rf'));
+delete from public.recuperaciones where cliente_id = pruebas.id('cliente_rf');
+select pruebas.como('rf');
+do $$
+declare r jsonb;
+begin
+  r := public._evaluar_reserva(pruebas.id('cl_rf_mar'), pruebas.id('cliente_rf'));
+  assert (r->>'ok')::boolean and r->>'via' = 'CUPO_SEMANAL' and r->>'mensaje' like '%a cambio%', format('dirigida a cambio (%s)', r);
+  perform public.reservar(pruebas.id('cl_rf_mar'));
+  perform public.reservar(pruebas.id('cl_rf_lun'));
+  r := public._evaluar_reserva(pruebas.id('cl_rf_jue'), pruebas.id('cliente_rf'));
+  assert (r->>'ok')::boolean = false and r->>'codigo' = 'CUPO_AGOTADO', format('tercera no (%s)', r);
+end $$;
+-- Al revés no: la alumna de dirigidas (cliente_a) sigue sin poder reservar Reformer.
+select pruebas.como('a');
+do $$
+declare r jsonb;
+begin
+  r := public._evaluar_reserva(pruebas.id('cl_rf_lun'), pruebas.id('cliente_a'));
+  assert (r->>'ok')::boolean = false and r->>'codigo' = 'ACTIVIDAD_NO_PERMITIDA', format('dirigidas a Reformer no (%s)', r);
+end $$;
+-- "A cambio de otra clase mía": Reformer → dirigida sí; dirigida → Reformer no.
+select pruebas.sistema();
+do $$
+declare v_res public.reservas; v_cl public.clases; v_motivo text;
+begin
+  select * into v_res from public.reservas where clase_id = pruebas.id('cl_rf_lun') and cliente_id = pruebas.id('cliente_rf') and estado = 'RESERVADA';
+  select * into v_cl from public.clases where id = pruebas.id('cl_rf_jue');
+  v_motivo := public._motivo_no_cambio(v_res, v_cl);
+  assert v_motivo is null, format('Reformer por dirigida, cambio permitido (%s)', v_motivo);
+  select * into v_res from public.reservas where clase_id = pruebas.id('cl_rf_mar') and cliente_id = pruebas.id('cliente_rf') and estado = 'RESERVADA';
+  -- Su reserva de dirigida (con tarifa Reformer) sí puede cambiarse por Reformer: es su categoría.
+  select * into v_cl from public.clases where id = pruebas.clase('d0000000-0000-4000-8000-000000000005', pruebas.fecha('sem_rf') + 2);
+  assert public._motivo_no_cambio(v_res, v_cl) is null, 'vuelta a Reformer';
+  -- Una alumna de dirigidas no puede cambiar por Reformer.
+  select * into v_res from public.reservas r where r.cliente_id = pruebas.id('cliente_a') and r.estado = 'RESERVADA'
+    and exists (select 1 from public.clases c where c.id = r.clase_id and c.fecha >= public._hoy() + 2) order by r.creado_el limit 1;
+  if v_res.id is not null then
+    select * into v_cl from public.clases c join public.actividades a on a.id = c.actividad_id
+     where a.categoria = 'REFORMER' and c.estado = 'PROGRAMADA' and public._inicio_semana(c.fecha) = public._inicio_semana((select fecha from public.clases where id = v_res.clase_id)) limit 1;
+    if v_cl.id is not null then
+      assert public._motivo_no_cambio(v_res, v_cl) like 'No se puede cambiar%', 'dirigidas por Reformer, no';
+    end if;
+  end if;
+  raise notice 'OK Reformer también en dirigidas';
+end $$;
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

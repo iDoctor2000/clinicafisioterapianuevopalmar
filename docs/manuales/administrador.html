@@ -328,6 +328,7 @@
     <tr><td><strong>Precio (€)</strong></td><td>Se muestra a los clientes en "Tarifas del centro" y en la web, y es el importe que la app propone al hacer una contratación nueva.</td></tr>
     <tr><td><strong>Descripción</strong></td><td>El texto que se ve en la app y en la web. Si la tarifa tiene oferta trimestral, escríbela así: <em>"Oferta trimestral: 65 € (mes 1), 65 € (mes 2), 0 € (mes 3)."</em> La app lee esos importes y rellena sola el plan de cobros cuando eliges "Trimestral" al contratar.</td></tr>
     <tr><td><strong>Sesiones / Validez (meses)</strong></td><td>Solo bonos: cuántas sesiones y cuánto duran.</td></tr>
+    <tr><td><strong>Sus clases también valen para</strong></td><td>Permite que un alumno con esta tarifa vaya a una clase de otra categoría <strong>a cambio de una de las suyas</strong>: cuenta como una de sus clases de la semana (o una sesión del bono), y sus recuperaciones también sirven ahí. Es de un solo sentido: en las tarifas de Reformer está marcado "Actividades dirigidas" (quien tiene Reformer puede ir a una dirigida), y en las de dirigidas no está marcado nada (no pueden ir a Reformer).</td></tr>
     <tr><td><strong>Permite recuperar clases</strong></td><td>Si una cancelación a tiempo genera recuperación.</td></tr>
     <tr><td><strong>Máximo de recuperaciones pendientes</strong></td><td>Tope de recuperaciones sin usar que puede acumular un cliente con esta tarifa.</td></tr>
     <tr><td><strong>Orden</strong></td><td>Posición en la lista que ven los clientes.</td></tr>
@@ -651,6 +652,7 @@
         <tr><td><code>supabase/migrations/0031_baja_cierra_contrato.sql</code></td><td>Al dar de baja a un alumno se finaliza su contrato y se le quitan las clases futuras. Hace lo mismo con los que ya estaban de baja.</td></tr>
         <tr><td><code>supabase/migrations/0032_vuelve_a_la_misma_clase.sql</code></td><td>Si un alumno vuelve a una clase que había cancelado (o de la que se le quitó), deja de salir en Cancelaciones y la recuperación que le dio esa cancelación se anula si no la ha usado.</td></tr>
         <tr><td><code>supabase/migrations/0033_horario_sin_sorpresas.sql</code></td><td>Cambiar una franja no toca las clases ya dadas; si se deshace un cambio, las clases canceladas vuelven solas; botón «Reactivar clase». Reactiva, una vez, las que se cancelaron por error.</td></tr>
+        <tr><td><code>supabase/migrations/0034_clases_tambien_en.sql</code></td><td>Ajuste por tarifa "Sus clases también valen para": las tarifas de Reformer pueden cambiar una clase por una dirigida (no al revés).</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
@@ -730,6 +732,9 @@
 
     <dt>Un cliente sale con "Pago pendiente" pero ya ha pagado.</dt>
     <dd>Falta apuntarlo: en su ficha → Tarifa → tarjeta Cobros, toca <em>Cobrar</em> en ese mes. La etiqueta desaparece al momento.</dd>
+
+    <dt>Una alumna de Reformer quiere ir esta semana a una dirigida en vez de a su Reformer.</dt>
+    <dd>Puede, porque su tarifa tiene marcado "Sus clases también valen para: Actividades dirigidas" (Tarifas). Cómo lo hace ella desde la app: cancela su Reformer <strong>con la antelación que marca Ajustes</strong> (así le queda una recuperación, que vale en dirigidas) y reserva la dirigida; o, si la dirigida está completa, se apunta a la lista de espera "a cambio de" su Reformer. Si lo hace tarde (sin antelación), pierde la clase igual que con cualquier cancelación tardía: entonces la apuntáis vosotros desde la clase con <em>Añadir alumno</em> → "Añadir de todos modos (manual)". Al revés (dirigidas → Reformer) no se puede.</dd>
 
     <dt>Se ha cancelado una clase sin querer (al cambiar el horario, o a mano).</dt>
     <dd>Abre la clase en el calendario y pulsa <span class="btn claro">Reactivar clase</span>: vuelve a estar programada, sus alumnos recuperan la plaza, se les retira la recuperación que se les dio por la cancelación y, si la clase es futura, reciben un aviso de que se mantiene. Si fue por un cambio en una franja, también basta con dejar la franja como estaba: sus clases vuelven solas.</dd>

@@ -43,6 +43,7 @@ export function Tarifas() {
                   <Chip tono="gris">{TIPO[t.tipo]}</Chip>
                   {t.cupos.map((c) => <Chip key={c.categoria} tono="beige">{c.sesionesSemana}/sem {CATEGORIA_LABEL[c.categoria].toLowerCase()}</Chip>)}
                   {t.bono && <Chip tono="cocoa">{t.bono.sesiones} sesiones · {t.bono.validezMeses} meses</Chip>}
+                  {t.clasesTambienEn.map((c) => <Chip key={c} tono="azul">también {CATEGORIA_LABEL[c].toLowerCase()}</Chip>)}
                   {t.recuperacion.permitida ? <Chip tono="azul">Recuperable{t.recuperacion.maxPendientes != null ? ` (máx. ${t.recuperacion.maxPendientes})` : ''}</Chip> : <Chip tono="rojo">Sin recuperación</Chip>}
                   {!t.activa && <Chip tono="gris">Inactiva</Chip>}
                 </div>
@@ -72,7 +73,10 @@ export function Tarifas() {
 
 function HojaTarifa({ tarifa, orden, onCerrar }: { tarifa: Tarifa | null; orden: number; onCerrar: () => void }) {
   const { ejecutar } = useTrabajador();
-  const [f, setF] = useState<Omit<Tarifa, 'id'>>(tarifa ?? { nombre: '', descripcion: '', tipo: 'RECURRENTE', cupos: [{ categoria: 'DIRIGIDA', sesionesSemana: 2 }], bono: null, recuperacion: { permitida: true, categoriasExtra: [], maxPendientes: null }, precioCentimos: null, activa: true, orden });
+  const [f, setF] = useState<Omit<Tarifa, 'id'>>(tarifa ?? { nombre: '', descripcion: '', tipo: 'RECURRENTE', cupos: [{ categoria: 'DIRIGIDA', sesionesSemana: 2 }], bono: null, recuperacion: { permitida: true, categoriasExtra: [], maxPendientes: null }, clasesTambienEn: [], precioCentimos: null, activa: true, orden });
+  // Categorías que no son de la tarifa: en las que podrían valer sus clases "a cambio" (0034).
+  const propias = new Set<Categoria>(f.tipo === 'BONO' ? (f.bono ? [f.bono.categoria] : []) : f.cupos.filter((c) => c.sesionesSemana > 0).map((c) => c.categoria));
+  const ajenas = CATS.filter((c) => !propias.has(c));
   const [precio, setPrecio] = useState(tarifa?.precioCentimos != null ? (tarifa.precioCentimos / 100).toFixed(2) : '');
   const cupo = (c: Categoria) => f.cupos.find((x) => x.categoria === c)?.sesionesSemana ?? 0;
   const setCupo = (c: Categoria, n: number) => setF({ ...f, cupos: [...f.cupos.filter((x) => x.categoria !== c), ...(n > 0 ? [{ categoria: c, sesionesSemana: n }] : [])] });
@@ -106,6 +110,15 @@ function HojaTarifa({ tarifa, orden, onCerrar }: { tarifa: Tarifa | null; orden:
             <Entrada etiqueta="Sesiones" type="number" min={1} value={f.bono.sesiones} onChange={(e) => setF({ ...f, bono: { ...f.bono!, sesiones: Number(e.target.value) } })} />
             <Seleccion etiqueta="Categoría" value={f.bono.categoria} onChange={(e) => setF({ ...f, bono: { ...f.bono!, categoria: e.target.value as Categoria } })}>{CATS.map((c) => <option key={c} value={c}>{CATEGORIA_LABEL[c]}</option>)}</Seleccion>
             <Entrada etiqueta="Validez (meses)" type="number" min={1} value={f.bono.validezMeses} onChange={(e) => setF({ ...f, bono: { ...f.bono!, validezMeses: Number(e.target.value) } })} />
+          </div>
+        )}
+        {(f.tipo === 'RECURRENTE' || f.tipo === 'BONO') && ajenas.length > 0 && (
+          <div>
+            <span className="block text-[15px] font-semibold mb-1.5">Sus clases también valen para</span>
+            <div className="flex gap-2">
+              {ajenas.map((c) => { const on = f.clasesTambienEn.includes(c); return <button key={c} type="button" aria-pressed={on} onClick={() => setF({ ...f, clasesTambienEn: on ? f.clasesTambienEn.filter((x) => x !== c) : [...f.clasesTambienEn, c] })} className={cn('h-10 px-4 rounded-xl border font-semibold text-sm tap', on ? 'bg-sky text-white border-sky' : 'bg-white border-ink/10')}>{CATEGORIA_LABEL[c]}</button>; })}
+            </div>
+            <p className="text-xs text-ink-muted mt-1">Un alumno con esta tarifa puede ir a una clase de esa categoría a cambio de una de las suyas (cuenta como clase de la semana o sesión del bono), y usar ahí sus recuperaciones. Al revés no, salvo que se marque en la otra tarifa.</p>
           </div>
         )}
         <div className="rounded-2xl border border-ink/10 px-4 divide-y divide-ink/5">

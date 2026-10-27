@@ -62,12 +62,12 @@ describe('actividades y tarifas', () => {
   it('tarifa recurrente con cupos', () => {
     const fila: FilaTarifa = {
       id: U1, nombre: 'Mixta', descripcion: '', tipo: 'RECURRENTE', bono_sesiones: null, bono_categoria: null, bono_validez_meses: null,
-      recuperacion_permitida: true, recuperacion_categorias_extra: ['DIRIGIDA'], recuperacion_max_pendientes: 3, precio_centimos: 4500, activa: true, orden: 5,
+      recuperacion_permitida: true, recuperacion_categorias_extra: ['DIRIGIDA'], recuperacion_max_pendientes: 3, cupo_categorias_extra: [], precio_centimos: 4500, activa: true, orden: 5,
     };
     const t = aTarifa(fila, [{ tarifa_id: U1, categoria: 'REFORMER', sesiones_semana: 1 }, { tarifa_id: U1, categoria: 'DIRIGIDA', sesiones_semana: 1 }, { tarifa_id: U2, categoria: 'DIRIGIDA', sesiones_semana: 3 }]);
     expect(t).toEqual<Tarifa>({
       id: U1, nombre: 'Mixta', descripcion: '', tipo: 'RECURRENTE', cupos: [{ categoria: 'REFORMER', sesionesSemana: 1 }, { categoria: 'DIRIGIDA', sesionesSemana: 1 }], bono: null,
-      recuperacion: { permitida: true, categoriasExtra: ['DIRIGIDA'], maxPendientes: 3 }, precioCentimos: 4500, activa: true, orden: 5,
+      recuperacion: { permitida: true, categoriasExtra: ['DIRIGIDA'], maxPendientes: 3 }, clasesTambienEn: [], precioCentimos: 4500, activa: true, orden: 5,
     });
     const { tarifa, cupos } = deTarifa(t);
     expect(tarifa).toEqual(fila);
@@ -76,11 +76,12 @@ describe('actividades y tarifas', () => {
   it('bono', () => {
     const fila: FilaTarifa = {
       id: U2, nombre: 'Bono 10', descripcion: '', tipo: 'BONO', bono_sesiones: 10, bono_categoria: 'DIRIGIDA', bono_validez_meses: 6,
-      recuperacion_permitida: false, recuperacion_categorias_extra: [], recuperacion_max_pendientes: null, precio_centimos: null, activa: false, orden: 1,
+      recuperacion_permitida: false, recuperacion_categorias_extra: [], recuperacion_max_pendientes: null, cupo_categorias_extra: ['DIRIGIDA'], precio_centimos: null, activa: false, orden: 1,
     };
     const t = aTarifa(fila, []);
     expect(t.bono).toEqual({ sesiones: 10, categoria: 'DIRIGIDA', validezMeses: 6 });
     expect(t.cupos).toEqual([]);
+    expect(t.clasesTambienEn).toEqual(['DIRIGIDA']);
     expect(deTarifa(t).tarifa).toEqual(fila);
     expect(deTarifa(t).cupos).toEqual([]);
   });

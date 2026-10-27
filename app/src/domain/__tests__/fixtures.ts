@@ -17,11 +17,15 @@ export const actividadesPorId = new Map([[actDirigida.id, actDirigida], [actRefo
 export const tarifaDir2: Tarifa = {
   id: 't-dir2', nombre: 'Dirigidas 2 días', descripcion: '', tipo: 'RECURRENTE',
   cupos: [{ categoria: 'DIRIGIDA', sesionesSemana: 2 }], bono: null,
-  recuperacion: { permitida: true, categoriasExtra: [], maxPendientes: null }, precioCentimos: null, activa: true, orden: 1,
+  recuperacion: { permitida: true, categoriasExtra: [], maxPendientes: null }, clasesTambienEn: [], precioCentimos: null, activa: true, orden: 1,
 };
 export const tarifaMixta: Tarifa = {
   ...tarifaDir2, id: 't-mixta', nombre: 'Mixta',
   cupos: [{ categoria: 'DIRIGIDA', sesionesSemana: 1 }, { categoria: 'REFORMER', sesionesSemana: 1 }],
+};
+/** Reformer 1 día/semana, y sus clases también valen para dirigidas (0034). */
+export const tarifaRef1: Tarifa = {
+  ...tarifaDir2, id: 't-ref1', nombre: 'Reformer 1 día', cupos: [{ categoria: 'REFORMER', sesionesSemana: 1 }], clasesTambienEn: ['DIRIGIDA'],
 };
 export const tarifaBonoDir: Tarifa = {
   ...tarifaDir2, id: 't-bono', nombre: 'Bono 10 dirigidas', tipo: 'BONO', cupos: [],
