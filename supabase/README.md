@@ -339,3 +339,40 @@ la app, las clases futuras de esa franja se recrean con los datos nuevos. Se eli
 hoy sin reservas o solo con reservas automáticas (horario fijo, que se regeneran); las que tienen reservas de
 clientes o del centro se conservan y la función devuelve cuántas son (la app lo avisa). Requiere
 `HORARIOS_GESTIONAR` y ámbito "Todo el centro". Aplicación: pega el archivo en **SQL Editor → Run**.
+
+## Bot de Telegram: el informe de uso en el móvil (`/informe`)
+
+Bot privado: el administrador escribe `/informe` en Telegram y recibe cómo va la app (alumnos que la
+usan, qué hacen, avisos leídos, uso del equipo, pasar lista, errores que ha visto la gente y señales de
+fallo). Sin datos personales (iniciales). Piezas: la migración `0036_informe_telegram.sql` (función
+`informe_uso`, solo para el servidor) y la Edge Function `supabase/functions/telegram/`.
+
+Órdenes: `/informe` (7 días), `/informe 30`, `/hoy`, `/errores`, `/ayuda`.
+
+### Activarlo (una sola vez, unos 10 minutos)
+
+1. **Crear el bot.** En Telegram, abre **@BotFather** → `/newbot` → nombre (por ejemplo
+   "Nuevo Palmar informes") → usuario (tiene que acabar en `bot`, por ejemplo `NuevoPalmarInformesBot`).
+   Te da un **token** (`123456:ABC...`). Es la llave del bot: no lo compartas con nadie ni lo pegues en
+   ningún chat. Usa un bot nuevo: un bot solo puede mandar sus mensajes a un sitio, y si reutilizas el de
+   otra app, esa dejaría de funcionar.
+2. **Inventar un secreto** para que solo Telegram pueda hablar con la función: una frase larga sin
+   espacios, solo letras, números, `-` y `_` (por ejemplo `NuevoPalmar_bot_2026-informes-x7Kq`).
+3. **Supabase → Edge Functions → Secrets** → añade:
+   - `TELEGRAM_SECRETO` = el secreto del paso 2.
+   - `TELEGRAM_CHATS` = de momento `0` (en el paso 7 pondrás tu número).
+4. **Supabase → Edge Functions → Deploy a new function → "Via Editor"**. Nombre: `telegram`. Pega el
+   contenido de `supabase/functions/telegram/index.ts`. **Desactiva "Verify JWT"** (Telegram no manda
+   sesión; la seguridad la dan el secreto y la lista de chats). Deploy.
+   (Con la CLI: `supabase functions deploy telegram --no-verify-jwt`.)
+5. **Conectar Telegram con la función.** En el navegador del ordenador, abre esta dirección cambiando
+   `TOKEN` y `SECRETO` por los tuyos (todo en una línea):
+   `https://api.telegram.org/botTOKEN/setWebhook?url=https://mgiekkqbgptxmqcrhxlr.supabase.co/functions/v1/telegram&secret_token=SECRETO&drop_pending_updates=true`
+   Debe contestar `"Webhook was set"`.
+6. En Telegram, busca tu bot y escríbele `/informe`. Te contestará "Este bot es privado. Tu número de
+   chat es 12345678".
+7. Vuelve a **Secrets** y cambia `TELEGRAM_CHATS` por ese número (si lo usan más personas, sus números
+   separados por comas). Escribe otra vez `/informe`: ya te llega el informe.
+
+Si no contesta: Supabase → Edge Functions → `telegram` → Logs. Para comprobar la conexión con
+Telegram: `https://api.telegram.org/botTOKEN/getWebhookInfo` (mira `last_error_message`).
