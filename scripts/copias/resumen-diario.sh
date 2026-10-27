@@ -176,7 +176,8 @@ select line from (
         ('0029', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'pagos' and column_name = 'mes')),
         ('0030', not exists (select 1 from public.pagos where lower(concepto) ~ '^(mes \d+|renovación) · ')),
         ('0031', exists (select 1 from pg_trigger where tgname = 'clientes_baja')),
-        ('0032', exists (select 1 from pg_trigger where tgname = 'reservas_vuelve')))
+        ('0032', exists (select 1 from pg_trigger where tgname = 'reservas_vuelve')),
+        ('0033', to_regprocedure('public.reactivar_clase(uuid)') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Ban, Bell, Check, Clock, Hourglass, Lock, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { AlertTriangle, Ban, Bell, Check, Clock, Hourglass, Lock, RotateCcw, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { MENSAJE_CLASE_AJENA } from '@/domain/ambito';
 import { HITOS_CLASES, esCumpleanos } from '@/domain/logros';
 import { conteoClases } from '@/data/logros';
@@ -27,6 +27,7 @@ export function DetalleClase() {
   const [cancelar, setCancelar] = useState(false);
   const [quitar, setQuitar] = useState<Reserva | null>(null);
   const [quitarEspera, setQuitarEspera] = useState<EsperaDeClase | null>(null);
+  const [reactivar, setReactivar] = useState(false);
   // Antes de cualquier salida anticipada (regla de los hooks): solo para las clases de hoy.
   const esDeHoy = clase?.fecha === hoyISO();
   const ganador = useGanadorVigente();
@@ -49,6 +50,16 @@ export function DetalleClase() {
   const cs = clasesSueltasDe(vista);
   const espera = listaEsperaDeClase(db, clase.id);
   const esperaCerrada = listaEsperaCerrada(clase, ahora);
+
+  const confirmarReactivar = async () => {
+    const res = await ejecutar('reactivarClase', { claseId: clase.id });
+    setReactivar(false);
+    if (!res.ok) return toast.error(res.error);
+    const { vuelven, sinPlaza } = res.valor;
+    toast.ok(`Clase reactivada.${vuelven > 0 ? ` ${vuelven === 1 ? '1 alumno vuelve' : `${vuelven} alumnos vuelven`} a tener su plaza${pasada ? '' : ' y se les ha avisado'}.` : ''}${sinPlaza > 0 ? ` ${sinPlaza === 1 ? '1 alumno no' : `${sinPlaza} alumnos no`}: ya había gastado lo que se le devolvió; apúntalo a mano si hace falta.` : ''}`);
+  };
+  // Alumnos que perdieron la plaza al cancelarse (los que la recuperan al reactivar).
+  const perdieronPlaza = cancelada ? vista.reservas.filter((r) => r.estado === 'CANCELADA_CENTRO' && clase.canceladaEl != null && r.canceladaEl === clase.canceladaEl).length : 0;
 
   const marcar = async (r: Reserva, asistencia: 'ASISTE' | 'NO_ASISTE') => {
     const res = await ejecutar('registrarAsistencia', { reservaId: r.id, asistencia: r.asistencia === asistencia ? 'PENDIENTE' : asistencia });
@@ -82,6 +93,9 @@ export function DetalleClase() {
             <p className="font-semibold text-rose">Clase cancelada</p>
             <p className="text-ink-soft">{clase.motivoCancelacion || 'Sin motivo indicado.'}</p>
             {alternativa && <p className="text-sm mt-1">Alternativa propuesta: <Link className="font-semibold text-sky underline" to={`/clase/${alternativa.id}`}>{fechaCorta(alternativa.fecha)} a las {alternativa.horaInicio}</Link></p>}
+            {puede('CLASES_CREAR_CANCELAR') && (
+              <Boton className="mt-3" variante="secundario" tamano="sm" onClick={() => setReactivar(true)}><RotateCcw className="h-4 w-4" /> Reactivar clase</Boton>
+            )}
           </div>
         </div>
       )}
@@ -200,6 +214,11 @@ export function DetalleClase() {
 
       <HojaAnadirAlumno abierta={anadir} onCerrar={() => setAnadir(false)} claseId={clase.id} yaApuntados={activas.map((r) => r.clienteId)} />
       <HojaCancelarClase abierta={cancelar} onCerrar={() => setCancelar(false)} claseId={clase.id} afectados={activas.length} />
+      <Confirmacion abierta={reactivar} onCerrar={() => setReactivar(false)} titulo="Reactivar clase" textoConfirmar="Reactivar clase" onConfirmar={() => void confirmarReactivar()}>
+        <p>La clase vuelve a estar programada{perdieronPlaza > 0 ? <> y <strong className="text-ink">{perdieronPlaza === 1 ? 'el alumno que estaba apuntado recupera' : `los ${perdieronPlaza} alumnos que estaban apuntados recuperan`}</strong> su plaza</> : ''}.</p>
+        {perdieronPlaza > 0 && <p>La recuperación que se les dio por la cancelación se retira (si no la han usado){pasada ? '.' : ', desaparece el aviso de «Clase cancelada» y reciben otro diciendo que la clase se mantiene.'}</p>}
+        {!pasada && <p>Los alumnos de horario fijo de esta franja que no estaban se apuntan solos si hay sitio.</p>}
+      </Confirmacion>
       <Confirmacion abierta={quitar != null} onCerrar={() => setQuitar(null)} titulo="Quitar de la clase" textoConfirmar="Quitar alumno" peligro onConfirmar={confirmarQuitar}>
         <p><strong className="text-ink">{nombreCompleto(clientes.get(quitar?.clienteId ?? ''))}</strong> dejará de estar apuntado/a a esta clase.</p>
         <p>No se le penaliza: se le devuelve el derecho (recuperación, sesión de bono o recuperación consumida) para que pueda usarlo en otra clase.</p>

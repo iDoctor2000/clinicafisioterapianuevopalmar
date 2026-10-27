@@ -127,6 +127,12 @@ const impl: Impl = {
     return () => ({ afectados: Number(afectados) || 0 });
   },
 
+  async reactivarClase(args) {
+    const r = await rpc<{ vuelven: number; sin_plaza: number; aviso: string | null }>('reactivar_clase', { p_clase_id: args.claseId });
+    enviarPushAvisos(r?.aviso ? [r.aviso] : []);
+    return () => ({ vuelven: Number(r?.vuelven) || 0, sinPlaza: Number(r?.sin_plaza) || 0 });
+  },
+
   async crearClaseExtraordinaria(args) {
     const id = nuevoUuid();
     comprobar(await servidor().from('clases').insert(deClaseNueva({ id, ...args })));
@@ -144,11 +150,11 @@ const impl: Impl = {
     // Al editar, el servidor recrea las clases futuras de la franja (0011) y, si la franja se
     // desactiva o termina su vigencia, cancela las que tienen alumnos avisándoles (0020).
     // Antes de la 0020 devolvía solo un número (las conservadas): se aceptan las dos formas.
-    const res = existe ? await rpc<number | { conservadas: number; canceladas: number; afectados: number; avisos: string[] }>('plantilla_aplicar_cambios', { p_plantilla_id: p.id }) : 0;
-    const r = typeof res === 'object' && res ? res : { conservadas: Number(res) || 0, canceladas: 0, afectados: 0, avisos: [] as string[] };
+    const res = existe ? await rpc<number | { conservadas: number; canceladas: number; afectados: number; reactivadas?: number; avisos: string[] }>('plantilla_aplicar_cambios', { p_plantilla_id: p.id }) : 0;
+    const r = typeof res === 'object' && res ? res : { conservadas: Number(res) || 0, canceladas: 0, afectados: 0, reactivadas: 0, avisos: [] as string[] };
     await regenerarClases();
     enviarPushAvisos(r.avisos ?? []);
-    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, avisoIds: r.avisos ?? [] });
+    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, reactivadas: r.reactivadas ?? 0, avisoIds: r.avisos ?? [] });
   },
 
   async eliminarPlantilla(args) {
