@@ -17,6 +17,10 @@ on:
         description: 'Diagnóstico anónimo de reservas y contratos: días hacia atrás (vacío = no hacerlo)'
         default: ''
         required: false
+      informe_uso:
+        description: 'Informe anónimo de uso de la app y de los errores que ha visto la gente: días hacia atrás (vacío = no hacerlo)'
+        default: ''
+        required: false
       revisar_cobros:
         description: 'Revisión anónima de los cobros de todos los alumnos (sí = hacerla; o el número de una ejecución anterior para compararlos con su copia)'
         default: ''
@@ -123,6 +127,14 @@ jobs:
         run: bash scripts/diagnostico/diagnostico.sh "${{ github.event.inputs.diagnostico_dias }}"
 
       # GitHub desactiva las tareas programadas de un repositorio público tras 60 días sin cambios.
+      - name: Informe de uso y errores (sin datos personales)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.informe_uso != ''
+        continue-on-error: true
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash scripts/diagnostico/uso.sh "${{ github.event.inputs.informe_uso }}"
+
       - name: Revisión de cobros (sin datos personales)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.revisar_cobros != ''
         continue-on-error: true

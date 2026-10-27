@@ -2177,4 +2177,42 @@ begin
 end $$;
 
 \echo
+\echo '== 45. Registro de errores que ve la gente (0035)'
+select pruebas.sistema();
+delete from public.errores_app;
+-- Un alumno (rol authenticated) anota un error; no puede leer la tabla.
+begin;
+set local role authenticated;
+select pruebas.como('a');
+select public.registrar_error_app('pantalla', 'No quedan plazas libres.', '#/horario', '', '2026-10-27', 'prueba');
+select public.registrar_error_app('rara', repeat('x', 900));
+do $$ begin assert (select count(*) from public.errores_app) = 0, 'un alumno no lee los errores'; end $$;
+commit;
+-- Sin sesión (pantalla de entrar).
+begin;
+set local role anon;
+select pruebas.sistema();
+select public.registrar_error_app('fallo', 'Error JS: algo', '#/entrar');
+commit;
+-- El administrador sí los lee.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$ begin
+  assert (select count(*) from public.errores_app) = 3, format('tres errores (%s)', (select count(*) from public.errores_app));
+  assert exists (select 1 from public.errores_app where tipo_usuario = 'ALUMNO' and tipo = 'pantalla' and pantalla = '#/horario'), 'el del alumno';
+  assert exists (select 1 from public.errores_app where tipo = 'fallo' and length(mensaje) = 500), 'tipo raro → fallo, mensaje recortado';
+  assert exists (select 1 from public.errores_app where tipo_usuario = 'SIN_SESION'), 'el de sin sesión';
+end $$;
+commit;
+-- Recepción no los lee (solo administración).
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+do $$ begin assert (select count(*) from public.errores_app) = 0, 'recepción no los lee'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin raise notice 'OK registro de errores'; end $$;
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

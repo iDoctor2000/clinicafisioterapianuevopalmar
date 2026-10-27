@@ -72,6 +72,54 @@ export function registrar(tipo: TipoEvento, mensaje: string, datos?: unknown): v
   eventos.push({ t: new Date().toISOString(), tipo, mensaje, datos: datos === undefined ? undefined : resumir(datos) });
   if (eventos.length > MAX_EVENTOS) eventos = eventos.slice(eventos.length - MAX_EVENTOS);
   guardar();
+  notificarSiEsError(tipo, mensaje, datos);
+}
+
+// ---------------------------------------------------------------------------
+// 0035: los errores que ve el usuario también se anotan en el servidor
+// ---------------------------------------------------------------------------
+
+export interface ErrorParaServidor {
+  /** pantalla: mensaje rojo; accion: algo que se intentó y no se pudo; fallo: error de la propia app. */
+  tipo: 'pantalla' | 'accion' | 'fallo';
+  mensaje: string;
+  pantalla: string;
+  detalle: string;
+}
+
+let enviarError: ((e: ErrorParaServidor) => void) | null = null;
+const ultimoEnvio = new Map<string, number>();
+let enviadosEnSesion = 0;
+const MAX_ENVIOS_SESION = 30;
+const REPETIR_TRAS_MS = 10 * 60_000;
+
+/** Lo activa el modo Supabase: a quién se le pasan los errores (null = a nadie). */
+export function alRegistrarError(fn: ((e: ErrorParaServidor) => void) | null): void {
+  enviarError = fn;
+}
+
+function notificarSiEsError(tipo: TipoEvento, mensaje: string, datos: unknown): void {
+  if (!enviarError) return;
+  let e: ErrorParaServidor | null = null;
+  let clave = mensaje;
+  const pantalla = typeof location !== 'undefined' ? location.hash || '#/' : '';
+  if (tipo === 'aviso' && mensaje.startsWith('Mensaje de error en pantalla: ')) {
+    clave = mensaje.slice('Mensaje de error en pantalla: '.length);
+    e = { tipo: 'pantalla', mensaje: clave, pantalla, detalle: '' };
+  } else if (tipo === 'comando' && / FALLIDO \(\d+ ms\): /.test(mensaje)) {
+    const [nombre, error] = [mensaje.split(' FALLIDO ')[0], mensaje.replace(/^.* FALLIDO \(\d+ ms\): /, '')];
+    clave = error; // el mismo texto suele salir después en pantalla: una sola vez
+    e = { tipo: 'accion', mensaje: `${nombre}: ${error}`, pantalla, detalle: '' };
+  } else if (tipo === 'error' && /^(Error JS|Promesa rechazada|Error en el arranque)/.test(mensaje)) {
+    e = { tipo: 'fallo', mensaje, pantalla, detalle: datos === undefined ? '' : JSON.stringify(resumir(datos)).slice(0, 1000) };
+  }
+  if (!e) return;
+  clave = clave.slice(0, 200);
+  const ahora = Date.now();
+  if (enviadosEnSesion >= MAX_ENVIOS_SESION || (ultimoEnvio.get(clave) ?? -Infinity) > ahora - REPETIR_TRAS_MS) return;
+  ultimoEnvio.set(clave, ahora);
+  enviadosEnSesion += 1;
+  try { enviarError(e); } catch { /* nunca debe romper la app */ }
 }
 
 export function eventosRegistrados(): EventoDiagnostico[] {

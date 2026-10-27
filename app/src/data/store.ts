@@ -6,11 +6,11 @@ import { crearSeed } from './seed';
 import * as comandos from './comandos';
 import { generarClasesPendientes, type Ctx, type Resultado } from './comandos';
 import type { ArgsComando, NombreComando, ValorComando } from './tiposComandos';
-import { hayServidor } from './supabase/cliente';
+import { hayServidor, servidor } from './supabase/cliente';
 import { cargarDb } from './supabase/cargar';
 import { ejecutarRemoto } from './supabase/comandos';
 import * as auth from './supabase/auth';
-import { registrar } from '@/lib/diagnostico';
+import { alRegistrarError, registrar } from '@/lib/diagnostico';
 import { activarTiempoReal } from './supabase/tiempoReal';
 import { enviarPushPendientes, invocarEnvioPush } from './supabase/push';
 
@@ -55,6 +55,16 @@ interface Estado {
 
 const STORAGE_KEY = 'np-pilates-demo-v1';
 const MODO: Modo = hayServidor() ? 'SUPABASE' : 'DEMO';
+
+// 0035: los errores que ve la gente se anotan también en el servidor (sin bloquear ni fallar nunca).
+if (MODO === 'SUPABASE') {
+  alRegistrarError((e) => {
+    void servidor().rpc('registrar_error_app', {
+      p_tipo: e.tipo, p_mensaje: e.mensaje, p_pantalla: e.pantalla, p_detalle: e.detalle,
+      p_version: __BUILD_TIME__, p_navegador: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    }).then(() => undefined, () => undefined);
+  });
+}
 
 function sesionDeUsuario(db: Db, userId: string): Sesion | null {
   const u = db.usuarios.find((x) => x.id === userId);
