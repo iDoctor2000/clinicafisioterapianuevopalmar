@@ -653,6 +653,7 @@
         <tr><td><code>supabase/migrations/0032_vuelve_a_la_misma_clase.sql</code></td><td>Si un alumno vuelve a una clase que había cancelado (o de la que se le quitó), deja de salir en Cancelaciones y la recuperación que le dio esa cancelación se anula si no la ha usado.</td></tr>
         <tr><td><code>supabase/migrations/0033_horario_sin_sorpresas.sql</code></td><td>Cambiar una franja no toca las clases ya dadas; si se deshace un cambio, las clases canceladas vuelven solas; botón «Reactivar clase». Reactiva, una vez, las que se cancelaron por error.</td></tr>
         <tr><td><code>supabase/migrations/0034_clases_tambien_en.sql</code></td><td>Ajuste por tarifa "Sus clases también valen para": las tarifas de Reformer pueden cambiar una clase por una dirigida (no al revés).</td></tr>
+        <tr><td><code>supabase/migrations/0035_registro_errores.sql</code></td><td>Los errores que ve la gente en la app (mensajes rojos, acciones que no se pudieron hacer, fallos de la app) quedan anotados para el informe de uso. Solo lo lee la administración; se borran a los 90 días.</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
