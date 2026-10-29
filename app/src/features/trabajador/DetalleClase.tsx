@@ -61,8 +61,8 @@ export function DetalleClase() {
   };
   // Alumnos que perdieron la plaza al cancelarse (los que la recuperan al reactivar).
   const perdieronPlaza = cancelada ? vista.reservas.filter((r) => r.estado === 'CANCELADA_CENTRO' && clase.canceladaEl != null && r.canceladaEl === clase.canceladaEl).length : 0;
-  // 0038: una clase cancelada en la que no hubo nadie se puede eliminar del todo.
-  const sinNadie = cancelada && vista.reservas.length === 0;
+  // 0038/0041: una clase sin nadie apuntado (programada o cancelada) se puede eliminar del todo.
+  const sinNadie = activas.length === 0 && !(clase.estado === 'PROGRAMADA' && vista.reservas.some((r) => r.asistencia === 'ASISTE'));
   const confirmarEliminar = async () => {
     const res = await ejecutar('eliminarClase', { claseId: clase.id });
     setEliminar(false);
@@ -228,9 +228,9 @@ export function DetalleClase() {
           {puede('AVISOS_ENVIAR') && activas.length > 0 && (
             <Boton ancho variante="secundario" onClick={() => navigate(`/avisos?clase=${clase.id}`)}><Bell className="h-5 w-5" /> Aviso a los alumnos</Boton>
           )}
-          {puede('CLASES_CREAR_CANCELAR') && !cancelada && !pasada && (
-            <Boton ancho variante="peligro" onClick={() => setCancelar(true)}><Ban className="h-5 w-5" /> Cancelar clase</Boton>
-          )}
+          {puede('CLASES_CREAR_CANCELAR') && !cancelada && !pasada && (sinNadie
+            ? <Boton ancho variante="peligro" onClick={() => setEliminar(true)}><Trash2 className="h-5 w-5" /> Eliminar clase</Boton>
+            : <Boton ancho variante="peligro" onClick={() => setCancelar(true)}><Ban className="h-5 w-5" /> Cancelar clase</Boton>)}
           {ocupadas >= clase.plazas && !cancelada && !pasada && <p className="text-sm text-ink-muted text-center pt-1">La clase está completa.</p>}
         </aside>
       </div>
@@ -238,7 +238,8 @@ export function DetalleClase() {
       <HojaAnadirAlumno abierta={anadir} onCerrar={() => setAnadir(false)} claseId={clase.id} yaApuntados={activas.map((r) => r.clienteId)} />
       <HojaCancelarClase abierta={cancelar} onCerrar={() => setCancelar(false)} claseId={clase.id} afectados={activas.length} />
       <Confirmacion abierta={eliminar} onCerrar={() => setEliminar(false)} titulo="Eliminar clase" textoConfirmar="Eliminar clase" peligro onConfirmar={() => void confirmarEliminar()}>
-        <p>La clase cancelada de <strong className="text-ink">{actividad.nombre}</strong> del {fechaCorta(clase.fecha)} a las {clase.horaInicio} desaparece del calendario. No tuvo alumnos, así que no se pierde nada.</p>
+        <p>La clase de <strong className="text-ink">{actividad.nombre}</strong> del {fechaCorta(clase.fecha)} a las {clase.horaInicio} desaparece del calendario. No hay nadie apuntado, así que no hay a quién avisar.</p>
+        {canceladas.length > 0 && <p>{canceladas.length === 1 ? 'Hay 1 cancelación apuntada' : `Hay ${canceladas.length} cancelaciones apuntadas`} en esta clase: desaparecen con ella, pero la recuperación que se dio por cancelar se conserva.</p>}
       </Confirmacion>
       <Confirmacion abierta={reactivar} onCerrar={() => setReactivar(false)} titulo="Reactivar clase" textoConfirmar="Reactivar clase" onConfirmar={() => void confirmarReactivar()}>
         <p>La clase vuelve a estar programada{perdieronPlaza > 0 ? <> y <strong className="text-ink">{perdieronPlaza === 1 ? 'el alumno que estaba apuntado recupera' : `los ${perdieronPlaza} alumnos que estaban apuntados recuperan`}</strong> su plaza</> : ''}.</p>
@@ -347,8 +348,8 @@ function HojaCancelarClase({ abierta, onCerrar, claseId, afectados }: { abierta:
   if (!clase) return null;
   const alternativas = alternativasPara(db, clase, hoyISO());
   const cierre = db.config.diasCierre.find((d) => d.fecha === clase.fecha);
-  // 0038: si no hay (ni hubo) nadie, cancelarla la borra del calendario.
-  const vacia = !db.reservas.some((r) => r.claseId === claseId);
+  // 0038/0041: si no hay nadie apuntado, cancelarla la borra del calendario.
+  const vacia = !db.reservas.some((r) => r.claseId === claseId && r.estado === 'RESERVADA');
   const confirmar = async () => {
     const r = await ejecutar('cancelarClase', { claseId, motivo: motivo.trim(), claseAlternativaId: alternativa || null, avisar });
     if (!r.ok) return toast.error(r.error);

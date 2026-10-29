@@ -391,8 +391,8 @@
   <h3>Caso 3 · Abrir una clase extra (un sábado, un taller, un puente)</h3>
   <p><strong>Calendario</strong> → <span class="btn">Nueva clase extraordinaria</span>. Queda marcada como "Extraordinaria" y, en cuanto pulses <em>Publicar cambios</em>, los alumnos la pueden reservar como cualquier otra. Recuerda que un sábado con clases de Pilates no abre la clínica de fisioterapia: su horario es independiente.</p>
 
-  <h3>Caso 3 bis · Quitar una clase en la que no hay nadie</h3>
-  <p>Abre la clase y toca <span class="btn claro">Cancelar clase</span>: si no hay nadie apuntado (ni lo hubo), la clase se <strong>elimina del calendario directamente</strong>, sin avisos ni recuperaciones, porque no hay a quién avisar. Si alguna vez tuvo alumnos, se cancela y se conserva en el historial (y se puede <em>Reactivar</em>). Una clase cancelada en la que no hubo nadie también se puede quitar con el botón <span class="btn claro">Eliminar clase</span> de su ficha.</p>
+  <h3>Caso 3 bis · Quitar una clase en la que no hay nadie apuntado</h3>
+  <p>Si en la clase no hay nadie apuntado, en su ficha sale <span class="btn claro">Eliminar clase</span> en vez de Cancelar: desaparece del calendario directamente, sin avisos ni recuperaciones, porque no hay a quién avisar. Da igual que alguien se hubiera apuntado y lo cancelara: esa cancelación se va con la clase y la recuperación que se le dio se conserva. Lo mismo vale para una clase ya cancelada sin nadie apuntado. Solo se conservan las clases con alumnos apuntados (esas se cancelan) y las que ya se dieron.</p>
 
   <h3>Caso 4 · Quitar una clase fija del horario</h3>
   <p>Hay dos formas, según si es para siempre o no:</p>
@@ -679,6 +679,7 @@
         <tr><td><code>supabase/migrations/0037_cobros_fuera_de_contrato.sql</code></td><td>Al dar de baja, finalizar o acortar un contrato, sus cobros pendientes de meses posteriores se quitan solos; una contratación nueva sustituye los pendientes de cualquier contrato anterior.</td></tr>
         <tr><td><code>supabase/migrations/0038_horario_entrega_1.sql</code></td><td>Interruptor «Gestiona el horario y las clases» (quien ve las finanzas lo recibe al aplicarla); cancelar una clase vacía la borra y botón «Eliminar clase»; al cambiar día u hora de una franja, opción de mover las clases con sus alumnos avisándoles; limpia franjas repetidas sin alumnos y clases canceladas vacías.</td></tr>
         <tr><td><code>supabase/migrations/0039_cambios_sin_publicar.sql</code></td><td>Cambios sin publicar: franjas y clases nuevas en borrador, plazas retenidas y botón «Publicar cambios».</td></tr>
+        <tr><td><code>supabase/migrations/0041_clases_sin_nadie.sql</code></td><td>Una clase sin nadie apuntado se puede eliminar aunque alguien se apuntara y lo cancelara; al cambiar una franja esas clases se recrean con el horario nuevo; limpia las clases futuras sin nadie de franjas eliminadas o cambiadas (la del jueves 10:30 entre ellas).</td></tr>
         <tr><td><code>supabase/migrations/0040_cobro_pagado_sustituye_pendiente.sql</code></td><td>Al apuntar un cobro pagado de un mes, el cobro pendiente de ese mismo mes del alumno desaparece solo (si el pagado no es menor). Quita los que ya estuvieran repetidos.</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
@@ -730,8 +731,8 @@
     <dt>Me sale "No tienes permiso para: HORARIOS_GESTIONAR" (o CLASES_CREAR_CANCELAR).</dt>
     <dd>Desde la 0038 el horario y las clases los gestiona solo quien tiene el interruptor <strong>Gestiona el horario y las clases</strong> en Equipo; ser administrador no basta. Pídeselo a quien lo tenga: solo esa persona puede concederlo.</dd>
 
-    <dt>Quiero quitar del calendario una clase cancelada que no tenía a nadie.</dt>
-    <dd>Ábrela y toca <strong>Eliminar clase</strong>. Si tuvo alumnos no se puede (se conserva en el historial): usa Reactivar si al final se da. Al cancelar una clase vacía la app ya la elimina directamente.</dd>
+    <dt>Quiero quitar del calendario una clase en la que no hay nadie apuntado (o una cancelada).</dt>
+    <dd>Ábrela y toca <strong>Eliminar clase</strong> (sale en vez de Cancelar cuando no hay nadie apuntado). Si tiene alumnos apuntados no se puede eliminar: cancélala, y así se les avisa y reciben recuperación.</dd>
 
     <dt>Un cliente entra y le sale "Tu usuario aún no está dado de alta en el centro".</dt>
     <dd>El correo con el que entra no coincide con el de su ficha, o todavía no tiene ficha. En su ficha, la línea <strong>Cuenta en la app</strong> te dice si está enlazada (✅) o sin enlazar (⏳). Mira el correo que sale en su pantalla y compáralo con el de su ficha (Clientes → su ficha → Editar datos). Corrígelo o crea la ficha con ese mismo correo, y que pulse "Volver a intentar". Da igual que se registrara antes o después de crearle la ficha: se enlazan solas en cuanto el correo coincide. Si aun así no entra, revisa que la ficha esté activa (no dada de baja).</dd>

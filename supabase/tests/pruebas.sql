@@ -2372,17 +2372,30 @@ commit;
 select pruebas.sistema();
 insert into public.clases (id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria, estado, motivo_cancelacion, cancelado_el)
   values (pruebas.id('cl_vacia'), pruebas.id('act_suelo'), public._hoy() + 4, '13:00', 55, pruebas.id('tra_admin'), 6, true, 'CANCELADA', 'x', now());
--- Una cancelada con alumnos (cualquiera de las canceladas de antes con reservas).
-select pruebas.guardar('cl_cancelada_con_gente', (select c.id::text from public.clases c where c.estado = 'CANCELADA' and exists (select 1 from public.reservas r where r.clase_id = c.id) limit 1));
+-- Una programada con alumnos apuntados no se puede eliminar (hay que cancelarla); una sin nadie apuntado, sí (0041).
+select pruebas.guardar('cl_con_gente', (select c.id::text from public.clases c where c.estado = 'PROGRAMADA' and (c.fecha + c.hora_inicio) > public._ahora_local() and exists (select 1 from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') limit 1));
+-- 0041: una clase futura en la que alguien se apuntó y lo canceló tampoco tiene a nadie: cancelarla la borra y la recuperación se conserva.
+select pruebas.guardar('cl_solo_cancelada', 'f0000000-0000-4000-8000-000000000483');
+insert into public.clases (id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('cl_solo_cancelada'), pruebas.id('act_suelo'), public._hoy() + 4, '14:00', 55, pruebas.id('tra_admin'), 6, true);
 begin;
 set local role authenticated;
 select pruebas.como('recep');
 select pruebas.espera_error(format('select public.eliminar_clase(%L)', pruebas.id('cl_vacia')), 'No tienes permiso para: CLASES_CREAR_CANCELAR');
 select pruebas.como('admin');
-select pruebas.espera_error(format('select public.eliminar_clase(%L)', pruebas.id('cl_cancelada_con_gente')), 'Esta clase tuvo alumnos%');
+select pruebas.espera_error(format('select public.eliminar_clase(%L)', pruebas.id('cl_con_gente')), 'Esta clase tiene alumnos apuntados%');
 select pruebas.espera_error(format('select public.eliminar_clase(%L)', pruebas.id('pl_lun_0900')), 'La clase no existe.');
 select public.eliminar_clase(pruebas.id('cl_vacia'));
 do $$ begin assert not exists (select 1 from public.clases where id = pruebas.id('cl_vacia')), 'la cancelada vacía se elimina'; end $$;
+select pruebas.guardar('res_solo_cancelada', (public.anadir_alumno(pruebas.id('cl_solo_cancelada'), pruebas.id('cliente_a'), 'MANUAL')->>'reserva_id'));
+select public.cancelar_reserva(pruebas.id('res_solo_cancelada'), true);
+select pruebas.guardar('n_rec_a', (select count(*)::text from public.recuperaciones where cliente_id = pruebas.id('cliente_a') and estado = 'DISPONIBLE'));
+do $$ begin
+  assert public.cancelar_clase(pruebas.id('cl_solo_cancelada'), 'Sobra') = 0, 'nadie afectado';
+  assert not exists (select 1 from public.clases where id = pruebas.id('cl_solo_cancelada')), 'sin nadie apuntado se borra aunque tuviera una cancelación';
+  assert not exists (select 1 from public.reservas where id = pruebas.id('res_solo_cancelada')), 'la reserva cancelada se va con la clase';
+  assert (select count(*) from public.recuperaciones where cliente_id = pruebas.id('cliente_a') and estado = 'DISPONIBLE') = current_setting('pruebas.n_rec_a')::int, 'la recuperación se conserva';
+end $$;
 commit;
 
 -- Mover las clases con sus alumnos al cambiar la hora o el día de la franja.
