@@ -113,6 +113,7 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   const { db, puede, ejecutar, veFinanzas } = useTrabajador();
   const hoy = hoyISO();
   const [editando, setEditando] = useState<Pago | 'nuevo' | null>(null);
+  const [cobrando, setCobrando] = useState<Pago | null>(null);
   const [historial, setHistorial] = useState(false);
   const pagos = db.pagos
     .filter((p) => p.clienteId === cliente.id && p.estado !== 'CANCELADO')
@@ -127,12 +128,9 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   const pendiente = visibles.filter((p) => p.estado === 'PENDIENTE').reduce((s, p) => s + p.importeCentimos, 0);
   const vencidos = pagos.filter((p) => pagoVencido(p, hoy));
 
-  const cobrar = async (p: Pago) => {
-    const metodo = p.metodo ?? contrato?.metodoPago ?? null;
-    if (!metodo) { setEditando({ ...p, estado: 'PAGADO' }); return; }
-    const r = await ejecutar('guardarPago', { pago: { ...p, estado: 'PAGADO', metodo, pagadoEl: null } });
-    if (r.ok) toast.ok(`${tituloCobro(p)}: cobrado (${METODO_PAGO_LABEL[metodo]}).`); else toast.error(r.error);
-  };
+  // «Cobrar» siempre pregunta la forma de pago y la fecha (con las de la contratación de serie): así nunca
+  // hay que añadir otro cobro para apuntarlo con tarjeta en vez de efectivo.
+  const cobrar = (p: Pago) => setCobrando(p);
   const deshacer = async (p: Pago) => {
     const r = await ejecutar('guardarPago', { pago: { ...p, estado: 'PENDIENTE', pagadoEl: null } });
     if (r.ok) toast.info(`${tituloCobro(p)}: vuelve a pendiente.`); else toast.error(r.error);
@@ -172,7 +170,7 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
                 {p.estado === 'PAGADO' ? <Chip tono="beige"><Check className="h-3.5 w-3.5" /> Cobrado</Chip> : vencido ? <Chip tono="rojo">Pendiente</Chip> : <Chip tono="gris">Por cobrar</Chip>}
                 {editable && (p.estado === 'PAGADO'
                   ? <Boton tamano="sm" variante="fantasma" aria-label={`Deshacer el cobro de ${tituloCobro(p)}`} onClick={() => void deshacer(p)}><RotateCcw className="h-4 w-4" /></Boton>
-                  : <Boton tamano="sm" onClick={() => void cobrar(p)}><CircleDollarSign className="h-4 w-4" /> Cobrar</Boton>)}
+                  : <Boton tamano="sm" onClick={() => cobrar(p)}><CircleDollarSign className="h-4 w-4" /> Cobrar</Boton>)}
               </li>
             );
           })}
@@ -189,7 +187,46 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
           onCerrar={() => setEditando(null)}
         />
       )}
+      {cobrando && <HojaCobrar pago={cobrando} contrato={contrato} onCerrar={() => setCobrando(null)} />}
     </Tarjeta>
+  );
+}
+
+/** Apuntar un cobro pendiente como cobrado: forma de pago (la de la contratación de serie) y fecha. */
+function HojaCobrar({ pago, contrato, onCerrar }: { pago: Pago; contrato: Contrato | null; onCerrar: () => void }) {
+  const { ejecutar } = useTrabajador();
+  const hoy = hoyISO();
+  const [metodo, setMetodo] = useState<MetodoPago | ''>(pago.metodo ?? contrato?.metodoPago ?? '');
+  const [fechaCobro, setFechaCobro] = useState(hoy);
+  const [enviando, setEnviando] = useState(false);
+  const confirmar = async () => {
+    if (!metodo) return toast.error('Elige la forma de pago.');
+    if (enviando) return;
+    setEnviando(true);
+    const r = await ejecutar('guardarPago', { pago: { ...pago, estado: 'PAGADO', metodo, pagadoEl: `${fechaCobro}T12:00:00.000Z` } });
+    setEnviando(false);
+    if (r.ok) { toast.ok(`${tituloCobro(pago)}: cobrado (${METODO_PAGO_LABEL[metodo]}).`); onCerrar(); } else toast.error(r.error);
+  };
+  return (
+    <Hoja abierta onCerrar={onCerrar} titulo={`Cobrar: ${tituloCobro(pago)}`}>
+      <div className="space-y-4">
+        <p className="text-ink-soft"><strong className="text-ink text-xl">{euros(pago.importeCentimos)}</strong>{pago.venceEl ? ` · se cobra el ${fechaMedia(pago.venceEl)}` : ''}</p>
+        <div>
+          <span className="block text-[15px] font-semibold mb-1.5">Forma de pago</span>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de pago">
+            {METODOS_PAGO.map((m) => (
+              <button key={m} type="button" role="radio" aria-checked={metodo === m} onClick={() => setMetodo(m)}
+                className={cn('h-12 rounded-xl font-semibold tap border', metodo === m ? 'bg-brand-500 text-sand border-brand-500' : 'bg-white border-ink/10')}>
+                {METODO_PAGO_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          {contrato?.metodoPago && <p className="text-xs text-ink-muted mt-1.5">En la contratación figura {METODO_PAGO_LABEL[contrato.metodoPago]}; puedes apuntar este cobro con otra forma sin cambiar nada más.</p>}
+        </div>
+        <Entrada etiqueta="Fecha de cobro" type="date" value={fechaCobro} onChange={(e) => setFechaCobro(e.target.value)} />
+        <Boton ancho onClick={() => void confirmar()} cargando={enviando}><CircleDollarSign className="h-5 w-5" /> Apuntar como cobrado</Boton>
+      </div>
+    </Hoja>
   );
 }
 
