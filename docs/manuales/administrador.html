@@ -679,6 +679,7 @@
         <tr><td><code>supabase/migrations/0037_cobros_fuera_de_contrato.sql</code></td><td>Al dar de baja, finalizar o acortar un contrato, sus cobros pendientes de meses posteriores se quitan solos; una contratación nueva sustituye los pendientes de cualquier contrato anterior.</td></tr>
         <tr><td><code>supabase/migrations/0038_horario_entrega_1.sql</code></td><td>Interruptor «Gestiona el horario y las clases» (quien ve las finanzas lo recibe al aplicarla); cancelar una clase vacía la borra y botón «Eliminar clase»; al cambiar día u hora de una franja, opción de mover las clases con sus alumnos avisándoles; limpia franjas repetidas sin alumnos y clases canceladas vacías.</td></tr>
         <tr><td><code>supabase/migrations/0039_cambios_sin_publicar.sql</code></td><td>Cambios sin publicar: franjas y clases nuevas en borrador, plazas retenidas y botón «Publicar cambios».</td></tr>
+        <tr><td><code>supabase/migrations/0040_cobro_pagado_sustituye_pendiente.sql</code></td><td>Al apuntar un cobro pagado de un mes, el cobro pendiente de ese mismo mes del alumno desaparece solo (si el pagado no es menor). Quita los que ya estuvieran repetidos.</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
@@ -720,6 +721,9 @@
   <div class="capnum">Capítulo 18</div>
   <h2>Problemas típicos y cómo salir de ellos</h2>
   <dl class="faq">
+    <dt>A un alumno le salen dos cobros del mismo mes: uno cobrado y otro "por cobrar".</dt>
+    <dd>Desde la 0040 no debería pasar: al apuntar como cobrado un mes (con «Cobrar» o con «Añadir cobro»), el pendiente de ese mismo mes se quita solo, salvo que lo cobrado sea menos (pago parcial). Para cobrar con otra forma de pago distinta a la de la contratación, toca el cobro pendiente, marca "Cobrado" y elige la forma: no hace falta añadir otro.</dd>
+
     <dt>He creado una franja (o una clase extraordinaria) y los alumnos dicen que no la ven.</dt>
     <dd>Está sin publicar: arriba del Calendario sale "Cambios sin publicar". Toca <strong>Publicar cambios</strong> (solo puede quien gestiona el horario). Lo mismo si has quitado a alguien de una clase y el hueco "no se ofrece": está retenido hasta que publiques (capítulo 9, caso 0).</dd>
 

@@ -980,8 +980,17 @@ export function guardarPago(ctx: Ctx, args: { pago: Omit<Pago, 'id' | 'creadoEl'
     mes: mesDe(args.pago.mes || args.pago.venceEl || aISODate(ahora)),
     pagadoEl: args.pago.estado === 'PAGADO' ? args.pago.pagadoEl ?? ahora.toISOString() : null,
   };
-  const nuevo: Db = { ...db, pagos: existente ? db.pagos.map((p) => (p.id === pago.id ? pago : p)) : [...db.pagos, pago] };
-  return ok(auditar(nuevo, sesion, ahora, existente ? 'EDITAR_PAGO' : 'CREAR_PAGO', 'pago', pago.id, `${nombreCliente(db, pago.clienteId)}: ${pago.concepto} · ${pago.importeCentimos / 100} € · ${pago.estado}`), pago);
+  let nuevo: Db = { ...db, pagos: existente ? db.pagos.map((p) => (p.id === pago.id ? pago : p)) : [...db.pagos, pago] };
+  nuevo = auditar(nuevo, sesion, ahora, existente ? 'EDITAR_PAGO' : 'CREAR_PAGO', 'pago', pago.id, `${nombreCliente(db, pago.clienteId)}: ${pago.concepto} · ${pago.importeCentimos / 100} € · ${pago.estado}`);
+  // 0040: un cobro pagado de un mes quita los pendientes de ese mes del alumno que no superen su importe.
+  if (pago.estado === 'PAGADO') {
+    const sobran = nuevo.pagos.filter((p) => p.id !== pago.id && p.clienteId === pago.clienteId && p.mes === pago.mes && p.estado === 'PENDIENTE' && p.importeCentimos <= pago.importeCentimos);
+    if (sobran.length > 0) {
+      const ids = new Set(sobran.map((p) => p.id));
+      nuevo = auditar({ ...nuevo, pagos: nuevo.pagos.filter((p) => !ids.has(p.id)) }, sesion, ahora, 'COBRO_PENDIENTE_SUSTITUIDO', 'pago', pago.id, `${nombreCliente(db, pago.clienteId)}: ${sobran.length} cobro(s) pendiente(s) de ${pago.mes.slice(0, 7)} quitado(s) al apuntar el cobrado`);
+    }
+  }
+  return ok(nuevo, pago);
 }
 
 export function borrarPago(ctx: Ctx, args: { id: Id }): Resultado<void> {

@@ -2569,4 +2569,38 @@ commit;
 select pruebas.sistema();
 
 \echo
+\echo '== 50. Un cobro pagado de un mes sustituye al pendiente de ese mes (0040)'
+select pruebas.sistema();
+select pruebas.guardar('mes_50', (date_trunc('month', public._hoy()) + interval '1 month')::date::text);
+select pruebas.guardar('hoy_50', public._hoy()::text);
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+-- Plan: noviembre pendiente (65). Se apunta aparte el cobro de noviembre pagado con tarjeta (65): el pendiente sobra.
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, mes, estado)
+  values (pruebas.id('con_a'), pruebas.id('cliente_a'), 'Plan', 6500, pruebas.fecha('mes_50'), pruebas.fecha('mes_50'), 'PENDIENTE');
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, mes, estado, proveedor, pagado_el)
+  values (pruebas.id('con_a'), pruebas.id('cliente_a'), 'Tarjeta', 6500, pruebas.fecha('hoy_50'), pruebas.fecha('mes_50'), 'PAGADO', 'TARJETA', now());
+do $$ begin
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_a') and mes = pruebas.fecha('mes_50')) = 1, 'queda un solo cobro del mes';
+  assert (select estado from public.pagos where cliente_id = pruebas.id('cliente_a') and mes = pruebas.fecha('mes_50')) = 'PAGADO', 'el cobrado';
+  assert exists (select 1 from public.auditoria where accion = 'COBRO_PENDIENTE_SUSTITUIDO'), 'queda en el registro';
+end $$;
+-- Pago parcial: un cobrado menor no quita el pendiente. Marcar el pendiente como cobrado tampoco se quita a sí mismo.
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, mes, estado)
+  values (pruebas.id('con_b'), pruebas.id('cliente_b'), 'Plan', 6500, pruebas.fecha('mes_50'), pruebas.fecha('mes_50'), 'PENDIENTE');
+insert into public.pagos (contrato_id, cliente_id, concepto, importe_centimos, vence_el, mes, estado, proveedor, pagado_el)
+  values (pruebas.id('con_b'), pruebas.id('cliente_b'), 'A cuenta', 3000, pruebas.fecha('hoy_50'), pruebas.fecha('mes_50'), 'PAGADO', 'EFECTIVO', now());
+do $$ begin
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_b') and mes = pruebas.fecha('mes_50')) = 2, 'un pago parcial no quita el pendiente';
+end $$;
+update public.pagos set estado = 'PAGADO', proveedor = 'EFECTIVO', pagado_el = now() where cliente_id = pruebas.id('cliente_b') and mes = pruebas.fecha('mes_50') and estado = 'PENDIENTE';
+do $$ begin
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cliente_b') and mes = pruebas.fecha('mes_50') and estado = 'PAGADO') = 2, 'lo cobrado nunca se toca';
+  raise notice 'OK 0040: el cobro pagado sustituye al pendiente';
+end $$;
+commit;
+select pruebas.sistema();
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'
