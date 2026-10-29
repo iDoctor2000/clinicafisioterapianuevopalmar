@@ -9,7 +9,7 @@ import { tienePermiso } from '@/domain/types';
 import { crearSeed } from '@/data/seed';
 import {
   anadirAlumno, apuntarListaEspera, cancelarClase, cancelarReserva, crearClaseExtraordinaria, eliminarClase, guardarPlantilla, guardarTrabajador,
-  generarClasesPendientes, publicarCambios, quitarAlumno, reservar, type Ctx,
+  generarClasesPendientes, moverFijosDeFranja, publicarCambios, quitarAlumno, reservar, type Ctx,
 } from '@/data/comandos';
 import { vistaClase } from '@/data/selectores';
 import { clasesVisiblesDelDia, evaluarReservaDe } from '@/features/cliente/consultas';
@@ -270,5 +270,41 @@ describe('0039 · cambios sin publicar', () => {
     expect(rp.db.reservas.some((x) => x.claseId === clase.id && x.clienteId === 'maria' && x.estado === 'RESERVADA')).toBe(true);
     expect(rp.db.clases.find((c) => c.id === clase.id)!.plazasRetenidas).toBe(0);
     expect(rp.db.avisos.some((a) => a.titulo.startsWith('¡Tienes plaza!') && a.destinatariosIds.includes('maria'))).toBe(true);
+  });
+});
+
+describe('0043 · pasar los alumnos fijos de una franja a otra', () => {
+  it('cambia la franja del contrato, quita sus reservas futuras de la de origen, le apunta en la de destino y le avisa', () => {
+    const db = crearSeed();
+    const jose = trabajador(db, 'tra-jose');
+    const futura = (claseId: string, d: Db) => { const c = d.clases.find((x) => x.id === claseId); return !!c && !esPasada(c.fecha, c.horaInicio, ahora); };
+    const enFranja = (d: Db, plantillaId: string) => d.reservas.filter((r) => r.clienteId === 'carmen' && r.estado === 'RESERVADA' && futura(r.claseId, d) && d.clases.find((c) => c.id === r.claseId)?.plantillaId === plantillaId);
+    expect(enFranja(db, 'pl-lun-1000').length).toBeGreaterThan(0);
+    const r = moverFijosDeFranja(ctx(db, jose), { origenId: 'pl-lun-1000', destinoId: 'pl-lun-1900', contratoIds: ['con-carmen'], avisar: true });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor).toMatchObject({ movidos: 1, saltados: [] });
+    expect(r.db.contratos.find((c) => c.id === 'con-carmen')!.franjasFijas.map((f) => f.plantillaId).sort()).toEqual(['pl-lun-1900', 'pl-mie-1000']);
+    expect(enFranja(r.db, 'pl-lun-1000')).toHaveLength(0);
+    expect(enFranja(r.db, 'pl-lun-1900').length + r.valor.sinPlaza).toBeGreaterThan(0);
+    expect(enFranja(r.db, 'pl-mie-1000').length).toBe(enFranja(db, 'pl-mie-1000').length); // la otra franja no se toca
+    expect(r.db.avisos[0]).toMatchObject({ titulo: 'Cambio de horario: Reformer', destinatariosIds: ['carmen'] });
+    expect(r.db.avisos[0].cuerpo).toContain('los lunes a las 19:00');
+    // Sin aviso, no se avisa.
+    const sin = moverFijosDeFranja(ctx(db, jose), { origenId: 'pl-lun-1000', destinoId: 'pl-lun-1900', contratoIds: ['con-carmen'], avisar: false });
+    expect(sin.ok && sin.valor.avisoIds).toEqual([]);
+  });
+
+  it('se salta, con el motivo, a quien no puede pasar; y solo lo hace quien gestiona el horario', () => {
+    const db = crearSeed();
+    const jose = trabajador(db, 'tra-jose');
+    const r1 = moverFijosDeFranja(ctx(db, jose), { origenId: 'pl-jue-1800', destinoId: 'pl-jue-1700', contratoIds: ['con-juan'], avisar: true });
+    expect(r1.ok && r1.valor).toMatchObject({ movidos: 0, saltados: [{ clienteId: 'juan', motivo: expect.stringMatching(/no incluye Reformer/) }] });
+    const r2 = moverFijosDeFranja(ctx(db, jose), { origenId: 'pl-mar-1800', destinoId: 'pl-jue-1800', contratoIds: ['con-juan'], avisar: true });
+    expect(r2.ok && r2.valor.saltados[0].motivo).toBe('ya tiene esa franja');
+    expect(r2.ok && r2.db.contratos.find((c) => c.id === 'con-juan')!.franjasFijas.map((f) => f.plantillaId).sort()).toEqual(['pl-jue-1800', 'pl-mar-1800']);
+    expect(moverFijosDeFranja(ctx(db, trabajador(db, 'tra-laura')), { origenId: 'pl-lun-1000', destinoId: 'pl-lun-1900', contratoIds: ['con-carmen'], avisar: true }))
+      .toMatchObject({ ok: false, error: 'No tienes permiso para: HORARIOS_GESTIONAR' });
+    expect(moverFijosDeFranja(ctx(db, jose), { origenId: 'pl-lun-1000', destinoId: 'pl-lun-1000', contratoIds: ['con-carmen'], avisar: true })).toMatchObject({ ok: false });
   });
 });

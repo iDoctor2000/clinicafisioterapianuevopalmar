@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarClock, Info, Plus, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, CalendarClock, Info, Plus, Trash2 } from 'lucide-react';
 import { duracionActividad, type DiaSemana, type PlantillaClase } from '@/domain/types';
 import { DIAS_SEMANA_CORTO, DIAS_SEMANA_LABEL, fechaCorta, hoyISO, horaFin } from '@/domain/fechas';
 import { clasesQueSeCancelarian, clasesQueSeMoverian } from '@/data/comandos';
@@ -89,6 +89,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
   const [confirmar, setConfirmar] = useState(false);
   const [preguntarMover, setPreguntarMover] = useState(false);
   const [eliminar, setEliminar] = useState(false);
+  const [moverFijos, setMoverFijos] = useState(false);
   const [guardando, setGuardando] = useState(false);
   // Eliminar la franja (0021): bloqueado si alguien la tiene como clase fija; si no, se cancelan sus clases con alumnos y se borran las vacías.
   const fijos = plantilla ? fijosDePlantilla(db, plantilla.id) : [];
@@ -181,16 +182,21 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
         )}
         <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Franja activa" descripcion={plantilla ? "Desactivarla no la borra: sigue en Horarios (en gris) y se puede volver a activar. Mientras esté desactivada no se crean clases nuevas, y las que ya tienen alumnos se cancelan avisándoles (con recuperación). Para quitarla del todo, usa «Eliminar franja del horario», aquí abajo." : "Si la desactivas, no se crean sus clases. No se borra: puedes volver a activarla cuando quieras."} /></div>
         <Boton ancho onClick={() => void guardar()} cargando={guardando}>{plantilla ? 'Guardar cambios' : 'Crear franja'}</Boton>
+        {plantilla && fijos.length > 0 && (
+          <Boton ancho variante="secundario" onClick={() => setMoverFijos(true)}><ArrowRightLeft className="h-5 w-5" /> Pasar sus alumnos fijos a otra franja ({fijos.length})</Boton>
+        )}
         {plantilla && (
           <Boton ancho variante="fantasma" className="text-rose" onClick={() => setEliminar(true)}><Trash2 className="h-5 w-5" /> Eliminar franja del horario</Boton>
         )}
       </div>
+      {moverFijos && plantilla && <HojaMoverFijos origen={plantilla} onCerrar={() => setMoverFijos(false)} />}
       <Confirmacion abierta={eliminar} onCerrar={() => setEliminar(false)} titulo="Eliminar franja" textoConfirmar="Eliminar franja" peligro deshabilitado={fijos.length > 0} onConfirmar={() => void eliminarFranja()}>
         {fijos.length > 0 ? (
           <>
             <p><strong className="text-ink">No se puede eliminar todavía.</strong> {fijos.length === 1 ? 'Esta alumna/o la tiene' : `Estos ${fijos.length} alumnos la tienen`} como clase fija en su tarifa:</p>
             <p className="font-semibold text-ink">{fijos.map((c) => `${c.nombre} ${c.apellidos}`).join(', ')}</p>
-            <p>Cambia antes su horario fijo (en su ficha, pestaña Tarifa) o espera a que termine su contrato. Mientras tanto puedes desactivar la franja con el interruptor de arriba.</p>
+            <p>Pásalos antes a otra franja con <strong className="text-ink">«Pasar sus alumnos fijos a otra franja»</strong> (en esta misma hoja), cambia su horario fijo en su ficha o espera a que termine su contrato. Mientras tanto puedes desactivar la franja con el interruptor de arriba.</p>
+            <Boton variante="secundario" onClick={() => { setEliminar(false); setMoverFijos(true); }}><ArrowRightLeft className="h-5 w-5" /> Pasar sus alumnos fijos a otra franja</Boton>
           </>
         ) : (
           <>
@@ -221,6 +227,73 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
         {empiezaMasTarde && <p><strong className="text-ink">Si lo que quieres es el horario a partir del {fechaCorta(f.vigenciaDesde!)}, no sigas:</strong> pulsa Cancelar y crea una franja nueva para esa fecha.</p>}
         <p className="text-sm">Si te equivocas, se deshace: vuelve a dejar la franja como estaba (o abre la clase y pulsa «Reactivar clase») y sus alumnos recuperan la plaza.</p>
       </Confirmacion>
+    </Hoja>
+  );
+}
+
+/** Pasar de una vez los alumnos fijos de una franja a otra (0043), eligiendo a quién y si se les avisa. */
+function HojaMoverFijos({ origen, onCerrar }: { origen: PlantillaClase; onCerrar: () => void }) {
+  const { db, ejecutar } = useTrabajador();
+  const contratos = db.contratos
+    .filter((c) => c.estado === 'ACTIVO' && c.modalidad === 'FIJO' && c.franjasFijas.some((f) => f.plantillaId === origen.id))
+    .map((c) => ({ contrato: c, cliente: db.clientes.find((x) => x.id === c.clienteId) }))
+    .sort((a, b) => `${a.cliente?.nombre} ${a.cliente?.apellidos}`.localeCompare(`${b.cliente?.nombre} ${b.cliente?.apellidos}`, 'es'));
+  const actividadDe = (p: PlantillaClase) => db.actividades.find((a) => a.id === p.actividadId);
+  const catOrigen = actividadDe(origen)?.categoria;
+  // Primero las de la misma categoría (Reformer con Reformer, dirigidas con dirigidas).
+  const destinos = db.plantillas
+    .filter((p) => p.id !== origen.id && p.activa && !p.eliminadaEl)
+    .sort((a, b) => Number(actividadDe(b)?.categoria === catOrigen) - Number(actividadDe(a)?.categoria === catOrigen) || a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio));
+  const [destinoId, setDestinoId] = useState('');
+  const [elegidos, setElegidos] = useState<Set<string>>(() => new Set(contratos.map((x) => x.contrato.id)));
+  const [avisar, setAvisar] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const destino = destinos.find((p) => p.id === destinoId);
+  const fijosDestino = destino ? ocupacionFijaDePlantilla(db, destino.id) : 0;
+  const pasan = (destino ? fijosDestino : 0) + elegidos.size;
+  const alternar = (id: string) => setElegidos((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const etiqueta = (p: PlantillaClase) => `${DIAS_SEMANA_LABEL[p.diaSemana]} ${p.horaInicio.slice(0, 5)} · ${actividadDe(p)?.nombre ?? ''} · ${ocupacionFijaDePlantilla(db, p.id)}/${p.plazas} fijos${p.publicada === false ? ' · sin publicar' : ''}`;
+  const pasar = async () => {
+    if (!destino) return toast.error('Elige la franja de destino.');
+    if (elegidos.size === 0) return toast.error('Marca al menos un alumno.');
+    if (enviando) return;
+    setEnviando(true);
+    const r = await ejecutar('moverFijosDeFranja', { origenId: origen.id, destinoId: destino.id, contratoIds: [...elegidos], avisar });
+    setEnviando(false);
+    if (!r.ok) return toast.error(r.error);
+    const { movidos, saltados, sinPlaza } = r.valor;
+    const nombre = (id: string) => { const c = db.clientes.find((x) => x.id === id); return c ? `${c.nombre} ${c.apellidos}` : 'Un alumno'; };
+    toast.ok(`${movidos === 1 ? '1 alumno pasado' : `${movidos} alumnos pasados`} a ${DIAS_SEMANA_LABEL[destino.diaSemana].toLowerCase()} ${destino.horaInicio.slice(0, 5)}${avisar && movidos > 0 ? ', con aviso' : ''}.${sinPlaza > 0 ? ` En ${sinPlaza === 1 ? '1 clase' : `${sinPlaza} clases`} no había sitio: revísalas en el calendario.` : ''}`);
+    if (saltados.length > 0) toast.error(`No se ha podido pasar a: ${saltados.map((x) => `${nombre(x.clienteId)} (${x.motivo})`).join('; ')}.`);
+    onCerrar();
+  };
+  return (
+    <Hoja abierta onCerrar={onCerrar} titulo="Pasar alumnos fijos a otra franja">
+      <div className="space-y-4">
+        <p className="text-ink-soft">Desde <strong className="text-ink">{DIAS_SEMANA_LABEL[origen.diaSemana]} {origen.horaInicio.slice(0, 5)} · {actividadDe(origen)?.nombre}</strong>. Su horario fijo cambia a la franja que elijas: dejan de estar apuntados en las próximas clases de esta y se les apunta en las de la nueva (si hay sitio). Las clases ya dadas y las reservas hechas a mano no se tocan.</p>
+        <Seleccion etiqueta="Franja de destino" value={destinoId} onChange={(e) => setDestinoId(e.target.value)}>
+          <option value="">Elige…</option>
+          {destinos.map((p) => <option key={p.id} value={p.id}>{etiqueta(p)}</option>)}
+        </Seleccion>
+        {destino && pasan > destino.plazas && (
+          <p className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-ink-soft"><strong className="text-ink">Ojo:</strong> la franja de destino tiene {destino.plazas} plazas y quedaría con {pasan} alumnos fijos. Se pasan igualmente, pero en las clases llenas alguno se quedará sin plaza.</p>
+        )}
+        <div>
+          <span className="block text-[15px] font-semibold mb-1.5">Alumnos ({elegidos.size} de {contratos.length})</span>
+          <div className="rounded-2xl border border-ink/10 divide-y divide-ink/5">
+            {contratos.map(({ contrato, cliente }) => (
+              <label key={contrato.id} className="flex items-center gap-3 p-3 cursor-pointer">
+                <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={elegidos.has(contrato.id)} onChange={() => alternar(contrato.id)} />
+                <span className="flex-1 min-w-0 font-medium truncate">{cliente ? `${cliente.nombre} ${cliente.apellidos}` : 'Alumno'}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-ink/10 px-4">
+          <Interruptor activo={avisar} onCambio={setAvisar} etiqueta="Avisar a cada alumno" descripcion="Le llega un aviso con su nuevo día y hora. Si estás preparando el horario y aún no quieres que se enteren, desmárcalo y avisa a todos al publicar los cambios." />
+        </div>
+        <Boton ancho onClick={() => void pasar()} cargando={enviando} disabled={!destino || elegidos.size === 0}><ArrowRightLeft className="h-5 w-5" /> Pasar {elegidos.size === 1 ? '1 alumno' : `${elegidos.size} alumnos`}</Boton>
+      </div>
     </Hoja>
   );
 }
