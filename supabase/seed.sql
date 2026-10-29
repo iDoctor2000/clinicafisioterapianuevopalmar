@@ -53,6 +53,8 @@ insert into public.trabajadores (id, nombre, apellidos, email, telefono, rol, es
   ('c0000000-0000-4000-8000-000000000002', 'Ana',        'Martínez', 'ana@fisioterapianuevopalmar.com',       '',            'MONITOR',   true,  '#3B82C4'),
   ('c0000000-0000-4000-8000-000000000003', 'Laura',      'Pérez',    'recepcion@fisioterapianuevopalmar.com', '',            'RECEPCION', false, '#C9713F')
 on conflict (id) do nothing;
+-- 0038: el administrador de la demo gestiona el horario (el rol por sí solo no lo da).
+update public.trabajadores set gestiona_horario = true where id = 'c0000000-0000-4000-8000-000000000001';
 
 insert into public.trabajador_permisos (trabajador_id, permiso)
 select 'c0000000-0000-4000-8000-000000000001'::uuid, unnest(enum_range(null::public.permiso))  -- ADMIN: todos (explícitos además de implícitos)

@@ -59,7 +59,7 @@ export function enEsperaDe(db: Db, clase: Pick<Clase, 'id' | 'enEspera'>): numbe
 
 /** ¿Tiene sentido ofrecer la lista de espera? Clase programada, completa, sin plaza propia y a más de 2 horas. */
 export function listaEsperaDisponible(db: Db, clienteId: Id, vista: ClaseVista, ahora: Date): boolean {
-  return vista.clase.estado === 'PROGRAMADA' && vista.libres <= 0 && !reservaActivaEn(db, clienteId, vista.clase.id) && !listaEsperaCerrada(vista.clase, ahora);
+  return vista.clase.estado === 'PROGRAMADA' && vista.libresAlumnos <= 0 && !reservaActivaEn(db, clienteId, vista.clase.id) && !listaEsperaCerrada(vista.clase, ahora);
 }
 
 export interface OpcionCambio { vista: ReservaVista; motivo: string | null }
@@ -102,10 +102,15 @@ export function esperasFuturas(db: Db, clienteId: Id, ahora: Date): EsperaVista[
 
 /**
  * Clases del día que ve el alumno: las canceladas por el centro solo si él tenía plaza (así
- * recibe el aviso y ve el motivo); las demás canceladas no aparecen (0021).
+ * recibe el aviso y ve el motivo); las demás canceladas no aparecen (0021). Las que están sin
+ * publicar (0039) solo si tiene plaza en ellas (en Supabase ya ni llegan).
  */
 export function clasesVisiblesDelDia(db: Db, clienteId: Id, fecha: ISODate): ClaseVista[] {
-  return clasesDelDia(db, fecha).filter((v) => v.clase.estado !== 'CANCELADA' || v.reservas.some((r) => r.clienteId === clienteId));
+  return clasesDelDia(db, fecha).filter((v) => {
+    const mia = v.reservas.some((r) => r.clienteId === clienteId && r.estado === 'RESERVADA');
+    if (v.clase.publicada === false && !mia) return false;
+    return v.clase.estado !== 'CANCELADA' || v.reservas.some((r) => r.clienteId === clienteId);
+  });
 }
 
 export function reservaActivaEn(db: Db, clienteId: Id, claseId: Id): Reserva | null {

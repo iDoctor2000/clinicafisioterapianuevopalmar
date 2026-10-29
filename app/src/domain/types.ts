@@ -259,6 +259,8 @@ export interface PlantillaClase {
   vigenciaHasta: ISODate | null;
   /** Franja eliminada del horario (0021): se conserva por el historial de sus clases, pero no se muestra. */
   eliminadaEl?: ISOInstant | null;
+  /** false = sin publicar (0039): los alumnos no ven la franja ni sus clases hasta «Publicar cambios». Ausente = publicada. */
+  publicada?: boolean;
 }
 
 export type EstadoClase = 'PROGRAMADA' | 'CANCELADA';
@@ -286,6 +288,10 @@ export interface Clase {
   ocupadas?: number;
   /** Alumnos en lista de espera según el servidor (solo en Supabase, vista ocupacion_clases). */
   enEspera?: number;
+  /** false = sin publicar (0039): un alumno no la ve salvo que tenga plaza. Ausente = publicada. */
+  publicada?: boolean;
+  /** Plazas que liberó el equipo y que los alumnos no ven hasta «Publicar cambios» (0039). Ausente = 0. */
+  plazasRetenidas?: number;
 }
 
 /** Alumno esperando plaza en una clase completa (0021). */
@@ -448,6 +454,12 @@ export const PERMISO_LABEL: Record<Permiso, string> = {
   ASISTENCIA_REGISTRAR: 'Registrar asistencia',
 };
 
+/**
+ * Permisos del horario (0038): no los da el rol ADMIN ni la lista de permisos, sino
+ * `gestionaHorario`, persona a persona (como las finanzas).
+ */
+export const PERMISOS_HORARIO: readonly Permiso[] = ['HORARIOS_GESTIONAR', 'CLASES_CREAR_CANCELAR'];
+
 export type RolTrabajador = 'ADMIN' | 'MONITOR' | 'RECEPCION';
 
 /**
@@ -489,6 +501,11 @@ export interface Trabajador {
    * no lo incluye. Solo quien lo tiene puede concedérselo a otros.
    */
   veFinanzas?: boolean;
+  /**
+   * Gestiona el horario y las clases (0038): franjas, clases extraordinarias, cancelar, reactivar y publicar
+   * cambios. Explícito, persona a persona: el rol ADMIN no lo incluye. Solo quien lo tiene puede concederlo.
+   */
+  gestionaHorario?: boolean;
 }
 
 export interface RegistroAuditoria {
@@ -514,11 +531,19 @@ export type Sesion =
       ambito?: Ambito;
       /** Acceso a las finanzas (ver Trabajador.veFinanzas). */
       veFinanzas?: boolean;
+      /** Gestiona el horario y las clases (ver Trabajador.gestionaHorario). */
+      gestionaHorario?: boolean;
     };
 
 export function tienePermiso(sesion: Sesion | null, permiso: Permiso): boolean {
   if (!sesion || sesion.tipo !== 'TRABAJADOR') return false;
+  if (PERMISOS_HORARIO.includes(permiso)) return sesion.gestionaHorario === true;
   return sesion.rol === 'ADMIN' || sesion.permisos.includes(permiso);
+}
+
+/** true si la sesión es de un trabajador que gestiona el horario y las clases. El rol ADMIN no lo da. */
+export function gestionaHorario(sesion: Sesion | null): boolean {
+  return !!sesion && sesion.tipo === 'TRABAJADOR' && sesion.gestionaHorario === true;
 }
 
 /** true si la sesión es de un trabajador con acceso a las finanzas. A diferencia de los permisos, el rol ADMIN no lo da. */

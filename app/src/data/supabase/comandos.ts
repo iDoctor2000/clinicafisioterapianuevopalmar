@@ -10,7 +10,7 @@
  * sobre el `Db` recargado después del comando (función `valor(db)`).
  */
 import type { Clase, Cliente, Id, Recuperacion, Reserva, Sesion } from '@/domain/types';
-import { tienePermiso, veFinanzas } from '@/domain/types';
+import { gestionaHorario, tienePermiso, veFinanzas } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import type { Db } from '../db';
@@ -124,7 +124,19 @@ const impl: Impl = {
     const afectados = await rpc<number>('cancelar_clase', {
       p_clase_id: args.claseId, p_motivo: args.motivo, p_clase_alternativa_id: args.claseAlternativaId, p_avisar: args.avisar,
     });
-    return () => ({ afectados: Number(afectados) || 0 });
+    // 0038: si no había nadie, el servidor la borra en vez de cancelarla.
+    return (db) => ({ afectados: Number(afectados) || 0, borrada: !db.clases.some((c) => c.id === args.claseId) });
+  },
+
+  async eliminarClase(args) {
+    await rpc('eliminar_clase', { p_clase_id: args.claseId });
+    return () => undefined;
+  },
+
+  async publicarCambios(args) {
+    const r = await rpc<{ franjas: number; clases: number; plazas: number; aviso: string | null }>('publicar_cambios', { p_avisar: args.avisar, p_texto: args.texto ?? null });
+    enviarPushAvisos(r?.aviso ? [r.aviso] : []);
+    return () => ({ franjas: Number(r?.franjas) || 0, clases: Number(r?.clases) || 0, plazas: Number(r?.plazas) || 0, avisoId: r?.aviso ?? null });
   },
 
   async reactivarClase(args) {
@@ -138,23 +150,25 @@ const impl: Impl = {
     comprobar(await servidor().from('clases').insert(deClaseNueva({ id, ...args })));
     const provisional: Clase = {
       id, plantillaId: null, actividadId: args.actividadId, fecha: args.fecha, horaInicio: args.horaInicio, duracionMin: args.duracionMin, monitorId: args.monitorId,
-      plazas: args.plazas, estado: 'PROGRAMADA', extraordinaria: true, claseAlternativaId: null, motivoCancelacion: null, canceladaEl: null, canceladaPor: null,
+      plazas: args.plazas, estado: 'PROGRAMADA', extraordinaria: true, claseAlternativaId: null, motivoCancelacion: null, canceladaEl: null, canceladaPor: null, publicada: false,
     };
     return (db) => db.clases.find((x) => x.id === id) ?? provisional;
   },
 
   async guardarPlantilla(args) {
     const existe = !!args.plantilla.id;
-    const p = { ...args.plantilla, id: args.plantilla.id ?? nuevoUuid() };
+    // 0039: una franja nueva nace sin publicar; al editar no se manda la columna (se conserva lo que tenga).
+    const p = { ...args.plantilla, id: args.plantilla.id ?? nuevoUuid(), ...(existe ? {} : { publicada: false }) };
     comprobar(await servidor().from('plantillas_clase').upsert(dePlantilla(p)));
     // Al editar, el servidor recrea las clases futuras de la franja (0011) y, si la franja se
-    // desactiva o termina su vigencia, cancela las que tienen alumnos avisándoles (0020).
+    // desactiva o termina su vigencia, cancela las que tienen alumnos avisándoles (0020). Con
+    // `mover` (0038) mueve también las clases con alumnos al día y hora nuevos.
     // Antes de la 0020 devolvía solo un número (las conservadas): se aceptan las dos formas.
-    const res = existe ? await rpc<number | { conservadas: number; canceladas: number; afectados: number; reactivadas?: number; avisos: string[] }>('plantilla_aplicar_cambios', { p_plantilla_id: p.id }) : 0;
-    const r = typeof res === 'object' && res ? res : { conservadas: Number(res) || 0, canceladas: 0, afectados: 0, reactivadas: 0, avisos: [] as string[] };
+    const res = existe ? await rpc<number | { conservadas: number; movidas?: number; canceladas: number; afectados: number; reactivadas?: number; avisos: string[] }>('plantilla_aplicar_cambios', { p_plantilla_id: p.id, p_mover: args.mover === true }) : 0;
+    const r = typeof res === 'object' && res ? res : { conservadas: Number(res) || 0, movidas: 0, canceladas: 0, afectados: 0, reactivadas: 0, avisos: [] as string[] };
     await regenerarClases();
     enviarPushAvisos(r.avisos ?? []);
-    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, reactivadas: r.reactivadas ?? 0, avisoIds: r.avisos ?? [] });
+    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, movidas: r.movidas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, reactivadas: r.reactivadas ?? 0, avisoIds: r.avisos ?? [] });
   },
 
   async eliminarPlantilla(args) {
@@ -351,7 +365,7 @@ const impl: Impl = {
   async guardarTrabajador(args, sesion) {
     const sb = servidor();
     const t = { ...args.trabajador, id: args.trabajador.id ?? nuevoUuid() };
-    const { trabajador, permisos } = deTrabajador(t, veFinanzas(sesion));
+    const { trabajador, permisos } = deTrabajador(t, veFinanzas(sesion), gestionaHorario(sesion));
     comprobar(await sb.from('trabajadores').upsert(trabajador));
     comprobar(await sb.from('trabajador_permisos').delete().eq('trabajador_id', t.id));
     if (permisos.length > 0) comprobar(await sb.from('trabajador_permisos').insert(permisos));

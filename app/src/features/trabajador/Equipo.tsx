@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Building2, GraduationCap, Landmark, Plus, ShieldCheck } from 'lucide-react';
+import { Building2, CalendarClock, GraduationCap, Landmark, Plus, ShieldCheck } from 'lucide-react';
 import type { Ambito, Permiso, RolTrabajador, Trabajador } from '@/domain/types';
-import { AMBITO_DESCRIPCION, AMBITO_LABEL, PERMISOS, PERMISO_LABEL } from '@/domain/types';
+import { AMBITO_DESCRIPCION, AMBITO_LABEL, PERMISOS, PERMISOS_HORARIO, PERMISO_LABEL } from '@/domain/types';
+
+/** Permisos que se marcan uno a uno (los del horario van con el interruptor «Gestiona el horario y las clases», 0038). */
+const PERMISOS_LISTA = PERMISOS.filter((p) => !PERMISOS_HORARIO.includes(p));
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
@@ -43,9 +46,10 @@ function ChipsTrabajador({ t, finanzas }: { t: Trabajador; finanzas: boolean }) 
     <>
       <Chip tono={t.rol === 'ADMIN' ? 'cocoa' : 'gris'}>{ROL_TEXTO[t.rol]}</Chip>
       {finanzas && t.veFinanzas && <Chip tono="cocoa"><Landmark className="h-3.5 w-3.5" /> Finanzas</Chip>}
+      {t.gestionaHorario && <Chip tono="azul"><CalendarClock className="h-3.5 w-3.5" /> Horario</Chip>}
       {t.esMonitor && t.rol !== 'MONITOR' && <Chip tono="beige">Imparte clases</Chip>}
       {t.rol !== 'ADMIN' && t.ambito === 'SUS_CLASES' && <Chip tono="ambar"><GraduationCap className="h-3.5 w-3.5" /> Solo sus clases</Chip>}
-      <Chip tono="azul"><ShieldCheck className="h-3.5 w-3.5" /> {t.rol === 'ADMIN' ? 'todos' : t.permisos.length} permisos</Chip>
+      <Chip tono="azul"><ShieldCheck className="h-3.5 w-3.5" /> {t.rol === 'ADMIN' ? 'todos' : t.permisos.filter((p) => !PERMISOS_HORARIO.includes(p)).length} permisos</Chip>
     </>
   );
 }
@@ -118,18 +122,22 @@ function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | nul
             <Interruptor activo={f.veFinanzas === true} onCambio={(v) => setF({ ...f, veFinanzas: v })} etiqueta="Ve las finanzas"
               descripcion="Importes, ofertas, forma de pago y cobros de los alumnos. No lo da el rol de administrador: se concede persona a persona, y solo por quien ya lo tiene." />
           )}
+          {/* 0038: el horario lo gestionan solo quienes tienen este interruptor; solo quien lo tiene puede darlo. */}
+          <Interruptor activo={f.gestionaHorario === true} onCambio={(v) => setF({ ...f, gestionaHorario: v })} etiqueta="Gestiona el horario y las clases"
+            descripcion={`Crear, cambiar y eliminar franjas; crear, cancelar y reactivar clases; publicar los cambios del horario. No lo da el rol de administrador: se concede persona a persona${sesion.gestionaHorario ? ', y solo por quien ya lo tiene.' : '. Solo puede cambiarlo quien ya lo tiene.'}`}
+            deshabilitado={!sesion.gestionaHorario} />
         </div>
         <SelectorAmbito valor={f.rol === 'ADMIN' ? 'CENTRO' : f.ambito} onCambio={(a) => setF({ ...f, ambito: a })} esAdmin={f.rol === 'ADMIN'} />
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[15px] font-semibold">Permisos</span>
-            {f.rol !== 'ADMIN' && <span className="flex gap-1"><Boton variante="fantasma" tamano="sm" onClick={() => setF({ ...f, permisos: [...PERMISOS] })}>Todos</Boton><Boton variante="fantasma" tamano="sm" onClick={() => setF({ ...f, permisos: [] })}>Ninguno</Boton></span>}
+            {f.rol !== 'ADMIN' && <span className="flex gap-1"><Boton variante="fantasma" tamano="sm" onClick={() => setF({ ...f, permisos: [...PERMISOS_LISTA] })}>Todos</Boton><Boton variante="fantasma" tamano="sm" onClick={() => setF({ ...f, permisos: [] })}>Ninguno</Boton></span>}
           </div>
           {f.rol === 'ADMIN' ? (
-            <p className="rounded-2xl bg-beige-100 text-ink p-3 text-sm flex gap-2"><ShieldCheck className="h-5 w-5 shrink-0" /> El administrador tiene todos los permisos siempre, incluida la configuración del centro.</p>
+            <p className="rounded-2xl bg-beige-100 text-ink p-3 text-sm flex gap-2"><ShieldCheck className="h-5 w-5 shrink-0" /> El administrador tiene todos estos permisos siempre, incluida la configuración del centro. El horario y las finanzas van aparte, con sus interruptores.</p>
           ) : (
             <div className="grid sm:grid-cols-2 gap-1.5">
-              {PERMISOS.map((p) => (
+              {PERMISOS_LISTA.map((p) => (
                 <label key={p} className={cn('flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer', f.permisos.includes(p) ? 'border-beige-300 bg-beige-50' : 'border-ink/10 bg-white')}>
                   <input type="checkbox" className="h-5 w-5 accent-brand-500 shrink-0" checked={f.permisos.includes(p)} onChange={() => alternar(p)} />
                   <span className="text-sm font-medium">{PERMISO_LABEL[p]}</span>

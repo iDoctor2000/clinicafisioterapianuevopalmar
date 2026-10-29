@@ -347,7 +347,20 @@
   <ul>
     <li>Una <strong>franja</strong> es una clase fija de la semana: "los lunes a las 10:00, Reformer, 55 minutos, 6 plazas, con Irene". Vive en <strong>Horarios</strong>.</li>
     <li>Una <strong>clase</strong> es un día concreto: "el lunes 12 de octubre a las 10:00". Las clases se crean solas cada noche a partir de las franjas, con 10 semanas de adelanto, y viven en el <strong>Calendario</strong>.</li>
+    <li>El horario y las clases los gestionan solo las personas con el interruptor <strong>Gestiona el horario y las clases</strong> en su ficha de Equipo (capítulo 12). El resto del equipo ve Horarios en modo consulta.</li>
   </ul>
+
+  <h3>Caso 0 · Reorganizar el horario con calma: "cambios sin publicar"</h3>
+  <p>Mientras preparas un horario nuevo (por ejemplo, un fin de semana moviendo alumnos de unas franjas a otras), los alumnos <strong>no ven nada de lo que vas haciendo</strong> hasta que tú lo publicas:</p>
+  <ul>
+    <li>Las <strong>franjas nuevas</strong> y las <strong>clases extraordinarias nuevas</strong> se crean ya con sus clases, pero en borrador: los alumnos no las ven, ni pueden reservarlas ni apuntarse a su lista de espera. Tú sí puedes apuntar en ellas a quien quieras (y esa persona entonces sí ve esa clase, porque tiene plaza).</li>
+    <li>Las <strong>plazas que liberas tú</strong> (quitas a un alumno de una clase, le cambias el horario fijo…) quedan <strong>retenidas</strong>: los alumnos las ven como ocupadas y la lista de espera no las da. Así nadie "pilla" el hueco mientras mueves gente. Si apuntas a alguien en esa clase, usa primero una plaza retenida. Lo que cancela el propio alumno o alguien del equipo sin este permiso no retiene nada.</li>
+    <li>Arriba del Calendario (y de Horarios) sale el aviso <strong>Cambios sin publicar</strong> con el resumen: franjas y clases en borrador y plazas retenidas. Cuando termines, toca <span class="btn">Publicar cambios</span>: todo pasa a verse, las plazas retenidas vuelven a poder reservarse (y entra quien esperaba en lista) y, si quieres, se manda un aviso a todos los alumnos ("Hemos actualizado el horario…").</li>
+  </ul>
+  <div class="caja ojo">
+    <div class="t">Acuérdate de publicar</div>
+    <p>Hasta que publiques, un hueco que hayas dejado no se lo lleva nadie: ni desde la app ni desde la lista de espera. Es lo que se busca cuando estás reorganizando, pero en el día a día, cuando quitas a alguien de una clase y quieres que ese hueco se ofrezca, pulsa <em>Publicar cambios</em> en cuanto termines. El aviso de arriba del calendario te lo recuerda; el informe diario de la administración también lo señala.</p>
+  </div>
 
   <h3>Caso 1 · Cambiar la hora, el monitor, las plazas o la duración de una clase fija</h3>
   <ol class="pasos">
@@ -358,7 +371,12 @@
   </ol>
   <div class="caja">
     <div class="t">Qué pasa con las clases que ya existían</div>
-    <p>Las clases futuras de esa franja se <strong>recrean con el horario nuevo</strong> automáticamente. Los alumnos con <strong>horario fijo</strong> pasan con ellas, sin que tengas que hacer nada. Si alguna clase futura tenía alumnos apuntados a mano, esa clase <strong>mantiene su día y hora</strong> para no descolocarles (la app te dice cuántas son), pero la actividad, el monitor y las plazas sí se cambian. Si además has cambiado la hora o el día, revísalas en el calendario y, si procede, cancélalas con alternativa (caso 2) para que los alumnos se cambien.</p>
+    <p>Las clases futuras de esa franja se <strong>recrean con el horario nuevo</strong> automáticamente. Los alumnos con <strong>horario fijo</strong> pasan con ellas, sin que tengas que hacer nada. Si alguna clase futura tenía alumnos apuntados a mano y has cambiado el día o la hora, la app te pregunta <strong>"¿Mover también las clases ya programadas con sus alumnos?"</strong>:</p>
+    <ul>
+      <li><strong>Mover las clases con sus alumnos:</strong> cada clase pasa al nuevo día y hora de su misma semana con todos sus alumnos, y cada uno recibe un aviso ("Tu clase del 12/11 a las 10:00 pasa al 12/11 a las 10:30…"). Si el nuevo hueco de alguna ya hubiera pasado, o es día de cierre, esa se queda donde está.</li>
+      <li><strong>Dejarlas donde están:</strong> esas clases mantienen su día y hora de siempre (solo cambian actividad, monitor y plazas) y las nuevas clases de la franja ya salen con el horario nuevo.</li>
+    </ul>
+    <p>Las clases que ya han empezado no se tocan nunca.</p>
   </div>
 
   <h3>Caso 2 · Un día concreto la clase cambia de hora (o de monitor)</h3>
@@ -371,7 +389,10 @@
   </ol>
 
   <h3>Caso 3 · Abrir una clase extra (un sábado, un taller, un puente)</h3>
-  <p><strong>Calendario</strong> → <span class="btn">Nueva clase extraordinaria</span>. Queda marcada como "Extraordinaria" y los alumnos la pueden reservar como cualquier otra. Recuerda que un sábado con clases de Pilates no abre la clínica de fisioterapia: su horario es independiente.</p>
+  <p><strong>Calendario</strong> → <span class="btn">Nueva clase extraordinaria</span>. Queda marcada como "Extraordinaria" y, en cuanto pulses <em>Publicar cambios</em>, los alumnos la pueden reservar como cualquier otra. Recuerda que un sábado con clases de Pilates no abre la clínica de fisioterapia: su horario es independiente.</p>
+
+  <h3>Caso 3 bis · Quitar una clase en la que no hay nadie</h3>
+  <p>Abre la clase y toca <span class="btn claro">Cancelar clase</span>: si no hay nadie apuntado (ni lo hubo), la clase se <strong>elimina del calendario directamente</strong>, sin avisos ni recuperaciones, porque no hay a quién avisar. Si alguna vez tuvo alumnos, se cancela y se conserva en el historial (y se puede <em>Reactivar</em>). Una clase cancelada en la que no hubo nadie también se puede quitar con el botón <span class="btn claro">Eliminar clase</span> de su ficha.</p>
 
   <h3>Caso 4 · Quitar una clase fija del horario</h3>
   <p>Hay dos formas, según si es para siempre o no:</p>
@@ -396,7 +417,7 @@
 
   <div class="caja ojo">
     <div class="t">Lo que no conviene hacer</div>
-    <p>No crees una franja nueva para "cambiar la hora" de una existente: tendrías dos franjas y el doble de clases. Edita la franja que ya hay (caso 1).</p>
+    <p>No crees una franja nueva para "cambiar la hora" de una existente: tendrías dos franjas y el doble de clases. Edita la franja que ya hay (caso 1): la app te avisa si ya existe una franja igual (misma actividad, día y hora).</p>
   </div>
 </section>
 
@@ -435,6 +456,7 @@
     <li><strong>Imparte clases:</strong> márcalo si va a aparecer como monitor en los horarios.</li>
     <li><strong>Ámbito:</strong> <em>Todo el centro</em> o <em>Solo sus clases</em> (ve y gestiona únicamente las clases que imparte y a sus alumnos).</li>
     <li><strong>Permisos:</strong> marca lo que necesite. Para un monitor típico: Registrar asistencia, Gestionar reservas y recuperaciones, Consultar fichas de clientes y Crear y enviar avisos.</li>
+    <li><strong>Gestiona el horario y las clases:</strong> interruptor aparte, para quien lleva el horario (franjas, clases extraordinarias, cancelar y reactivar clases, publicar cambios). No lo da el rol de administrador: se concede persona a persona y <strong>solo puede darlo o quitarlo quien ya lo tiene</strong>. Nunca puede quedarse nadie sin él (la app lo impide).</li>
     <li>Guarda y dile que entre en la app con ese correo.</li>
   </ol>
   <h3>Los permisos, uno a uno</h3>
@@ -446,9 +468,8 @@
     <tr><td>Crear y modificar fichas de clientes</td><td>Dar de alta clientes y editar sus datos, hacer y editar contrataciones y apuntar cobros.</td></tr>
     <tr><td>Consultar información clínica</td><td>Ver la pestaña Clínica de las fichas.</td></tr>
     <tr><td>Crear y enviar avisos</td><td>Publicar avisos.</td></tr>
-    <tr><td>Crear y cancelar clases</td><td>Cancelar clases y crear extraordinarias.</td></tr>
+    <tr><td>Gestiona el horario y las clases (interruptor)</td><td>Crear, cambiar y eliminar franjas; crear clases extraordinarias; cancelar, reactivar y eliminar clases; publicar los cambios del horario. Va aparte de la lista de permisos y el rol de administrador no lo incluye.</td></tr>
     <tr><td>Introducir clases sueltas</td><td>Apuntar a alguien como clase suelta (pago en recepción).</td></tr>
-    <tr><td>Gestionar horarios semanales</td><td>Crear y editar franjas.</td></tr>
     <tr><td>Gestionar actividades y tarifas</td><td>La sección Tarifas.</td></tr>
     <tr><td>Consultar estadísticas</td><td>La sección Estadísticas.</td></tr>
     <tr><td>Gestionar trabajadores y permisos</td><td>Reservado en la práctica a administradores.</td></tr>
@@ -656,6 +677,9 @@
         <tr><td><code>supabase/migrations/0035_registro_errores.sql</code></td><td>Los errores que ve la gente en la app (mensajes rojos, acciones que no se pudieron hacer, fallos de la app) quedan anotados para el informe de uso. Solo lo lee la administración; se borran a los 90 días.</td></tr>
         <tr><td><code>supabase/migrations/0036_informe_telegram.sql</code></td><td>Informe de uso y errores para el bot de Telegram del administrador (sin datos personales).</td></tr>
         <tr><td><code>supabase/migrations/0037_cobros_fuera_de_contrato.sql</code></td><td>Al dar de baja, finalizar o acortar un contrato, sus cobros pendientes de meses posteriores se quitan solos; una contratación nueva sustituye los pendientes de cualquier contrato anterior.</td></tr>
+        <tr><td><code>supabase/migrations/0038_horario_entrega_1.sql</code></td><td>Interruptor «Gestiona el horario y las clases» (quien ve las finanzas lo recibe al aplicarla); cancelar una clase vacía la borra y botón «Eliminar clase»; al cambiar día u hora de una franja, opción de mover las clases con sus alumnos avisándoles; limpia franjas repetidas sin alumnos y clases canceladas vacías.</td></tr>
+        <tr><td><code>supabase/migrations/0039_cambios_sin_publicar.sql</code></td><td>Cambios sin publicar: franjas y clases nuevas en borrador, plazas retenidas y botón «Publicar cambios».</td></tr>
+        <tr><td><code>supabase/migrations/0040_cobro_pagado_sustituye_pendiente.sql</code></td><td>Al apuntar un cobro pagado de un mes, el cobro pendiente de ese mismo mes del alumno desaparece solo (si el pagado no es menor). Quita los que ya estuvieran repetidos.</td></tr>
         <tr><td><code>supabase/migrations/0027_contratos_y_notificaciones.sql</code></td><td>Arregla que no llegaran las notificaciones al móvil (permisos de la función enviar-push) y que las versiones antiguas de la app no vieran los contratos.</td></tr>
       </table>
       Si la 0014 o la 0016 no se han ejecutado, esas sorpresas no aparecen o dan error al guardar.</li>
@@ -697,6 +721,18 @@
   <div class="capnum">Capítulo 18</div>
   <h2>Problemas típicos y cómo salir de ellos</h2>
   <dl class="faq">
+    <dt>A un alumno le salen dos cobros del mismo mes: uno cobrado y otro "por cobrar".</dt>
+    <dd>Desde la 0040 no debería pasar: al apuntar como cobrado un mes (con «Cobrar» o con «Añadir cobro»), el pendiente de ese mismo mes se quita solo, salvo que lo cobrado sea menos (pago parcial). Para cobrar con otra forma de pago distinta a la de la contratación, toca el cobro pendiente, marca "Cobrado" y elige la forma: no hace falta añadir otro.</dd>
+
+    <dt>He creado una franja (o una clase extraordinaria) y los alumnos dicen que no la ven.</dt>
+    <dd>Está sin publicar: arriba del Calendario sale "Cambios sin publicar". Toca <strong>Publicar cambios</strong> (solo puede quien gestiona el horario). Lo mismo si has quitado a alguien de una clase y el hueco "no se ofrece": está retenido hasta que publiques (capítulo 9, caso 0).</dd>
+
+    <dt>Me sale "No tienes permiso para: HORARIOS_GESTIONAR" (o CLASES_CREAR_CANCELAR).</dt>
+    <dd>Desde la 0038 el horario y las clases los gestiona solo quien tiene el interruptor <strong>Gestiona el horario y las clases</strong> en Equipo; ser administrador no basta. Pídeselo a quien lo tenga: solo esa persona puede concederlo.</dd>
+
+    <dt>Quiero quitar del calendario una clase cancelada que no tenía a nadie.</dt>
+    <dd>Ábrela y toca <strong>Eliminar clase</strong>. Si tuvo alumnos no se puede (se conserva en el historial): usa Reactivar si al final se da. Al cancelar una clase vacía la app ya la elimina directamente.</dd>
+
     <dt>Un cliente entra y le sale "Tu usuario aún no está dado de alta en el centro".</dt>
     <dd>El correo con el que entra no coincide con el de su ficha, o todavía no tiene ficha. En su ficha, la línea <strong>Cuenta en la app</strong> te dice si está enlazada (✅) o sin enlazar (⏳). Mira el correo que sale en su pantalla y compáralo con el de su ficha (Clientes → su ficha → Editar datos). Corrígelo o crea la ficha con ese mismo correo, y que pulse "Volver a intentar". Da igual que se registrara antes o después de crearle la ficha: se enlazan solas en cuanto el correo coincide. Si aun así no entra, revisa que la ficha esté activa (no dada de baja).</dd>
 

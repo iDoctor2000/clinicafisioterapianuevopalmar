@@ -47,9 +47,9 @@ export const AreaTexto = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<
   },
 );
 
-export function Interruptor({ activo, onCambio, etiqueta, descripcion }: { activo: boolean; onCambio: (v: boolean) => void; etiqueta: string; descripcion?: string }) {
+export function Interruptor({ activo, onCambio, etiqueta, descripcion, deshabilitado }: { activo: boolean; onCambio: (v: boolean) => void; etiqueta: string; descripcion?: string; deshabilitado?: boolean }) {
   return (
-    <button type="button" role="switch" aria-checked={activo} onClick={() => onCambio(!activo)} className="w-full flex items-center justify-between gap-4 py-3 text-left tap">
+    <button type="button" role="switch" aria-checked={activo} disabled={deshabilitado} onClick={() => onCambio(!activo)} className={cn('w-full flex items-center justify-between gap-4 py-3 text-left tap', deshabilitado && 'opacity-60 cursor-not-allowed')}>
       <span>
         <span className="block font-semibold">{etiqueta}</span>
         {descripcion && <span className="block text-sm text-ink-muted">{descripcion}</span>}

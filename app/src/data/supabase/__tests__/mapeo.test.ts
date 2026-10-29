@@ -91,13 +91,16 @@ describe('trabajadores', () => {
   const fila: FilaTrabajador = { id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', ambito: 'SUS_CLASES', es_monitor: true, color: '#fff', activo: true, user_id: AUTH };
   it('ida y vuelta con permisos (sin user_id al escribir)', () => {
     const t = aTrabajador(fila, [{ trabajador_id: U1, permiso: 'CLIENTES_VER' }, { trabajador_id: U2, permiso: 'AVISOS_ENVIAR' }, { trabajador_id: U1, permiso: 'ASISTENCIA_REGISTRAR' }]);
-    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#fff', activo: true, userId: AUTH, veFinanzas: false });
+    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#fff', activo: true, userId: AUTH, veFinanzas: false, gestionaHorario: false });
     const { trabajador, permisos } = deTrabajador(t);
     const { user_id: _u, ...sinUser } = fila;
     expect(trabajador).toEqual(sinUser);
     // 0024: la columna ve_finanzas solo viaja cuando quien guarda ve las finanzas.
     expect(deTrabajador({ ...t, veFinanzas: true }, true).trabajador).toEqual({ ...sinUser, ve_finanzas: true });
     expect(aTrabajador({ ...fila, ve_finanzas: true }, []).veFinanzas).toBe(true);
+    // 0038: lo mismo con gestiona_horario.
+    expect(deTrabajador({ ...t, gestionaHorario: true }, false, true).trabajador).toEqual({ ...sinUser, gestiona_horario: true });
+    expect(aTrabajador({ ...fila, gestiona_horario: true }, []).gestionaHorario).toBe(true);
     expect(permisos).toEqual([{ trabajador_id: U1, permiso: 'CLIENTES_VER' }, { trabajador_id: U1, permiso: 'ASISTENCIA_REGISTRAR' }]);
   });
   it('vista monitores (lo que ve un cliente)', () => {
@@ -153,8 +156,11 @@ describe('horario y clases', () => {
     const c = aClase(fila);
     expect(c).toMatchObject({ plantillaId: U2, fecha: '2026-09-28', horaInicio: '10:00', monitorId: '', estado: 'CANCELADA', motivoCancelacion: 'Avería', canceladaEl: '2026-09-26T08:00:00.000Z', canceladaPor: AUTH });
     expect(deClaseNueva({ id: U1, actividadId: U3, fecha: '2026-09-28', horaInicio: '10:00', duracionMin: 55, monitorId: U2, plazas: 4 })).toEqual({
-      id: U1, plantilla_id: null, actividad_id: U3, fecha: '2026-09-28', hora_inicio: '10:00:00', duracion_min: 55, monitor_id: U2, plazas: 4, estado: 'PROGRAMADA', extraordinaria: true,
+      id: U1, plantilla_id: null, actividad_id: U3, fecha: '2026-09-28', hora_inicio: '10:00:00', duracion_min: 55, monitor_id: U2, plazas: 4, estado: 'PROGRAMADA', extraordinaria: true, publicada: false,
     });
+    // 0039: lo que no está publicado y las plazas retenidas llegan a la app; ausentes si la migración no está.
+    expect(aClase({ ...fila, publicada: false, plazas_retenidas: 2 })).toMatchObject({ publicada: false, plazasRetenidas: 2 });
+    expect(aClase({ ...fila, publicada: true, plazas_retenidas: 0 })).not.toHaveProperty('publicada');
   });
 });
 

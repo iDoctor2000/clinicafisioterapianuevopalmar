@@ -13,6 +13,7 @@ import { CalendarioSemana } from './CalendarioSemana';
 import { CalendarioMes } from './CalendarioMes';
 import { BannerClienteDelMes } from './ClienteDelMes';
 import { BannerRenovaciones } from './Renovaciones';
+import { BannerSinPublicar } from './SinPublicar';
 import { IconoActividad } from '@/features/comun/IconoActividad';
 
 type Vista = 'DIA' | 'SEMANA' | 'MES';
@@ -64,6 +65,7 @@ export function Calendario() {
         }
       />
 
+      <BannerSinPublicar />
       <BannerRenovaciones />
       <CumpleanosDeHoy />
       <BannerClienteDelMes />
@@ -153,7 +155,7 @@ function TiraSemana({ semana, fecha, hoy, onElegir, cierres }: { semana: { fecha
 }
 
 export function TarjetaClase({ vista }: { vista: ClaseVista }) {
-  const { clase, actividad, monitor, ocupadas } = vista;
+  const { clase, actividad, monitor, ocupadas, retenidas } = vista;
   const cancelada = clase.estado === 'CANCELADA';
   const cs = clasesSueltasDe(vista);
   return (
@@ -171,8 +173,9 @@ export function TarjetaClase({ vista }: { vista: ClaseVista }) {
             {cancelada && <Chip tono="rojo">Cancelada</Chip>}
             {!cancelada && ocupadas >= clase.plazas && <Chip tono="ambar">Completa</Chip>}
             {cs > 0 && <Chip tono="cocoa">{cs} CS</Chip>}
+            {clase.publicada === false && !cancelada && <Chip tono="azul">Sin publicar</Chip>}
           </div>
-          <div className="text-sm text-ink-muted mt-0.5">{monitor ? `${monitor.nombre} ${monitor.apellidos}` : 'Sin monitor'} · {clase.duracionMin} min</div>
+          <div className="text-sm text-ink-muted mt-0.5">{monitor ? `${monitor.nombre} ${monitor.apellidos}` : 'Sin monitor'} · {clase.duracionMin} min{retenidas > 0 && <> · <span className="text-sky font-medium">{retenidas === 1 ? '1 plaza retenida' : `${retenidas} plazas retenidas`}</span></>}</div>
           <div className="mt-2 flex items-center gap-3">
             <BarraOcupacion ocupadas={ocupadas} plazas={clase.plazas} className="flex-1" />
             <span className="text-sm font-semibold tabular-nums">{ocupadas}/{clase.plazas}</span>
@@ -195,7 +198,7 @@ export function HojaNuevaClase({ abierta, onCerrar, fechaInicial, onCreada }: { 
   const guardar = async () => {
     if (!f.actividadId || !f.fecha || !f.horaInicio || !f.monitorId) return toast.error('Completa todos los campos.');
     const r = await ejecutar('crearClaseExtraordinaria', { ...f, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) });
-    if (r.ok) { toast.ok('Clase extraordinaria creada.'); onCreada(f.fecha); } else toast.error(r.error);
+    if (r.ok) { toast.ok('Clase extraordinaria creada (sin publicar todavía).'); onCreada(f.fecha); } else toast.error(r.error);
   };
 
   return (
@@ -216,6 +219,7 @@ export function HojaNuevaClase({ abierta, onCerrar, fechaInicial, onCreada }: { 
         <Seleccion etiqueta="Monitor/a" value={f.monitorId} onChange={(e) => setF({ ...f, monitorId: e.target.value })}>
           {mons.map((m) => <option key={m.id} value={m.id}>{m.nombre} {m.apellidos}</option>)}
         </Seleccion>
+        <p className="text-sm text-ink-muted">Los alumnos no la verán hasta que pulses <strong className="text-ink">Publicar cambios</strong> en el calendario. Mientras tanto puedes apuntar tú a quien quieras.</p>
         <Boton ancho onClick={guardar} disabled={cierre}>Crear clase</Boton>
       </div>
     </Hoja>

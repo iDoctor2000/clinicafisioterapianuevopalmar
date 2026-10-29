@@ -12,7 +12,7 @@ const ahora = new Date('2026-09-27T10:30:00.000Z');
 const ctx = (sesion: Sesion, db: Db = db0): Ctx => ({ db, sesion, ahora });
 const trabajador = (id: string): Sesion => {
   const t = db0.trabajadores.find((x) => x.id === id)!;
-  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol };
+  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, gestionaHorario: t.gestionaHorario === true };
 };
 const clienteSesion = (id: string): Sesion => {
   const c = db0.clientes.find((x) => x.id === id)!;

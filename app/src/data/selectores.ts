@@ -10,7 +10,12 @@ export interface ClaseVista {
   monitor: Trabajador | null;
   reservas: Reserva[];
   ocupadas: number;
+  /** Plazas libres para el personal (sin contar las retenidas). */
   libres: number;
+  /** Plazas retenidas por el equipo: cambios sin publicar (0039). */
+  retenidas: number;
+  /** Plazas libres tal como las ve un alumno (sin las retenidas). */
+  libresAlumnos: number;
 }
 
 export function vistaClase(db: Db, clase: Clase): ClaseVista {
@@ -23,6 +28,8 @@ export function vistaClase(db: Db, clase: Clase): ClaseVista {
     reservas,
     ocupadas,
     libres: plazasLibres(clase, reservas),
+    retenidas: clase.estado === 'PROGRAMADA' ? Math.min(clase.plazasRetenidas ?? 0, plazasLibres(clase, reservas)) : 0,
+    libresAlumnos: plazasLibres(clase, reservas, true),
   };
 }
 

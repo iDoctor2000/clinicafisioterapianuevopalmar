@@ -10,7 +10,7 @@ const ahora = new Date();
 const hoy = aISODate(ahora);
 const sesionDe = (db: Db, id: string): Sesion => {
   const t = db.trabajadores.find((x) => x.id === id)!;
-  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol };
+  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, gestionaHorario: t.gestionaHorario === true };
 };
 const ctx = (db: Db = crearSeed()): Ctx => ({ db, sesion: sesionDe(db, 'tra-jose'), ahora });
 
@@ -139,5 +139,30 @@ describe('horario: clases conservadas', () => {
     expect(despues.horaInicio).toBe(conReserva.horaInicio);
     const ocupadas = r.db.reservas.filter((x) => x.claseId === conReserva.id && x.estado === 'RESERVADA').length;
     expect(despues.plazas).toBeGreaterThanOrEqual(ocupadas);
+  });
+});
+
+describe('0040: un cobro pagado de un mes sustituye al pendiente', () => {
+  it('al apuntar el cobro pagado desaparece el pendiente del mismo mes (no si es un pago parcial)', () => {
+    const c0 = ctx();
+    const contrato = c0.db.contratos.find((k) => k.estado === 'ACTIVO')!;
+    const base = { clienteId: contrato.clienteId, contratoId: contrato.id, venceEl: '2026-11-01', mes: '2026-11-01', metodo: null, pagadoEl: null } as const;
+    const r1 = guardarPago(c0, { pago: { ...base, concepto: 'Noviembre 2026', importeCentimos: 6500, estado: 'PENDIENTE' } });
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) return;
+    // Pago parcial: el pendiente se queda.
+    const r2 = guardarPago({ ...c0, db: r1.db }, { pago: { ...base, concepto: 'A cuenta', importeCentimos: 3000, estado: 'PAGADO', metodo: 'EFECTIVO' } });
+    expect(r2.ok && r2.db.pagos.filter((p) => p.clienteId === contrato.clienteId && p.mes === '2026-11-01')).toHaveLength(2);
+    // Cobro completo con otra forma de pago: el pendiente sobra.
+    const r3 = guardarPago({ ...c0, db: r1.db }, { pago: { ...base, concepto: 'Noviembre 2026', importeCentimos: 6500, estado: 'PAGADO', metodo: 'TARJETA' } });
+    expect(r3.ok).toBe(true);
+    if (!r3.ok) return;
+    const delMes = r3.db.pagos.filter((p) => p.clienteId === contrato.clienteId && p.mes === '2026-11-01');
+    expect(delMes).toHaveLength(1);
+    expect(delMes[0]).toMatchObject({ estado: 'PAGADO', metodo: 'TARJETA' });
+    expect(r3.db.auditoria[0].accion).toBe('COBRO_PENDIENTE_SUSTITUIDO');
+    // Marcar el propio pendiente como cobrado no lo quita.
+    const r4 = guardarPago({ ...c0, db: r1.db }, { pago: { ...r1.valor, estado: 'PAGADO', metodo: 'TARJETA' } });
+    expect(r4.ok && r4.db.pagos.filter((p) => p.clienteId === contrato.clienteId && p.mes === '2026-11-01')).toHaveLength(1);
   });
 });

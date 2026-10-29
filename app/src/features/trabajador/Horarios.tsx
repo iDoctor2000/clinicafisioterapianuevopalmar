@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { CalendarClock, Info, Plus, Trash2 } from 'lucide-react';
 import { duracionActividad, type DiaSemana, type PlantillaClase } from '@/domain/types';
 import { DIAS_SEMANA_CORTO, DIAS_SEMANA_LABEL, fechaCorta, hoyISO, horaFin } from '@/domain/fechas';
-import { clasesQueSeCancelarian } from '@/data/comandos';
+import { clasesQueSeCancelarian, clasesQueSeMoverian } from '@/data/comandos';
 import { Boton, Chip, Entrada, Hoja, Interruptor, Seleccion, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
 import { efectoEliminarPlantilla, fijosDePlantilla, monitores, ocupacionFijaDePlantilla, plantillasPorDia, plantillasVigentes } from './consultas';
 import { Confirmacion, Encabezado, PuntoColor, Segmentado } from './comunes';
+import { BannerSinPublicar } from './SinPublicar';
 
 const DIAS: DiaSemana[] = [1, 2, 3, 4, 5, 6, 7];
 
@@ -16,16 +17,18 @@ export function Horarios() {
   const [dia, setDia] = useState<DiaSemana>(1);
   const [edicion, setEdicion] = useState<PlantillaClase | 'NUEVA' | null>(null);
   const porDia = plantillasPorDia(db);
-  const puedeEditar = puede('HORARIOS_GESTIONAR') && !limitado; // con ámbito SUS_CLASES el horario es de solo lectura
+  // 0038: solo quien gestiona el horario lo edita; con ámbito SUS_CLASES o sin ese permiso es de solo lectura.
+  const puedeEditar = puede('HORARIOS_GESTIONAR') && !limitado;
   const abrir = (p: PlantillaClase | 'NUEVA') => puedeEditar && setEdicion(p);
 
   return (
     <div>
       <Encabezado
-        titulo="Horarios" subtitulo={`${plantillasVigentes(db).filter((p) => p.activa).length} franjas activas a la semana${limitado ? ' · solo tus franjas (solo lectura)' : ''}`}
+        titulo="Horarios" subtitulo={`${plantillasVigentes(db).filter((p) => p.activa).length} franjas activas a la semana${limitado ? ' · solo tus franjas (solo lectura)' : !puedeEditar ? ' · solo lectura: lo cambia quien gestiona el horario' : ''}`}
         acciones={puedeEditar && <Boton tamano="sm" onClick={() => abrir('NUEVA')}><Plus className="h-5 w-5" /> Nueva franja</Boton>}
       />
-      <div className="mb-4 flex items-start gap-2 rounded-2xl bg-beige-100 text-ink px-4 py-3 text-sm"><Info className="h-5 w-5 shrink-0" /><span>Las clases de las próximas 10 semanas se generan automáticamente a partir de este horario. Los cambios se aplican también a las clases ya creadas: si quitas una franja, sus clases con alumnos se cancelan avisándoles.</span></div>
+      <BannerSinPublicar />
+      <div className="mb-4 flex items-start gap-2 rounded-2xl bg-beige-100 text-ink px-4 py-3 text-sm"><Info className="h-5 w-5 shrink-0" /><span>Las clases de las próximas 10 semanas se generan automáticamente a partir de este horario. Las franjas nuevas no las ven los alumnos hasta que pulses «Publicar cambios». Los cambios en una franja que ya existe se aplican también a sus clases ya creadas: si la quitas, sus clases con alumnos se cancelan avisándoles.</span></div>
 
       {plantillasVigentes(db).length === 0 && <Vacio icono={CalendarClock} titulo="Sin horario" texto="Crea la primera franja semanal." />}
 
@@ -67,6 +70,7 @@ function BloquePlantilla({ p, onClick, detallada }: { p: PlantillaClase; onClick
       <div className="flex items-center justify-between gap-2">
         <span className={cn('font-bold', detallada && 'text-lg')}>{p.horaInicio}<span className="text-ink-muted font-normal">–{horaFin(p.horaInicio, p.duracionMin)}</span></span>
         {!p.activa && <Chip tono="gris">Inactiva</Chip>}
+        {p.activa && p.publicada === false && <Chip tono="azul">Sin publicar</Chip>}
       </div>
       <div className={cn('font-semibold flex items-center gap-1.5', !detallada && 'truncate')}>{detallada && <PuntoColor color={a?.color ?? '#999'} />}{a?.nombre ?? 'Actividad eliminada'}</div>
       <div className={cn('text-ink-muted', detallada ? 'text-sm' : 'truncate')}>{m?.nombre ?? 'Sin monitor'} · {fijos}/{p.plazas}{detallada ? ' fijos' : ''}</div>
@@ -83,6 +87,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
     plantilla ?? { actividadId: acts[0]?.id ?? '', diaSemana: diaInicial, horaInicio: '10:00', duracionMin: duracionActividad(acts[0]), monitorId: mons[0]?.id ?? '', plazas: 8, activa: true, vigenciaDesde: null, vigenciaHasta: null },
   );
   const [confirmar, setConfirmar] = useState(false);
+  const [preguntarMover, setPreguntarMover] = useState(false);
   const [eliminar, setEliminar] = useState(false);
   const [guardando, setGuardando] = useState(false);
   // Eliminar la franja (0021): bloqueado si alguien la tiene como clase fija; si no, se cancelan sus clases con alumnos y se borran las vacías.
@@ -103,22 +108,28 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
   };
   // Clases futuras con alumnos que se cancelarían al guardar (franja desactivada o fuera de vigencia).
   const aCancelar = plantilla ? clasesQueSeCancelarian(db, { ...f, id: plantilla.id }, new Date()) : { clases: [], alumnos: 0 };
+  // 0038: al cambiar el día o la hora, las clases con alumnos pueden moverse con ellos o quedarse donde están.
+  const cambiaDiaHora = !!plantilla && f.activa && (f.diaSemana !== plantilla.diaSemana || f.horaInicio.slice(0, 5) !== plantilla.horaInicio.slice(0, 5));
+  const aMover = plantilla && cambiaDiaHora ? clasesQueSeMoverian(db, { ...f, id: plantilla.id }, new Date()) : { clases: [], alumnos: 0 };
   // Cambiar desde qué día vale una franja que ya se está dando: casi siempre lo que se quiere es un horario nuevo a partir de esa fecha.
   const empiezaMasTarde = !!plantilla && !!f.vigenciaDesde && f.vigenciaDesde > hoyISO() && f.vigenciaDesde !== plantilla.vigenciaDesde;
   // Otra franja de la misma actividad, el mismo día y a la misma hora, a la vez: saldrían dos clases iguales.
   const repetida = db.plantillas.find((x) => x.id !== plantilla?.id && x.activa && !x.eliminadaEl && f.activa
     && x.diaSemana === f.diaSemana && x.horaInicio.slice(0, 5) === f.horaInicio.slice(0, 5) && x.actividadId === f.actividadId
     && (!x.vigenciaHasta || !f.vigenciaDesde || x.vigenciaHasta >= f.vigenciaDesde) && (!f.vigenciaHasta || !x.vigenciaDesde || f.vigenciaHasta >= x.vigenciaDesde));
-  const guardar = async (confirmado = false) => {
+  const guardar = async (confirmado = false, mover: boolean | null = null) => {
     if (!f.actividadId || !f.monitorId || !f.horaInicio) return toast.error('Completa actividad, hora y monitor.');
     if (!confirmado && aCancelar.clases.length > 0) return setConfirmar(true);
+    if (mover === null && aMover.clases.length > 0) { setConfirmar(false); return setPreguntarMover(true); }
     if (guardando) return;
     setGuardando(true);
-    const r = await ejecutar('guardarPlantilla', { plantilla: { ...f, id: plantilla?.id, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) } });
+    const r = await ejecutar('guardarPlantilla', { plantilla: { ...f, id: plantilla?.id, duracionMin: Number(f.duracionMin), plazas: Number(f.plazas) }, mover: mover === true });
     setGuardando(false);
     setConfirmar(false);
+    setPreguntarMover(false);
     if (r.ok) {
-      if (!plantilla) toast.ok('Franja creada. Se han generado sus clases.');
+      if (!plantilla) toast.ok('Franja creada con sus clases. Los alumnos no la verán hasta que pulses «Publicar cambios».');
+      else if (r.valor.movidas > 0) toast.ok(`Franja actualizada. ${r.valor.movidas === 1 ? 'Se ha movido 1 clase' : `Se han movido ${r.valor.movidas} clases`} con sus alumnos al nuevo día y hora, y se les ha avisado.${r.valor.conservadas > 0 ? ` ${r.valor.conservadas === 1 ? '1 clase no se ha podido mover' : `${r.valor.conservadas} clases no se han podido mover`} (su nuevo hueco ya había pasado o estaba ocupado) y mantiene su día y hora.` : ''}`);
       else if (r.valor.reactivadas > 0) toast.ok(`Franja actualizada. ${r.valor.reactivadas === 1 ? 'Se ha reactivado 1 clase' : `Se han reactivado ${r.valor.reactivadas} clases`} que estaban canceladas: sus alumnos vuelven a tener plaza y se les ha avisado.`);
       else if (r.valor.canceladas > 0) toast.ok(`Franja actualizada. ${r.valor.canceladas === 1 ? 'Se ha cancelado 1 clase' : `Se han cancelado ${r.valor.canceladas} clases`} con alumnos; ${r.valor.afectados === 1 ? 'el alumno ha recibido' : `los ${r.valor.afectados} alumnos han recibido`} aviso y recuperación.`);
       else if (r.valor.conservadas > 0) toast.info(`Franja actualizada en el calendario. ${r.valor.conservadas === 1 ? 'Una clase con alumnos apuntados mantiene' : `${r.valor.conservadas} clases con alumnos apuntados mantienen`} su día y hora para no descolocarles; la actividad, el monitor y las plazas sí se han cambiado.`);
@@ -160,6 +171,14 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
             <strong className="text-ink">Ya hay una franja igual:</strong> {db.actividades.find((a) => a.id === repetida.actividadId)?.nombre} el {DIAS_SEMANA_LABEL[repetida.diaSemana].toLowerCase()} a las {repetida.horaInicio.slice(0, 5)}. Si guardas, habrá dos clases a la misma hora. Para cambiar la que ya existe, ábrela desde Horarios en vez de crear otra.
           </p>
         )}
+        {!plantilla && (
+          <p className="rounded-2xl bg-sky/10 border border-sky/30 px-4 py-3 text-sm text-ink-soft">
+            <strong className="text-ink">Sin publicar hasta que tú quieras:</strong> la franja y sus clases se crean ya, pero los alumnos no las verán hasta que pulses «Publicar cambios» (en Horarios o en el calendario). Mientras tanto puedes apuntar tú a quien quieras.
+          </p>
+        )}
+        {plantilla?.publicada === false && f.activa && (
+          <p className="rounded-2xl bg-sky/10 border border-sky/30 px-4 py-3 text-sm text-ink-soft">Esta franja está <strong className="text-ink">sin publicar</strong>: los alumnos no la ven todavía.</p>
+        )}
         <div className="rounded-2xl border border-ink/10 px-4"><Interruptor activo={f.activa} onCambio={(v) => setF({ ...f, activa: v })} etiqueta="Franja activa" descripcion={plantilla ? "Desactivarla no la borra: sigue en Horarios (en gris) y se puede volver a activar. Mientras esté desactivada no se crean clases nuevas, y las que ya tienen alumnos se cancelan avisándoles (con recuperación). Para quitarla del todo, usa «Eliminar franja del horario», aquí abajo." : "Si la desactivas, no se crean sus clases. No se borra: puedes volver a activarla cuando quieras."} /></div>
         <Boton ancho onClick={() => void guardar()} cargando={guardando}>{plantilla ? 'Guardar cambios' : 'Crear franja'}</Boton>
         {plantilla && (
@@ -182,6 +201,19 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
           </>
         )}
       </Confirmacion>
+      <Hoja abierta={preguntarMover} onCerrar={() => setPreguntarMover(false)} titulo="¿Mover también las clases ya programadas?">
+        <div className="text-ink-soft space-y-3">
+          <p>La franja pasa a <strong className="text-ink">{DIAS_SEMANA_LABEL[f.diaSemana].toLowerCase()} a las {f.horaInicio.slice(0, 5)}</strong>. Hay <strong className="text-ink">{aMover.clases.length === 1 ? '1 clase' : `${aMover.clases.length} clases`}</strong> ya programadas con alumnos apuntados ({aMover.alumnos === 1 ? '1 alumno' : `${aMover.alumnos} alumnos`}):</p>
+          <p className="font-semibold text-ink">{aMover.clases.slice(0, 6).map((c) => `${fechaCorta(c.fecha)} ${c.horaInicio.slice(0, 5)}`).join(' · ')}{aMover.clases.length > 6 ? ` y ${aMover.clases.length - 6} más` : ''}</p>
+          <p><strong className="text-ink">Mover:</strong> cada clase pasa al nuevo día y hora de su misma semana con todos sus alumnos, y cada uno recibe un aviso con el cambio.</p>
+          <p><strong className="text-ink">Dejarlas:</strong> esas clases se quedan en su día y hora de siempre (solo cambian actividad, monitor y plazas); las nuevas clases de la franja se crean ya en el nuevo horario.</p>
+          <div className="flex flex-col gap-2 pt-2">
+            <Boton ancho onClick={() => void guardar(true, true)} cargando={guardando}>Mover las clases con sus alumnos</Boton>
+            <Boton ancho variante="secundario" onClick={() => void guardar(true, false)} cargando={guardando}>Dejarlas donde están</Boton>
+            <Boton ancho variante="fantasma" onClick={() => setPreguntarMover(false)}>Volver</Boton>
+          </div>
+        </div>
+      </Hoja>
       <Confirmacion abierta={confirmar} onCerrar={() => setConfirmar(false)} titulo="Se cancelarán clases" textoConfirmar="Guardar y cancelar clases" peligro onConfirmar={() => void guardar(true)}>
         <p>Con estos cambios, <strong className="text-ink">{aCancelar.clases.length === 1 ? '1 clase' : `${aCancelar.clases.length} clases`}</strong> con alumnos apuntados dejan de impartirse ({aCancelar.alumnos === 1 ? '1 alumno' : `${aCancelar.alumnos} alumnos`}):</p>
         <p className="font-semibold text-ink">{aCancelar.clases.slice(0, 6).map((c) => `${fechaCorta(c.fecha)} ${c.horaInicio.slice(0, 5)}`).join(' · ')}{aCancelar.clases.length > 6 ? ` y ${aCancelar.clases.length - 6} más` : ''}</p>

@@ -8,7 +8,7 @@ const db0 = crearSeed();
 const ahora = new Date();
 const trabajador = (id: string): Sesion => {
   const t = db0.trabajadores.find((x) => x.id === id)!;
-  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol };
+  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, gestionaHorario: t.gestionaHorario === true };
 };
 const alumno = (i: number): Sesion => {
   const c = db0.clientes[i];

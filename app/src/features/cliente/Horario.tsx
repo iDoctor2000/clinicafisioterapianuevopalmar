@@ -95,7 +95,7 @@ export function Horario() {
                 : mia ? <Chip tono="beige">Tienes plaza</Chip>
                 : pasada ? <Chip tono="gris">Ya ha empezado</Chip>
                 : espera ? <Chip tono="azul">En lista de espera ({posicionEnLista(db, espera)}º)</Chip>
-                : v.libres > 0 ? <Chip tono={v.libres <= 2 ? 'ambar' : 'gris'}>{v.libres === 1 ? '1 plaza libre' : `${v.libres} plazas libres`}</Chip>
+                : v.libresAlumnos > 0 ? <Chip tono={v.libresAlumnos <= 2 ? 'ambar' : 'gris'}>{v.libresAlumnos === 1 ? '1 plaza libre' : `${v.libresAlumnos} plazas libres`}</Chip>
                 : <Chip tono="rojo">Completa{enEspera > 0 ? ` · ${enEspera} en espera` : ''}</Chip>}
               {!incluida && !cancelada && !mia && <Chip tono="gris">{compacta ? 'No incluida' : 'No incluida en tu tarifa'}</Chip>}
             </div>
@@ -213,7 +213,7 @@ export function Horario() {
 function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { vista: ClaseVista; ahora: Date; onCerrar: () => void; onReservar: () => void; onCancelar: () => void }) {
   const { db, cliente } = useCliente();
   const ejecutar = useStore((s) => s.ejecutar);
-  const { clase, actividad, monitor, libres } = vista;
+  const { clase, actividad, monitor, libresAlumnos: libres } = vista;
   const mia = reservaActivaEn(db, cliente.id, clase.id);
   const ev = mia ? null : evaluarReservaDe(db, cliente.id, clase.id, ahora);
   const recuperaciones = recuperacionesDisponiblesDe(db, cliente.id, hoyISO(ahora));

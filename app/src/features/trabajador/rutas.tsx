@@ -32,7 +32,7 @@ export const rutasTrabajador = (
     <Route path="clientes" element={<Requiere permiso="CLIENTES_VER"><Clientes /></Requiere>} />
     <Route path="clientes/nuevo" element={<Requiere permiso="CLIENTES_EDITAR"><NuevoCliente /></Requiere>} />
     <Route path="clientes/:id" element={<Requiere permiso="CLIENTES_VER"><FichaCliente /></Requiere>} />
-    <Route path="horarios" element={<Requiere permiso="HORARIOS_GESTIONAR"><Horarios /></Requiere>} />
+    <Route path="horarios" element={<Horarios />} />
     <Route path="avisos" element={<Requiere permiso="AVISOS_ENVIAR"><Avisos /></Requiere>} />
     <Route path="tarifas" element={<Requiere permiso="TARIFAS_GESTIONAR"><Tarifas /></Requiere>} />
     <Route path="estadisticas" element={<Requiere permiso="ESTADISTICAS_VER"><Estadisticas /></Requiere>} />

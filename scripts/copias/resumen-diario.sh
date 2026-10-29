@@ -181,7 +181,10 @@ select line from (
         ('0034', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'tarifas' and column_name = 'cupo_categorias_extra')),
         ('0035', to_regclass('public.errores_app') is not null),
         ('0036', to_regprocedure('public.informe_uso(integer)') is not null),
-        ('0037', exists (select 1 from pg_trigger where tgname = 'contratos_cobros_fuera')))
+        ('0037', exists (select 1 from pg_trigger where tgname = 'contratos_cobros_fuera')),
+        ('0038', to_regprocedure('public.eliminar_clase(uuid)') is not null),
+        ('0039', to_regprocedure('public.publicar_cambios(boolean, text)') is not null),
+        ('0040', exists (select 1 from pg_trigger where tgname = 'pagos_pagado_sustituye')))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'
@@ -199,6 +202,17 @@ select line from (
            else '⚠️ NO: no llega ninguna notificación al móvil (falta la migración 0027)' end || ' |'
   union all select 24, '| Personas con acceso a cobros | ' || (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'ve_finanzas')::boolean, false))
       || case when (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'ve_finanzas')::boolean, false)) = 0 then ' ⚠️ nadie' else '' end || ' |'
+  -- 0038: quién gestiona el horario; 0039: lo que el equipo tiene a medias (borradores y plazas retenidas) y los alumnos no ven.
+  union all select 26, '| Personas que gestionan el horario | ' || (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'gestiona_horario')::boolean, false))
+      || case when (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'gestiona_horario')::boolean, false)) = 0 then ' ⚠️ nadie' else '' end || ' |'
+  union all select 27, '| Cambios del horario sin publicar | ' || (
+      with f as (select count(*) n from public.plantillas_clase p where p.activa and p.eliminada_el is null and not coalesce((to_jsonb(p)->>'publicada')::boolean, true)),
+           c as (select count(*) n, coalesce(sum(coalesce((to_jsonb(x)->>'plazas_retenidas')::integer, 0)), 0) r
+                   from public.clases x where x.estado = 'PROGRAMADA' and (x.fecha + x.hora_inicio) > (now() at time zone 'Europe/Madrid')),
+           s as (select count(*) n from public.clases x where x.estado = 'PROGRAMADA' and (x.fecha + x.hora_inicio) > (now() at time zone 'Europe/Madrid') and not coalesce((to_jsonb(x)->>'publicada')::boolean, true))
+      select case when f.n + s.n + c.r = 0 then 'ninguno'
+                  else f.n || ' franjas y ' || s.n || ' clases sin publicar, ' || c.r || ' plazas retenidas ℹ️ (se publican desde el calendario)' end
+        from f, c, s) || ' |'
   union all select 30, ''
   union all select 31, '### Vigilancia'
   union all select 32, '| Qué | Cuántos |'
