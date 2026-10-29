@@ -76,7 +76,8 @@ with
       join public.contrato_franjas f on f.contrato_id = k.id
       join public.clases c on c.plantilla_id = f.plantilla_id and c.estado = 'PROGRAMADA'
      where k.estado = 'ACTIVO' and k.modalidad = 'FIJO'
-       and c.fecha between (select d from hoy) and least(k.fecha_fin, (select d from hoy) + 14)
+       -- Desde que empieza el contrato (uno renovado que empieza el día 1 no cuenta las clases de antes).
+       and c.fecha between greatest((select d from hoy), k.fecha_inicio) and least(k.fecha_fin, (select d from hoy) + 14)
   ),
   vig(o, aviso, texto, n, que_hacer) as (
     values
@@ -185,7 +186,8 @@ select line from (
         ('0038', to_regprocedure('public.eliminar_clase(uuid)') is not null),
         ('0039', to_regprocedure('public.publicar_cambios(boolean, text)') is not null),
         ('0040', exists (select 1 from pg_trigger where tgname = 'pagos_pagado_sustituye')),
-        ('0041', pg_get_functiondef('public.eliminar_clase(uuid)'::regprocedure) like '%tiene alumnos apuntados%'))
+        ('0041', pg_get_functiondef('public.eliminar_clase(uuid)'::regprocedure) like '%tiene alumnos apuntados%'),
+        ('0042', to_regclass('public.clases_quitadas') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

@@ -459,11 +459,16 @@ export function eliminarClase(ctx: Ctx, args: { claseId: Id }): Resultado<void> 
   return ok(auditar(borrarClase(db, clase.id), sesion, ahora, 'BORRAR_CLASE', 'clase', clase.id, `${descClase(db, clase)} · sin nadie apuntado (${clase.estado.toLowerCase()})`), undefined);
 }
 
-/** Borra la clase con sus reservas canceladas y su lista de espera; las recuperaciones que salieron de ella se conservan. */
-function borrarClase(db: Db, claseId: Id): Db {
+/**
+ * Borra la clase con sus reservas canceladas y su lista de espera; las recuperaciones que salieron de ella se
+ * conservan. Si es de una franja, ese día queda quitado para que no se vuelva a generar (0042).
+ */
+function borrarClase(db: Db, claseId: Id, quitarDia = true): Db {
   const idsReservas = new Set(db.reservas.filter((r) => r.claseId === claseId).map((r) => r.id));
+  const clase = db.clases.find((c) => c.id === claseId);
   return {
     ...db,
+    clasesQuitadas: quitarDia && clase?.plantillaId ? [...(db.clasesQuitadas ?? []), { plantillaId: clase.plantillaId, fecha: clase.fecha }] : db.clasesQuitadas,
     clases: db.clases.filter((c) => c.id !== claseId),
     reservas: db.reservas.filter((r) => r.claseId !== claseId),
     recuperaciones: db.recuperaciones.map((x) => (x.reservaOrigenId && idsReservas.has(x.reservaOrigenId) ? { ...x, reservaOrigenId: null } : x.usadaEnReservaId && idsReservas.has(x.usadaEnReservaId) ? { ...x, usadaEnReservaId: null } : x)),
@@ -672,7 +677,7 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
         if (yaEmpezada({ fecha: nuevaFecha, horaInicio: p.horaInicio }, ahora) || esDiaCierre(nuevaFecha, nuevo.config)) continue;
         // Si en el hueco nuevo ya hay una clase vacía de esta franja, se quita (la movida ocupa su sitio).
         const vacia = nuevo.clases.find((x) => x.plantillaId === p.id && x.fecha === nuevaFecha && x.id !== c.id && !nuevo.reservas.some((r) => r.claseId === x.id));
-        if (vacia) nuevo = borrarClase(nuevo, vacia.id);
+        if (vacia) nuevo = borrarClase(nuevo, vacia.id, false); // la movida ocupa su sitio: ese día no se quita
         if (nuevo.clases.some((x) => x.plantillaId === p.id && x.fecha === nuevaFecha && x.id !== c.id)) continue;
         const clientes = Array.from(new Set(nuevo.reservas.filter((r) => r.claseId === c.id && r.estado === 'RESERVADA').map((r) => r.clienteId)));
         const aviso: Aviso = {
@@ -802,7 +807,8 @@ export function eliminarPlantilla(ctx: Ctx, args: { plantillaId: Id }): Resultad
 export function generarClasesPendientes(db: Db, ahora: Date): Db {
   const desde = aISODate(ahora);
   const hasta = sumarDias(desde, 70);
-  const nuevas = generarClases(db.plantillas, desde, hasta, db.config, db.clases, () => nuevoId('cla'));
+  // 0042: los días quitados a propósito cuentan como "ya existe" y no se vuelven a crear.
+  const nuevas = generarClases(db.plantillas, desde, hasta, db.config, [...db.clases, ...(db.clasesQuitadas ?? [])], () => nuevoId('cla'));
   let clases = nuevas.length ? [...db.clases, ...nuevas] : db.clases;
   // Días de cierre añadidos después: cancelar clases programadas en esos días.
   const cierres = new Set(db.config.diasCierre.map((d) => d.fecha));
