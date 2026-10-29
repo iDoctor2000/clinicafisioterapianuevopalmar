@@ -114,6 +114,8 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   const hoy = hoyISO();
   const [editando, setEditando] = useState<Pago | 'nuevo' | null>(null);
   const [cobrando, setCobrando] = useState<Pago | null>(null);
+  const [aDeshacer, setADeshacer] = useState<Pago | null>(null);
+  const [aBorrar, setABorrar] = useState<Pago | null>(null);
   const [historial, setHistorial] = useState(false);
   const pagos = db.pagos
     .filter((p) => p.clienteId === cliente.id && p.estado !== 'CANCELADO')
@@ -132,8 +134,14 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
   // hay que añadir otro cobro para apuntarlo con tarjeta en vez de efectivo.
   const cobrar = (p: Pago) => setCobrando(p);
   const deshacer = async (p: Pago) => {
+    setADeshacer(null);
     const r = await ejecutar('guardarPago', { pago: { ...p, estado: 'PENDIENTE', pagadoEl: null } });
     if (r.ok) toast.info(`${tituloCobro(p)}: vuelve a pendiente.`); else toast.error(r.error);
+  };
+  const borrarPendiente = async (p: Pago) => {
+    setABorrar(null);
+    const r = await ejecutar('borrarPago', { id: p.id });
+    if (r.ok) toast.ok(`${tituloCobro(p)} (${euros(p.importeCentimos)}): cobro quitado.`); else toast.error(r.error);
   };
 
   if (!veFinanzas) return null;
@@ -169,8 +177,11 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
                 <span className="font-semibold tabular-nums">{euros(p.importeCentimos)}</span>
                 {p.estado === 'PAGADO' ? <Chip tono="beige"><Check className="h-3.5 w-3.5" /> Cobrado</Chip> : vencido ? <Chip tono="rojo">Pendiente</Chip> : <Chip tono="gris">Por cobrar</Chip>}
                 {editable && (p.estado === 'PAGADO'
-                  ? <Boton tamano="sm" variante="fantasma" aria-label={`Deshacer el cobro de ${tituloCobro(p)}`} onClick={() => void deshacer(p)}><RotateCcw className="h-4 w-4" /></Boton>
-                  : <Boton tamano="sm" onClick={() => cobrar(p)}><CircleDollarSign className="h-4 w-4" /> Cobrar</Boton>)}
+                  ? <Boton tamano="sm" variante="fantasma" aria-label={`Deshacer el cobro de ${tituloCobro(p)}`} title="Deshacer: vuelve a pendiente" onClick={() => setADeshacer(p)}><RotateCcw className="h-4 w-4" /></Boton>
+                  : <span className="flex gap-1">
+                      <Boton tamano="sm" onClick={() => cobrar(p)}><CircleDollarSign className="h-4 w-4" /> Cobrar</Boton>
+                      <Boton tamano="sm" variante="fantasma" className="text-rose" aria-label={`Quitar el cobro de ${tituloCobro(p)}`} title="Quitar este cobro" onClick={() => setABorrar(p)}><Trash2 className="h-4 w-4" /></Boton>
+                    </span>)}
               </li>
             );
           })}
@@ -188,6 +199,12 @@ export function TarjetaCobros({ cliente, contrato }: { cliente: Cliente; contrat
         />
       )}
       {cobrando && <HojaCobrar pago={cobrando} contrato={contrato} onCerrar={() => setCobrando(null)} />}
+      <Confirmacion abierta={aDeshacer != null} onCerrar={() => setADeshacer(null)} titulo="Deshacer el cobro" textoConfirmar="Volver a pendiente" onConfirmar={() => { if (aDeshacer) void deshacer(aDeshacer); }}>
+        <p><strong className="text-ink">{aDeshacer ? tituloCobro(aDeshacer) : ''}</strong> ({euros(aDeshacer?.importeCentimos)}) deja de estar cobrado y vuelve a "por cobrar". Para cambiar el importe o la forma de pago no hace falta: toca el cobro y edítalo.</p>
+      </Confirmacion>
+      <Confirmacion abierta={aBorrar != null} onCerrar={() => setABorrar(null)} titulo="Quitar cobro" textoConfirmar="Quitar" peligro onConfirmar={() => { if (aBorrar) void borrarPendiente(aBorrar); }}>
+        <p>Se quita el cobro <strong className="text-ink">{aBorrar ? tituloCobro(aBorrar) : ''}</strong> de {euros(aBorrar?.importeCentimos)}, que está por cobrar. Úsalo cuando sobra (por ejemplo, porque ese mes ya está cobrado con otro importe).</p>
+      </Confirmacion>
     </Tarjeta>
   );
 }
@@ -197,20 +214,24 @@ function HojaCobrar({ pago, contrato, onCerrar }: { pago: Pago; contrato: Contra
   const { ejecutar } = useTrabajador();
   const hoy = hoyISO();
   const [metodo, setMetodo] = useState<MetodoPago | ''>(pago.metodo ?? contrato?.metodoPago ?? '');
+  const [importe, setImporte] = useState(aTextoEuros(pago.importeCentimos));
   const [fechaCobro, setFechaCobro] = useState(hoy);
   const [enviando, setEnviando] = useState(false);
   const confirmar = async () => {
+    const centimos = aCentimos(importe);
+    if (centimos == null) return toast.error('Escribe el importe en euros (por ejemplo 45 o 45,50).');
     if (!metodo) return toast.error('Elige la forma de pago.');
     if (enviando) return;
     setEnviando(true);
-    const r = await ejecutar('guardarPago', { pago: { ...pago, estado: 'PAGADO', metodo, pagadoEl: `${fechaCobro}T12:00:00.000Z` } });
+    // Se cobra este mismo cobro (con el importe que se haya pagado de verdad): nunca se crea otro.
+    const r = await ejecutar('guardarPago', { pago: { ...pago, importeCentimos: centimos, estado: 'PAGADO', metodo, pagadoEl: `${fechaCobro}T12:00:00.000Z` } });
     setEnviando(false);
-    if (r.ok) { toast.ok(`${tituloCobro(pago)}: cobrado (${METODO_PAGO_LABEL[metodo]}).`); onCerrar(); } else toast.error(r.error);
+    if (r.ok) { toast.ok(`${tituloCobro(pago)}: cobrado ${euros(centimos)} (${METODO_PAGO_LABEL[metodo]}).`); onCerrar(); } else toast.error(r.error);
   };
   return (
     <Hoja abierta onCerrar={onCerrar} titulo={`Cobrar: ${tituloCobro(pago)}`}>
       <div className="space-y-4">
-        <p className="text-ink-soft"><strong className="text-ink text-xl">{euros(pago.importeCentimos)}</strong>{pago.venceEl ? ` · se cobra el ${fechaMedia(pago.venceEl)}` : ''}</p>
+        <Entrada etiqueta="Importe cobrado (€)" ayuda={`Previsto: ${euros(pago.importeCentimos)}${pago.venceEl ? ` · se cobra el ${fechaMedia(pago.venceEl)}` : ''}. Si este mes paga otra cantidad, cámbiala aquí.`} inputMode="decimal" value={importe} onChange={(e) => setImporte(e.target.value)} />
         <div>
           <span className="block text-[15px] font-semibold mb-1.5">Forma de pago</span>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de pago">
@@ -231,7 +252,7 @@ function HojaCobrar({ pago, contrato, onCerrar }: { pago: Pago; contrato: Contra
 }
 
 function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; cliente: Cliente; contrato: Contrato | null; onCerrar: () => void }) {
-  const { ejecutar } = useTrabajador();
+  const { db, ejecutar } = useTrabajador();
   const hoy = hoyISO();
   const [concepto, setConcepto] = useState(pago?.concepto ?? nombreMesAnio(mesDe(hoy)));
   const [importe, setImporte] = useState(aTextoEuros(pago?.importeCentimos ?? contrato?.importeCentimos ?? null));
@@ -241,6 +262,12 @@ function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; c
   const [metodo, setMetodo] = useState<MetodoPago | ''>(pago?.metodo ?? contrato?.metodoPago ?? '');
   const [fechaCobro, setFechaCobro] = useState(pago?.pagadoEl?.slice(0, 10) ?? hoy);
   const [borrar, setBorrar] = useState(false);
+  // Un cobro nuevo de un mes que ya tiene uno "por cobrar": de serie se completa ese (no se crea otro).
+  const pendienteDelMes = !pago && /^\d{4}-\d{2}$/.test(mes)
+    ? db.pagos.find((p) => p.clienteId === cliente.id && p.estado === 'PENDIENTE' && p.mes.slice(0, 7) === mes) ?? null
+    : null;
+  const [aparte, setAparte] = useState(false);
+  const sustituye = pendienteDelMes && !aparte ? pendienteDelMes : null;
 
   const guardar = async () => {
     const centimos = aCentimos(importe);
@@ -250,12 +277,12 @@ function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; c
     if (cobrado && !metodo) return toast.error('Elige la forma de pago.');
     const r = await ejecutar('guardarPago', {
       pago: {
-        id: pago?.id, clienteId: cliente.id, contratoId: pago ? pago.contratoId : contrato?.id ?? null, concepto, importeCentimos: centimos,
+        id: pago?.id ?? sustituye?.id, clienteId: cliente.id, contratoId: pago ? pago.contratoId : sustituye ? sustituye.contratoId : contrato?.id ?? null, concepto, importeCentimos: centimos,
         venceEl: vence || null, mes: `${mes || mesDe(vence || hoy).slice(0, 7)}-01`, estado: cobrado ? 'PAGADO' : 'PENDIENTE', metodo: metodo || null,
         pagadoEl: cobrado ? `${fechaCobro}T12:00:00.000Z` : null,
       },
     });
-    if (r.ok) { toast.ok(cobrado ? 'Cobro apuntado.' : 'Cobro guardado como pendiente.'); onCerrar(); } else toast.error(r.error);
+    if (r.ok) { toast.ok(`${sustituye ? `${tituloCobro(sustituye)} actualizado` : cobrado ? 'Cobro apuntado' : 'Cobro guardado como pendiente'}.`); onCerrar(); } else toast.error(r.error);
   };
   const confirmarBorrar = async () => {
     if (!pago) return;
@@ -275,6 +302,12 @@ function HojaCobro({ pago, cliente, contrato, onCerrar }: { pago: Pago | null; c
           <Entrada etiqueta="Importe (€)" inputMode="decimal" value={importe} onChange={(e) => setImporte(e.target.value)} placeholder="45" />
           <Entrada etiqueta="Se cobra el" type="date" value={vence} onChange={(e) => setVence(e.target.value)} />
         </div>
+        {pendienteDelMes && (
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-ink-soft space-y-2">
+            <p><strong className="text-ink">{nombreMesAnio(pendienteDelMes.mes)} ya tiene un cobro por cobrar</strong> ({euros(pendienteDelMes.importeCentimos)}). {aparte ? 'Se apuntará este como otro cobro distinto.' : 'Al guardar se completa ese con estos datos (importe, forma de pago…): no se crea otro.'}</p>
+            <Interruptor activo={aparte} onCambio={setAparte} etiqueta="Es un cobro aparte" descripcion="Solo si de verdad son dos cobros distintos del mismo mes (por ejemplo, un pago a cuenta)." />
+          </div>
+        )}
         <div className="rounded-2xl border border-ink/10 px-4">
           <Interruptor activo={cobrado} onCambio={setCobrado} etiqueta="Cobrado" descripcion={cobrado ? 'Ya está pagado.' : 'Pendiente: si pasa la fecha sin cobrarse, la ficha avisa de "Pago pendiente".'} />
         </div>
