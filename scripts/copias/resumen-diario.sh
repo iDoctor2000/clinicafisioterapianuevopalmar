@@ -187,7 +187,8 @@ select line from (
         ('0039', to_regprocedure('public.publicar_cambios(boolean, text)') is not null),
         ('0040', exists (select 1 from pg_trigger where tgname = 'pagos_pagado_sustituye')),
         ('0041', pg_get_functiondef('public.eliminar_clase(uuid)'::regprocedure) like '%tiene alumnos apuntados%'),
-        ('0042', to_regclass('public.clases_quitadas') is not null))
+        ('0042', to_regclass('public.clases_quitadas') is not null),
+        ('0043', to_regprocedure('public.mover_fijos_de_franja(uuid, uuid, uuid[], boolean)') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

@@ -2602,6 +2602,60 @@ commit;
 select pruebas.sistema();
 
 \echo
+\echo '== 51. Pasar los alumnos fijos de una franja a otra (0043)'
+select pruebas.sistema();
+-- Una alumna nueva (F) con horario fijo en lun 09:00 y mié 09:00 (suelo). Franja nueva de suelo los lunes a las 12:00 como destino.
+select pruebas.guardar('cliente_f51', 'e0000000-0000-4000-8000-000000000051');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cliente_f51'), 'Fina', 'Fija', '51515151F', 'fina@test.local', '600 000 051') on conflict (id) do nothing;
+select pruebas.como('admin');
+select pruebas.guardar('con_f51', public.crear_contrato(pruebas.id('cliente_f51'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 40, 'FIJO',
+  array[pruebas.id('pl_lun_0900'), pruebas.id('pl_mie_0900')])::text);
+select pruebas.sistema();
+select pruebas.guardar('pl_dest', 'd0000000-0000-4000-8000-000000000511');
+insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
+  values (pruebas.id('pl_dest'), pruebas.id('act_suelo'), 1, '12:00', 55, pruebas.id('tra_admin'), 8);
+select public._generar_clases(public._hoy(), public._hoy() + 21);
+select pruebas.guardar('hoy_51', public._hoy()::text);
+select pruebas.guardar('n_lun_f51', (select count(*)::text from public.reservas r join public.clases c on c.id = r.clase_id
+  where r.contrato_id = pruebas.id('con_f51') and r.origen = 'AUTOMATICA' and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_lun_0900') and c.fecha > public._hoy()));
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+select pruebas.espera_error(format('select public.mover_fijos_de_franja(%L, %L, array[%L]::uuid[])', pruebas.id('pl_lun_0900'), pruebas.id('pl_dest'), pruebas.id('con_f51')), 'No tienes permiso para: HORARIOS_GESTIONAR');
+select pruebas.como('admin');
+select pruebas.espera_error(format('select public.mover_fijos_de_franja(%L, %L, array[%L]::uuid[])', pruebas.id('pl_lun_0900'), pruebas.id('pl_lun_0900'), pruebas.id('con_f51')), 'Elige una franja de destino distinta.');
+-- Ya tiene la de destino: se salta.
+select pruebas.guardar('r_51a', public.mover_fijos_de_franja(pruebas.id('pl_lun_0900'), pruebas.id('pl_mie_0900'), array[pruebas.id('con_f51')])::text);
+do $$ declare v jsonb := current_setting('pruebas.r_51a')::jsonb; begin
+  assert (v->>'movidos')::int = 0 and v->'saltados'->0->>'motivo' = 'ya tiene esa franja', format('se salta: %s', v);
+end $$;
+select pruebas.guardar('n_avisos_51', (select count(*)::text from public.avisos));
+select pruebas.guardar('r_51', public.mover_fijos_de_franja(pruebas.id('pl_lun_0900'), pruebas.id('pl_dest'), array[pruebas.id('con_f51')], true)::text);
+do $$ declare v jsonb := current_setting('pruebas.r_51')::jsonb; begin
+  assert (v->>'movidos')::int = 1, format('pasa: %s', v);
+  assert exists (select 1 from public.contrato_franjas where contrato_id = pruebas.id('con_f51') and plantilla_id = pruebas.id('pl_dest')), 'franja nueva';
+  assert not exists (select 1 from public.contrato_franjas where contrato_id = pruebas.id('con_f51') and plantilla_id = pruebas.id('pl_lun_0900')), 'sin la antigua';
+  assert exists (select 1 from public.contrato_franjas where contrato_id = pruebas.id('con_f51') and plantilla_id = pruebas.id('pl_mie_0900')), 'la otra franja sigue';
+  assert not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id where r.contrato_id = pruebas.id('con_f51') and r.origen = 'AUTOMATICA'
+                      and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_lun_0900') and c.fecha > pruebas.fecha('hoy_51')), 'sin reservas futuras en la antigua';
+  assert (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id where r.contrato_id = pruebas.id('con_f51') and r.estado = 'RESERVADA'
+           and c.plantilla_id = pruebas.id('pl_dest')) >= 2, 'apuntada en la nueva';
+  assert (select count(*) from public.avisos) = current_setting('pruebas.n_avisos_51')::int + 1, 'un aviso';
+  assert exists (select 1 from public.avisos a join public.aviso_destinatarios d on d.aviso_id = a.id
+                  where a.id = (v->'avisos'->>0)::uuid and d.cliente_id = pruebas.id('cliente_f51') and a.cuerpo like '%los lunes a las 12:00%'), 'a ella, con el día y la hora';
+  assert exists (select 1 from public.auditoria where accion = 'MOVER_FIJO' and entidad_id = pruebas.id('con_f51')::text), 'en el registro';
+end $$;
+-- Y vuelta atrás (deja el escenario como estaba para lo que sigue), sin aviso.
+select public.mover_fijos_de_franja(pruebas.id('pl_dest'), pruebas.id('pl_lun_0900'), array[pruebas.id('con_f51')], false);
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert exists (select 1 from public.contrato_franjas where contrato_id = pruebas.id('con_f51') and plantilla_id = pruebas.id('pl_lun_0900')), 'vuelve a su franja';
+  raise notice 'OK 0043: pasar alumnos fijos de franja';
+end $$;
+
+\echo
 \echo '== 50. Un cobro pagado de un mes sustituye al pendiente de ese mes (0040)'
 select pruebas.sistema();
 select pruebas.guardar('mes_50', (date_trunc('month', public._hoy()) + interval '1 month')::date::text);

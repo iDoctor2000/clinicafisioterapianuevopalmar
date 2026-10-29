@@ -730,6 +730,70 @@ export function clasesQueSeMoverian(db: Db, p: Pick<PlantillaClase, 'id' | 'diaS
   return { clases, alumnos: db.reservas.filter((r) => ids.has(r.claseId) && r.estado === 'RESERVADA').length };
 }
 
+const DIAS_PLURAL: Record<number, string> = { 1: 'lunes', 2: 'martes', 3: 'miércoles', 4: 'jueves', 5: 'viernes', 6: 'sábados', 7: 'domingos' };
+
+/**
+ * Pasa los contratos de horario fijo elegidos de una franja a otra (espejo de mover_fijos_de_franja, 0043):
+ * cambian la franja, se quitan sus reservas automáticas futuras de la de origen, se les apunta a las de
+ * destino (si hay sitio) y, si se pide, se les avisa. Se salta, con el motivo, a quien no puede pasar.
+ */
+export function moverFijosDeFranja(ctx: Ctx, args: { origenId: Id; destinoId: Id; contratoIds: Id[]; avisar: boolean }): Resultado<{ movidos: number; saltados: { clienteId: Id; motivo: string }[]; sinPlaza: number; avisoIds: Id[] }> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'HORARIOS_GESTIONAR');
+  if (e) return fallo(e);
+  if (limitadoASusClases(db, sesion)) return fallo(MENSAJE_HORARIO_LIMITADO);
+  const origen = db.plantillas.find((p) => p.id === args.origenId);
+  if (!origen) return fallo('La franja de origen no existe.');
+  const destino = db.plantillas.find((p) => p.id === args.destinoId);
+  if (!destino) return fallo('La franja de destino no existe.');
+  if (origen.id === destino.id) return fallo('Elige una franja de destino distinta.');
+  if (!destino.activa || destino.eliminadaEl) return fallo('La franja de destino no está activa.');
+  const actOr = db.actividades.find((a) => a.id === origen.actividadId)!;
+  const actDe = db.actividades.find((a) => a.id === destino.actividadId)!;
+  const categoriaDe = (plantillaId: Id) => db.actividades.find((a) => a.id === db.plantillas.find((p) => p.id === plantillaId)?.actividadId)?.categoria;
+  let nuevo = db;
+  let movidos = 0;
+  let sinPlaza = 0;
+  const saltados: { clienteId: Id; motivo: string }[] = [];
+  const avisoIds: Id[] = [];
+  const contratos = db.contratos.filter((c) => args.contratoIds.includes(c.id) && c.estado === 'ACTIVO' && c.modalidad === 'FIJO' && c.franjasFijas.some((f) => f.plantillaId === origen.id));
+  for (const k of contratos) {
+    const tarifa = db.tarifas.find((t) => t.id === k.tarifaId);
+    const cupo = tarifa?.cupos.find((c) => c.categoria === actDe.categoria)?.sesionesSemana;
+    const enCat = k.franjasFijas.filter((f) => f.plantillaId !== origen.id && categoriaDe(f.plantillaId) === actDe.categoria).length;
+    const motivo = k.franjasFijas.some((f) => f.plantillaId === destino.id) ? 'ya tiene esa franja'
+      : cupo == null ? `su tarifa (${tarifa?.nombre ?? ''}) no incluye ${actDe.nombre}`
+      : k.actividadesPermitidasIds.length > 0 && !k.actividadesPermitidasIds.includes(actDe.id) ? `su contratación no incluye ${actDe.nombre}`
+      : enCat + 1 > cupo ? `pasaría de sus ${cupo} clases semanales de ${actDe.nombre.toLowerCase()}` : null;
+    if (motivo) { saltados.push({ clienteId: k.clienteId, motivo }); continue; }
+    const contrato: Contrato = { ...k, franjasFijas: k.franjasFijas.map((f) => (f.plantillaId === origen.id ? { ...f, plantillaId: destino.id } : f)) };
+    const futuraDeOrigen = (claseId: Id) => { const c = nuevo.clases.find((x) => x.id === claseId); return !!c && c.plantillaId === origen.id && !yaEmpezada(c, ahora); };
+    const quitadas = nuevo.reservas.filter((r) => r.contratoId === k.id && r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA' && futuraDeOrigen(r.claseId));
+    const idsQuitadas = new Set(quitadas.map((r) => r.id));
+    nuevo = { ...nuevo, contratos: nuevo.contratos.map((c) => (c.id === k.id ? contrato : c)), reservas: nuevo.reservas.filter((r) => !idsQuitadas.has(r.id)) };
+    for (const r of quitadas) nuevo = retenerPlaza(nuevo, sesion, ahora, r.claseId);
+    const futuras = nuevo.clases.filter((c) => !yaEmpezada(c, ahora));
+    const g = generarReservasAutomaticas(contrato, futuras, nuevo.reservas, () => nuevoId('res'), ahora.toISOString());
+    nuevo = { ...nuevo, reservas: g.reservas };
+    const hoy = aISODate(ahora);
+    const sin = futuras.filter((c) => c.plantillaId === destino.id && c.estado === 'PROGRAMADA' && c.fecha >= (contrato.fechaInicio > hoy ? contrato.fechaInicio : hoy) && c.fecha <= contrato.fechaFin
+      && !nuevo.reservas.some((r) => r.claseId === c.id && r.clienteId === k.clienteId && r.estado !== 'CANCELADA_CENTRO')).length;
+    sinPlaza += sin;
+    if (args.avisar) {
+      const aviso: Aviso = {
+        id: nuevoId('avi'), titulo: `Cambio de horario: ${actDe.nombre}`,
+        cuerpo: `Tu clase fija de ${actOr.nombre} de los ${DIAS_PLURAL[origen.diaSemana]} a las ${origen.horaInicio.slice(0, 5)} pasa a ${actDe.id === actOr.id ? '' : `${actDe.nombre}, `}los ${DIAS_PLURAL[destino.diaSemana]} a las ${destino.horaInicio.slice(0, 5)}. Ya estás apuntado/a en las próximas clases.${sin > 0 ? ` En ${sin} de ellas no había sitio: el centro lo revisará contigo.` : ''} Si no puedes venir a alguna, cancélala desde la app.`,
+        destino: { tipo: 'CLIENTES', clienteIds: [k.clienteId] }, destinatariosIds: [k.clienteId], importante: true, publicadoEl: ahora.toISOString(), publicadoPor: sesion.userId,
+      };
+      nuevo = { ...nuevo, avisos: [aviso, ...nuevo.avisos] };
+      avisoIds.push(aviso.id);
+    }
+    nuevo = auditar(nuevo, sesion, ahora, 'MOVER_FIJO', 'contrato', k.id, `${nombreCliente(db, k.clienteId)}: ${actOr.nombre} ${DIAS_PLURAL[origen.diaSemana]} ${origen.horaInicio} → ${actDe.nombre} ${DIAS_PLURAL[destino.diaSemana]} ${destino.horaInicio}`);
+    movidos += 1;
+  }
+  return ok(nuevo, { movidos, saltados, sinPlaza, avisoIds });
+}
+
 /**
  * Publica los cambios del horario (0039): las franjas y clases en borrador pasan a verse, las plazas
  * retenidas se liberan (y entra quien toque de la lista de espera) y, si se pide, se avisa a todos.

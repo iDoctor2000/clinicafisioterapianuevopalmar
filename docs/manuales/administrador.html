@@ -394,6 +394,17 @@
   <h3>Caso 3 bis · Quitar una clase en la que no hay nadie apuntado</h3>
   <p>Si en la clase no hay nadie apuntado, en su ficha sale <span class="btn claro">Eliminar clase</span> en vez de Cancelar: desaparece del calendario directamente, sin avisos ni recuperaciones, porque no hay a quién avisar. Da igual que alguien se hubiera apuntado y lo cancelara: esa cancelación se va con la clase y la recuperación que se le dio se conserva. Lo mismo vale para una clase ya cancelada sin nadie apuntado. Solo se conservan las clases con alumnos apuntados (esas se cancelan) y las que ya se dieron. Una clase eliminada de una franja no vuelve a aparecer: ese día queda quitado aunque la franja siga en el horario. Para quitar una franja entera (todas sus semanas), elimínala en Horarios.</p>
 
+  <h3>Caso 3 ter · Pasar a los alumnos fijos de una franja a otra</h3>
+  <p>Para mover a la gente de una franja a otra (por ejemplo, juntar dos clases en una) no hace falta editar contrato por contrato:</p>
+  <ol class="pasos">
+    <li><strong>Horarios</strong> → toca la franja de la que salen.</li>
+    <li>Toca <span class="btn claro">Pasar sus alumnos fijos a otra franja</span>.</li>
+    <li>Elige la franja de destino (salen primero las de la misma categoría, con sus fijos y plazas), marca qué alumnos pasan (de serie, todos) y si se les avisa.</li>
+    <li>Toca <span class="btn">Pasar</span>. Su horario fijo cambia: dejan de estar apuntados en las próximas clases de la franja antigua y quedan apuntados en las de la nueva (si hay sitio). Cada uno recibe un aviso con su nuevo día y hora.</li>
+  </ol>
+  <p>La app se salta, diciéndote el motivo, a quien no puede pasar: si su tarifa no incluye esa actividad, si ya tiene esa franja o si se pasaría de sus clases semanales. Las clases ya dadas y las reservas hechas a mano no se tocan. Cuando la franja antigua se queda sin fijos, ya puedes eliminarla.</p>
+  <p>Si estás preparando el horario y no quieres que se enteren todavía, desmarca «Avisar a cada alumno» y, cuando lo tengas, pulsa <em>Publicar cambios</em> con el aviso a todos.</p>
+
   <h3>Caso 4 · Quitar una clase fija del horario</h3>
   <p>Hay dos formas, según si es para siempre o no:</p>
   <ul>
@@ -679,6 +690,7 @@
         <tr><td><code>supabase/migrations/0037_cobros_fuera_de_contrato.sql</code></td><td>Al dar de baja, finalizar o acortar un contrato, sus cobros pendientes de meses posteriores se quitan solos; una contratación nueva sustituye los pendientes de cualquier contrato anterior.</td></tr>
         <tr><td><code>supabase/migrations/0038_horario_entrega_1.sql</code></td><td>Interruptor «Gestiona el horario y las clases» (quien ve las finanzas lo recibe al aplicarla); cancelar una clase vacía la borra y botón «Eliminar clase»; al cambiar día u hora de una franja, opción de mover las clases con sus alumnos avisándoles; limpia franjas repetidas sin alumnos y clases canceladas vacías.</td></tr>
         <tr><td><code>supabase/migrations/0039_cambios_sin_publicar.sql</code></td><td>Cambios sin publicar: franjas y clases nuevas en borrador, plazas retenidas y botón «Publicar cambios».</td></tr>
+        <tr><td><code>supabase/migrations/0043_mover_fijos_de_franja.sql</code></td><td>Botón «Pasar sus alumnos fijos a otra franja»: cambia de una vez el horario fijo de los alumnos elegidos, con sus próximas clases y un aviso a cada uno.</td></tr>
         <tr><td><code>supabase/migrations/0042_clases_quitadas.sql</code></td><td>Una clase de una franja que se elimina (o se cancela sin nadie apuntado) no vuelve a aparecer con el mantenimiento nocturno ni al cambiar el horario. Recoge también las que ya se habían quitado.</td></tr>
         <tr><td><code>supabase/migrations/0041_clases_sin_nadie.sql</code></td><td>Una clase sin nadie apuntado se puede eliminar aunque alguien se apuntara y lo cancelara; al cambiar una franja esas clases se recrean con el horario nuevo; limpia las clases futuras sin nadie de franjas eliminadas o cambiadas (la del jueves 10:30 entre ellas).</td></tr>
         <tr><td><code>supabase/migrations/0040_cobro_pagado_sustituye_pendiente.sql</code></td><td>Al apuntar un cobro pagado de un mes, el cobro pendiente de ese mismo mes del alumno desaparece solo (si el pagado no es menor). Quita los que ya estuvieran repetidos.</td></tr>

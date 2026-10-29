@@ -133,6 +133,17 @@ const impl: Impl = {
     return () => undefined;
   },
 
+  async moverFijosDeFranja(args) {
+    const r = await rpc<{ movidos: number; saltados: { contrato: string; cliente: string; motivo: string }[]; sin_plaza: number; avisos: string[] }>('mover_fijos_de_franja', {
+      p_origen: args.origenId, p_destino: args.destinoId, p_contratos: args.contratoIds, p_avisar: args.avisar,
+    });
+    enviarPushAvisos(r?.avisos ?? []);
+    return () => ({
+      movidos: Number(r?.movidos) || 0, sinPlaza: Number(r?.sin_plaza) || 0, avisoIds: r?.avisos ?? [],
+      saltados: (r?.saltados ?? []).map((x) => ({ clienteId: x.cliente, motivo: x.motivo })),
+    });
+  },
+
   async publicarCambios(args) {
     const r = await rpc<{ franjas: number; clases: number; plazas: number; aviso: string | null }>('publicar_cambios', { p_avisar: args.avisar, p_texto: args.texto ?? null });
     enviarPushAvisos(r?.aviso ? [r.aviso] : []);
