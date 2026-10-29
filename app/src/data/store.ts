@@ -77,7 +77,7 @@ function sesionDeUsuario(db: Db, userId: string): Sesion | null {
   if (u.tipo === 'TRABAJADOR' && u.trabajadorId) {
     const t = db.trabajadores.find((x) => x.id === u.trabajadorId);
     if (!t) return null;
-    return { tipo: 'TRABAJADOR', userId: u.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true };
+    return { tipo: 'TRABAJADOR', userId: u.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true, gestionaHorario: t.gestionaHorario === true };
   }
   return null;
 }
@@ -116,6 +116,8 @@ const despuesDe: { [K in NombreComando]?: (args: ArgsComando<K>, valor: ValorCom
   quitarAlumno: () => { void enviarPushPendientes(); },
   guardarPlantilla: () => { void enviarPushPendientes(); },
   eliminarPlantilla: () => { void enviarPushPendientes(); },
+  // 0039: al publicar se liberan las plazas retenidas y puede entrar gente de la lista de espera.
+  publicarCambios: () => { void enviarPushPendientes(); },
 };
 
 const crearEstado: StateCreator<Estado> = (set, get) => {

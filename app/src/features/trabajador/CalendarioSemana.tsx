@@ -101,7 +101,7 @@ function BloqueClase({ vista, top, alto, carril, carriles }: { vista: ClaseVista
   return (
     <Link
       to={`/clase/${clase.id}`}
-      title={`${actividad.nombre} · ${clase.horaInicio} · ${ocupadas}/${clase.plazas}${clase.extraordinaria ? ' · extraordinaria' : ''}${cancelada ? ' · cancelada' : ''}`}
+      title={`${actividad.nombre} · ${clase.horaInicio} · ${ocupadas}/${clase.plazas}${clase.extraordinaria ? ' · extraordinaria' : ''}${cancelada ? ' · cancelada' : ''}${clase.publicada === false ? ' · sin publicar' : ''}${vista.retenidas > 0 ? ` · ${vista.retenidas} retenidas` : ''}`}
       className={cn('absolute rounded-lg border-l-4 px-1.5 py-1 text-xs overflow-hidden tap hover:ring-2 hover:ring-beige-300 focus-visible:ring-2 focus-visible:ring-beige-300 outline-none', cancelada && 'opacity-50')}
       style={{
         top: top + 1, height: Math.max(alto - 3, 28),
@@ -117,6 +117,7 @@ function BloqueClase({ vista, top, alto, carril, carriles }: { vista: ClaseVista
         <span className={cn('tabular-nums', completa && 'text-rose')}>{ocupadas}/{clase.plazas}</span>
       </div>
       <div className={cn('truncate font-semibold text-ink leading-tight', cancelada && 'line-through')}>{actividad.nombre}</div>
+      {clase.publicada === false && !cancelada && <div className="text-[10px] text-sky font-semibold leading-tight">Sin publicar</div>}
       {cancelada ? <div className="text-[10px] text-rose font-semibold leading-tight">Cancelada</div> : <BarraOcupacion ocupadas={ocupadas} plazas={clase.plazas} className="mt-1 h-1" />}
     </Link>
   );

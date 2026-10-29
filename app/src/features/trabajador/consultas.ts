@@ -7,6 +7,28 @@ import { contratoActivoDe, recuperacionesDisponiblesDe, tarifaDe, vistaClase, ty
 import { aISODate, diasEntre, esPasada, estaEntre, inicioSemana, sumarDias } from '@/domain/fechas';
 
 // ---------------------------------------------------------------------------
+// Cambios del horario sin publicar (0039)
+// ---------------------------------------------------------------------------
+
+export interface CambiosSinPublicar {
+  /** Franjas en borrador (los alumnos no las ven). */
+  franjas: PlantillaClase[];
+  /** Clases futuras sin publicar (de franjas en borrador o extraordinarias nuevas). */
+  clases: Clase[];
+  /** Plazas que liberó el equipo en clases futuras y los alumnos no ven. */
+  plazas: number;
+  hay: boolean;
+}
+
+export function cambiosSinPublicar(db: Db, ahora: Date): CambiosSinPublicar {
+  const franjas = db.plantillas.filter((p) => p.publicada === false && !p.eliminadaEl);
+  const futuras = db.clases.filter((c) => c.estado === 'PROGRAMADA' && !esPasada(c.fecha, c.horaInicio, ahora));
+  const clases = futuras.filter((c) => c.publicada === false);
+  const plazas = futuras.reduce((n, c) => n + ((c.plazasRetenidas ?? 0) > 0 ? vistaClase(db, c).retenidas : 0), 0);
+  return { franjas, clases, plazas, hay: franjas.length > 0 || clases.length > 0 || plazas > 0 };
+}
+
+// ---------------------------------------------------------------------------
 // Clientes
 // ---------------------------------------------------------------------------
 

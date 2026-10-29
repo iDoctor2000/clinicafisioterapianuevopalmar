@@ -39,6 +39,7 @@ export function generarClases(
         motivoCancelacion: null,
         canceladaEl: null,
         canceladaPor: null,
+        ...(p.publicada === false ? { publicada: false } : {}), // 0039: las clases nacen como su franja
       });
     }
   }

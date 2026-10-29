@@ -23,8 +23,12 @@ export function ocupacionDe(clase: Pick<Clase, 'id' | 'ocupadas'>, reservas: Pic
   return Math.max(clase.ocupadas ?? 0, plazasOcupadas(clase.id, reservas));
 }
 
-export function plazasLibres(clase: Pick<Clase, 'id' | 'plazas' | 'ocupadas'>, reservas: Pick<Reserva, 'claseId' | 'estado'>[]): number {
-  return Math.max(0, clase.plazas - ocupacionDe(clase, reservas));
+/**
+ * Plazas libres de una clase. `paraAlumnos`: descuenta también las plazas retenidas por el equipo
+ * (cambios sin publicar, 0039), que un alumno no puede ocupar; el personal sí.
+ */
+export function plazasLibres(clase: Pick<Clase, 'id' | 'plazas' | 'ocupadas' | 'plazasRetenidas'>, reservas: Pick<Reserva, 'claseId' | 'estado'>[], paraAlumnos = false): number {
+  return Math.max(0, clase.plazas - ocupacionDe(clase, reservas) - (paraAlumnos ? clase.plazasRetenidas ?? 0 : 0));
 }
 
 /** Una reserva "consume" cupo si está activa o se canceló sin derecho a recuperación. */
@@ -76,7 +80,8 @@ export type CodigoBloqueo =
   | 'ACTIVIDAD_NO_PERMITIDA'
   | 'CUPO_AGOTADO'
   | 'BONO_AGOTADO'
-  | 'HORARIO_FIJO';
+  | 'HORARIO_FIJO'
+  | 'SIN_PUBLICAR';
 
 export interface ContextoReserva {
   ahora: Date;
@@ -92,6 +97,8 @@ export interface ContextoReserva {
   recuperaciones: Recuperacion[];
   clasesPorId: Map<string, Clase>;
   actividadesPorId: Map<string, Actividad>;
+  /** true cuando reserva el personal: puede usar las plazas retenidas por el equipo (0039). */
+  paraElCentro?: boolean;
 }
 
 /**
@@ -104,11 +111,13 @@ export function evaluarReserva(ctx: ContextoReserva): EvaluacionReserva {
   const { clase, actividad, contrato, tarifa, ahora } = ctx;
 
   if (clase.estado === 'CANCELADA') return bloqueo('CLASE_CANCELADA', 'Esta clase ha sido cancelada por el centro.');
+  // 0039: lo que no está publicado solo lo puede reservar el personal.
+  if (clase.publicada === false && !ctx.paraElCentro) return bloqueo('SIN_PUBLICAR', 'Esta clase todavía no está publicada.');
   if (esPasada(clase.fecha, clase.horaInicio, ahora)) return bloqueo('CLASE_PASADA', 'Esta clase ya ha pasado.');
   if (ctx.reservasCliente.some((r) => r.claseId === clase.id && r.estado === 'RESERVADA')) {
     return bloqueo('YA_RESERVADA', 'Ya tienes plaza en esta clase.');
   }
-  if (plazasLibres(clase, ctx.reservasClase) <= 0) return bloqueo('SIN_PLAZAS', 'No quedan plazas libres.');
+  if (plazasLibres(clase, ctx.reservasClase, !ctx.paraElCentro) <= 0) return bloqueo('SIN_PLAZAS', 'No quedan plazas libres.');
 
   const limiteVentana = sumarDias(hoy(ahora), ctx.config.diasVentanaReserva);
   if (clase.fecha > limiteVentana) {

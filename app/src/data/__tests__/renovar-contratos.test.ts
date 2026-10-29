@@ -12,7 +12,7 @@ const hoy = aISODate(ahora);
 const db0 = crearSeed();
 const sesionDe = (db: Db, id: string): Sesion => {
   const t = db.trabajadores.find((x) => x.id === id)!;
-  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true };
+  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true, gestionaHorario: t.gestionaHorario === true };
 };
 const ctx = (sesion: Sesion, db: Db): Ctx => ({ db, sesion, ahora });
 

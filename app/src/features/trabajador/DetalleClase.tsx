@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Ban, Bell, Check, Clock, Hourglass, Lock, RotateCcw, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { AlertTriangle, Ban, Bell, Check, Clock, EyeOff, Hourglass, Lock, RotateCcw, Trash2, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { MENSAJE_CLASE_AJENA } from '@/domain/ambito';
 import { HITOS_CLASES, esCumpleanos } from '@/domain/logros';
 import { conteoClases } from '@/data/logros';
@@ -28,6 +28,7 @@ export function DetalleClase() {
   const [quitar, setQuitar] = useState<Reserva | null>(null);
   const [quitarEspera, setQuitarEspera] = useState<EsperaDeClase | null>(null);
   const [reactivar, setReactivar] = useState(false);
+  const [eliminar, setEliminar] = useState(false);
   // Antes de cualquier salida anticipada (regla de los hooks): solo para las clases de hoy.
   const esDeHoy = clase?.fecha === hoyISO();
   const ganador = useGanadorVigente();
@@ -36,7 +37,7 @@ export function DetalleClase() {
   if (claseAjena && !gestionaClase(claseAjena)) return <Vacio icono={Lock} titulo={MENSAJE_CLASE_AJENA} texto="Tu ámbito es «Solo sus clases»: únicamente puedes ver y gestionar las clases que impartes." accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
   if (!clase) return <Vacio icono={AlertTriangle} titulo="Clase no encontrada" accion={<Link to="/"><Boton variante="secundario">Volver al calendario</Boton></Link>} />;
   const vista = vistaClase(db, clase);
-  const { actividad, monitor, ocupadas } = vista;
+  const { actividad, monitor, ocupadas, retenidas } = vista;
   const hoy = hoyISO();
   const ahora = new Date();
   const cancelada = clase.estado === 'CANCELADA';
@@ -60,6 +61,15 @@ export function DetalleClase() {
   };
   // Alumnos que perdieron la plaza al cancelarse (los que la recuperan al reactivar).
   const perdieronPlaza = cancelada ? vista.reservas.filter((r) => r.estado === 'CANCELADA_CENTRO' && clase.canceladaEl != null && r.canceladaEl === clase.canceladaEl).length : 0;
+  // 0038: una clase cancelada en la que no hubo nadie se puede eliminar del todo.
+  const sinNadie = cancelada && vista.reservas.length === 0;
+  const confirmarEliminar = async () => {
+    const res = await ejecutar('eliminarClase', { claseId: clase.id });
+    setEliminar(false);
+    if (!res.ok) return toast.error(res.error);
+    toast.ok('Clase eliminada.');
+    navigate('/');
+  };
 
   const marcar = async (r: Reserva, asistencia: 'ASISTE' | 'NO_ASISTE') => {
     const res = await ejecutar('registrarAsistencia', { reservaId: r.id, asistencia: r.asistencia === asistencia ? 'PENDIENTE' : asistencia });
@@ -94,8 +104,20 @@ export function DetalleClase() {
             <p className="text-ink-soft">{clase.motivoCancelacion || 'Sin motivo indicado.'}</p>
             {alternativa && <p className="text-sm mt-1">Alternativa propuesta: <Link className="font-semibold text-sky underline" to={`/clase/${alternativa.id}`}>{fechaCorta(alternativa.fecha)} a las {alternativa.horaInicio}</Link></p>}
             {puede('CLASES_CREAR_CANCELAR') && (
-              <Boton className="mt-3" variante="secundario" tamano="sm" onClick={() => setReactivar(true)}><RotateCcw className="h-4 w-4" /> Reactivar clase</Boton>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Boton variante="secundario" tamano="sm" onClick={() => setReactivar(true)}><RotateCcw className="h-4 w-4" /> Reactivar clase</Boton>
+                {sinNadie && <Boton variante="fantasma" tamano="sm" className="text-rose" onClick={() => setEliminar(true)}><Trash2 className="h-4 w-4" /> Eliminar clase</Boton>}
+              </div>
             )}
+          </div>
+        </div>
+      )}
+      {clase.publicada === false && !cancelada && (
+        <div className="mb-4 rounded-2xl bg-sky/10 border border-sky/30 p-4 flex gap-3">
+          <EyeOff className="h-6 w-6 text-sky shrink-0" />
+          <div>
+            <p className="font-semibold text-ink">Sin publicar</p>
+            <p className="text-ink-soft">Los alumnos no ven esta clase (salvo los que ya tengan plaza). Se verá cuando alguien que gestione el horario pulse «Publicar cambios» en el calendario.</p>
           </div>
         </div>
       )}
@@ -107,6 +129,7 @@ export function DetalleClase() {
               <div className="flex items-center gap-2 text-ink-soft"><Users className="h-5 w-5" /><span className="font-semibold text-ink text-lg tabular-nums">{ocupadas}/{clase.plazas}</span> plazas ocupadas</div>
               <div className="flex gap-2 flex-wrap">
                 {!cancelada && ocupadas >= clase.plazas && <Chip tono="ambar">Completa</Chip>}
+                {retenidas > 0 && <Chip tono="azul" title="Plazas que liberó el equipo: los alumnos no las ven hasta «Publicar cambios»"><EyeOff className="h-3.5 w-3.5" /> {retenidas === 1 ? '1 plaza retenida' : `${retenidas} plazas retenidas`}</Chip>}
                 {cs > 0 && <Chip tono="cocoa">{cs} CS</Chip>}
                 {monitor && <Chip tono="gris">{monitor.nombre} {monitor.apellidos}</Chip>}
                 <Chip tono="gris"><Clock className="h-3.5 w-3.5" /> {clase.duracionMin} min</Chip>
@@ -214,6 +237,9 @@ export function DetalleClase() {
 
       <HojaAnadirAlumno abierta={anadir} onCerrar={() => setAnadir(false)} claseId={clase.id} yaApuntados={activas.map((r) => r.clienteId)} />
       <HojaCancelarClase abierta={cancelar} onCerrar={() => setCancelar(false)} claseId={clase.id} afectados={activas.length} />
+      <Confirmacion abierta={eliminar} onCerrar={() => setEliminar(false)} titulo="Eliminar clase" textoConfirmar="Eliminar clase" peligro onConfirmar={() => void confirmarEliminar()}>
+        <p>La clase cancelada de <strong className="text-ink">{actividad.nombre}</strong> del {fechaCorta(clase.fecha)} a las {clase.horaInicio} desaparece del calendario. No tuvo alumnos, así que no se pierde nada.</p>
+      </Confirmacion>
       <Confirmacion abierta={reactivar} onCerrar={() => setReactivar(false)} titulo="Reactivar clase" textoConfirmar="Reactivar clase" onConfirmar={() => void confirmarReactivar()}>
         <p>La clase vuelve a estar programada{perdieronPlaza > 0 ? <> y <strong className="text-ink">{perdieronPlaza === 1 ? 'el alumno que estaba apuntado recupera' : `los ${perdieronPlaza} alumnos que estaban apuntados recuperan`}</strong> su plaza</> : ''}.</p>
         {perdieronPlaza > 0 && <p>La recuperación que se les dio por la cancelación se retira (si no la han usado){pasada ? '.' : ', desaparece el aviso de «Clase cancelada» y reciben otro diciendo que la clase se mantiene.'}</p>}
@@ -313,6 +339,7 @@ function OpcionModo({ titulo, texto, onClick, destacada }: { titulo: string; tex
 
 function HojaCancelarClase({ abierta, onCerrar, claseId, afectados }: { abierta: boolean; onCerrar: () => void; claseId: string; afectados: number }) {
   const { db, ejecutar } = useTrabajador();
+  const navigate = useNavigate();
   const [motivo, setMotivo] = useState('');
   const [alternativa, setAlternativa] = useState('');
   const [avisar, setAvisar] = useState(true);
@@ -320,21 +347,30 @@ function HojaCancelarClase({ abierta, onCerrar, claseId, afectados }: { abierta:
   if (!clase) return null;
   const alternativas = alternativasPara(db, clase, hoyISO());
   const cierre = db.config.diasCierre.find((d) => d.fecha === clase.fecha);
+  // 0038: si no hay (ni hubo) nadie, cancelarla la borra del calendario.
+  const vacia = !db.reservas.some((r) => r.claseId === claseId);
   const confirmar = async () => {
     const r = await ejecutar('cancelarClase', { claseId, motivo: motivo.trim(), claseAlternativaId: alternativa || null, avisar });
-    if (r.ok) { toast.ok(`Clase cancelada. ${r.valor.afectados} alumno${r.valor.afectados === 1 ? '' : 's'} afectado${r.valor.afectados === 1 ? '' : 's'}.`); onCerrar(); } else toast.error(r.error);
+    if (!r.ok) return toast.error(r.error);
+    if (r.valor.borrada) { toast.ok('Clase eliminada del calendario (no había nadie apuntado).'); onCerrar(); navigate('/'); return; }
+    toast.ok(`Clase cancelada. ${r.valor.afectados} alumno${r.valor.afectados === 1 ? '' : 's'} afectado${r.valor.afectados === 1 ? '' : 's'}.`);
+    onCerrar();
   };
   return (
     <Hoja abierta={abierta} onCerrar={onCerrar} titulo="Cancelar clase">
       <div className="space-y-4">
-        <div className="rounded-2xl bg-clay/10 p-3 text-sm text-ink-soft flex gap-2"><AlertTriangle className="h-5 w-5 text-clay shrink-0" /><span><strong className="text-ink">{afectados} alumno{afectados === 1 ? '' : 's'}</strong> con plaza. {cierre ? <>Es día de cierre ({cierre.motivo}): <strong className="text-ink">los festivos no se recuperan</strong>, solo se devuelve lo gastado en esta clase (sesión de bono o recuperación usada).</> : 'Cada uno recibirá una recuperación (o se le devolverá la sesión de bono) sin penalización.'}</span></div>
+        {vacia ? (
+          <div className="rounded-2xl bg-beige-100 p-3 text-sm text-ink-soft flex gap-2"><AlertTriangle className="h-5 w-5 text-ink-muted shrink-0" /><span><strong className="text-ink">No hay nadie apuntado.</strong> La clase se eliminará del calendario directamente: no hay a quién avisar ni nada que conservar.</span></div>
+        ) : (
+          <div className="rounded-2xl bg-clay/10 p-3 text-sm text-ink-soft flex gap-2"><AlertTriangle className="h-5 w-5 text-clay shrink-0" /><span><strong className="text-ink">{afectados} alumno{afectados === 1 ? '' : 's'}</strong> con plaza. {cierre ? <>Es día de cierre ({cierre.motivo}): <strong className="text-ink">los festivos no se recuperan</strong>, solo se devuelve lo gastado en esta clase (sesión de bono o recuperación usada).</> : 'Cada uno recibirá una recuperación (o se le devolverá la sesión de bono) sin penalización.'}</span></div>
+        )}
         <AreaTexto etiqueta="Motivo" placeholder="Ej.: baja del monitor, avería en la sala…" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
         <Seleccion etiqueta="Clase alternativa (opcional)" ayuda="Misma actividad en los próximos 14 días" value={alternativa} onChange={(e) => setAlternativa(e.target.value)}>
           <option value="">Sin alternativa</option>
           {alternativas.map((v) => <option key={v.clase.id} value={v.clase.id}>{fechaCorta(v.clase.fecha)} · {v.clase.horaInicio} · {v.libres} libres</option>)}
         </Seleccion>
-        <Interruptor activo={avisar} onCambio={setAvisar} etiqueta="Avisar a los alumnos afectados" descripcion="Se publica un aviso importante con el motivo y la alternativa." />
-        <Boton ancho variante="peligro" onClick={confirmar}>Cancelar la clase</Boton>
+        {!vacia && <Interruptor activo={avisar} onCambio={setAvisar} etiqueta="Avisar a los alumnos afectados" descripcion="Se publica un aviso importante con el motivo y la alternativa." />}
+        <Boton ancho variante="peligro" onClick={confirmar}>{vacia ? 'Eliminar la clase' : 'Cancelar la clase'}</Boton>
       </div>
     </Hoja>
   );

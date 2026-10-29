@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useStore } from '@/data/store';
-import { tienePermiso, veFinanzas as sesionVeFinanzas, type Ambito, type Clase, type Permiso, type Sesion, type Trabajador } from '@/domain/types';
+import { gestionaHorario as sesionGestionaHorario, tienePermiso, veFinanzas as sesionVeFinanzas, type Ambito, type Clase, type Permiso, type Sesion, type Trabajador } from '@/domain/types';
 import { ambitoDe, puedeGestionarClase, recortarAlAmbito } from '@/domain/ambito';
 import { ocultarFinanzas } from '@/domain/finanzas';
 import type { Db } from '@/data/db';
@@ -24,6 +24,8 @@ export function useTrabajador(): {
   esAdmin: boolean;
   /** Ve importes, ofertas, forma de pago y cobros. Sin él, `db` llega sin nada de eso. */
   veFinanzas: boolean;
+  /** Gestiona el horario y las clases (0038): equivale a `puede('HORARIOS_GESTIONAR')`. */
+  gestionaHorario: boolean;
   ambito: Ambito;
   /** true si el ámbito es SUS_CLASES. */
   limitado: boolean;
@@ -43,5 +45,5 @@ export function useTrabajador(): {
   }, [dbCompleta, sesion, veFinanzas]);
   const puede = useCallback((p: Permiso) => tienePermiso(sesion, p), [sesion]);
   const gestionaClase = useCallback((clase: Pick<Clase, 'monitorId'>) => puedeGestionarClase(dbCompleta, sesion, clase), [dbCompleta, sesion]);
-  return { db, dbCompleta, sesion, trabajador, puede, esAdmin: sesion?.rol === 'ADMIN', veFinanzas, ambito, limitado: ambito === 'SUS_CLASES', gestionaClase, ejecutar };
+  return { db, dbCompleta, sesion, trabajador, puede, esAdmin: sesion?.rol === 'ADMIN', veFinanzas, gestionaHorario: sesionGestionaHorario(sesion), ambito, limitado: ambito === 'SUS_CLASES', gestionaClase, ejecutar };
 }

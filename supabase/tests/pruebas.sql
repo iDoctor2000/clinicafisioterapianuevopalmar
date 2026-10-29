@@ -87,7 +87,8 @@ insert into auth.users (id, email) values
 update public.trabajadores set user_id = pruebas.id('u_admin') where id = pruebas.id('tra_admin');
 update public.trabajadores set user_id = pruebas.id('u_recep') where id = pruebas.id('tra_recep');
 -- 0024: el administrador de pruebas ve las finanzas (el rol ADMIN por sí solo ya no las da).
-update public.trabajadores set ve_finanzas = true where id = pruebas.id('tra_admin');
+-- 0038: y gestiona el horario (tampoco lo da el rol).
+update public.trabajadores set ve_finanzas = true, gestiona_horario = true where id = pruebas.id('tra_admin');
 insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_id) values
   (pruebas.id('cliente_a'), 'Ana',    'Libre', '11111111A', 'ana@test.local',    '600 000 001', pruebas.id('u_a')),
   (pruebas.id('cliente_b'), 'Berta',  'Fija',  '22222222B', 'berta@test.local',  '600 000 002', pruebas.id('u_b')),
@@ -460,7 +461,9 @@ select pruebas.guardar('cliente_d', 'e0000000-0000-4000-8000-00000000000d');
 insert into auth.users (id, email) values (pruebas.id('u_ana'), 'ana.monitora@test.local');
 update public.trabajadores set user_id = pruebas.id('u_ana'), ambito = 'SUS_CLASES' where id = pruebas.id('tra_ana');
 -- Para probar el ámbito también en cancelar_clase y horarios, le damos esos permisos (el ámbito debe seguir bloqueando).
+-- 0038: esos dos permisos los da gestiona_horario (las filas de permisos se mantienen para contar "sus propios permisos").
 insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_ana'), 'CLASES_CREAR_CANCELAR'), (pruebas.id('tra_ana'), 'HORARIOS_GESTIONAR');
+update public.trabajadores set gestiona_horario = true where id = pruebas.id('tra_ana');
 -- Un ADMIN siempre queda en CENTRO (trigger).
 update public.trabajadores set ambito = 'SUS_CLASES' where id = pruebas.id('tra_admin');
 -- Cliente D: sin ninguna reserva (no es alumno de nadie).
@@ -827,10 +830,10 @@ declare
   v_hoy date := public._hoy();
   v_antes integer; v_despues integer; v_conservadas integer; v_clase uuid;
 begin
-  select count(*) into v_antes from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy;
+  select count(*) into v_antes from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha > v_hoy;
   assert v_antes > 0, 'la franja tiene clases futuras';
-  -- Reserva manual del centro en la primera clase futura: esa clase debe conservarse.
-  select id into v_clase from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy order by fecha limit 1;
+  -- Reserva manual del centro en la primera clase futura (de mañana en adelante: la de hoy puede haber empezado ya, 0033): esa clase debe conservarse.
+  select id into v_clase from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha > v_hoy order by fecha limit 1;
   insert into public.reservas (clase_id, cliente_id, origen, creado_por) values (v_clase, pruebas.id('cliente_a'), 'MANUAL', null)
     on conflict do nothing;
   update public.plantillas_clase set hora_inicio = '12:15' where id = v_pl;
@@ -838,10 +841,10 @@ begin
   v_conservadas := (public.plantilla_aplicar_cambios(v_pl) ->> 'conservadas')::integer;
   perform set_config('request.jwt.claim.sub', '', false);
   assert v_conservadas = 1, format('se conserva la clase con reserva manual (conservadas = %s)', v_conservadas);
-  select count(*) into v_despues from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy;
+  select count(*) into v_despues from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha > v_hoy;
   assert v_despues = v_antes, format('mismo número de clases futuras (%s → %s)', v_antes, v_despues);
   assert (select hora_inicio from public.clases where id = v_clase) = '11:00'::time, 'la clase con reserva conserva la hora antigua';
-  assert (select count(*) from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy and hora_inicio = '12:15'::time) = v_antes - 1, 'el resto tiene la hora nueva';
+  assert (select count(*) from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha > v_hoy and hora_inicio = '12:15'::time) = v_antes - 1, 'el resto tiene la hora nueva';
   -- Un monitor con ámbito SUS_CLASES no puede aplicarlo.
   update public.plantillas_clase set hora_inicio = '11:00' where id = v_pl;
   raise notice 'OK horario cambios';
@@ -929,7 +932,7 @@ declare
   v_act_antes uuid; v_plazas_antes integer; v_clase uuid; v_conservadas integer;
 begin
   select actividad_id, plazas into v_act_antes, v_plazas_antes from public.plantillas_clase where id = v_pl;
-  select id into v_clase from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy
+  select id into v_clase from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha > v_hoy
      and exists (select 1 from public.reservas r where r.clase_id = clases.id and r.origen = 'MANUAL') order by fecha limit 1;
   assert v_clase is not null, 'hay una clase con reserva manual (bloque 24)';
   update public.plantillas_clase set actividad_id = pruebas.id('act_reformer'), plazas = 1 where id = v_pl;
@@ -941,7 +944,7 @@ begin
   assert (select hora_inicio from public.clases where id = v_clase) = '11:00'::time, 'y mantiene su hora';
   assert (select plazas from public.clases where id = v_clase) >= (select count(*) from public.reservas where clase_id = v_clase and estado = 'RESERVADA'),
     'nunca menos plazas que alumnos apuntados';
-  assert (select count(*) from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha >= v_hoy and actividad_id <> pruebas.id('act_reformer')) = 0,
+  assert (select count(*) from public.clases where plantilla_id = v_pl and estado = 'PROGRAMADA' and fecha > v_hoy and actividad_id <> pruebas.id('act_reformer')) = 0,
     'todas las clases futuras de la franja tienen la actividad nueva';
   -- Se deja como estaba.
   update public.plantillas_clase set actividad_id = v_act_antes, plazas = v_plazas_antes where id = v_pl;
@@ -1313,14 +1316,22 @@ select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pru
 do $$ begin assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x')) = 2, 'el personal ve toda la lista'; end $$;
 commit;
 
--- Se libera la plaza de Carlos (cancelación por el centro) → entra Lola con su cupo; Luis pasa a ser el primero.
+-- Se libera la plaza de Carlos (cancelación por el centro). 0039: como la quita quien gestiona el horario, la plaza
+-- queda retenida y la lista no la recibe hasta «Publicar cambios»; entonces entra Lola con su cupo y Luis pasa a ser el primero.
 begin;
 set local role authenticated;
 select pruebas.como('admin');
 select public.cancelar_reserva(pruebas.id('res_c_x'), true);
+do $$ begin
+  assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_x')) = 1, 'la plaza queda retenida (0039)';
+  assert not exists (select 1 from public.reservas where clase_id = pruebas.id('cl_x') and cliente_id = pruebas.id('cliente_l1') and estado = 'RESERVADA'), 'Lola todavía no entra';
+  assert (select count(*) from public.lista_espera where clase_id = pruebas.id('cl_x')) = 2, 'los dos siguen esperando';
+end $$;
+select public.publicar_cambios(false);
 do $$
 declare v_aviso public.avisos%rowtype;
 begin
+  assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_x')) = 0, 'al publicar se libera';
   assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_x') and cliente_id = pruebas.id('cliente_l1') and estado = 'RESERVADA' and origen = 'CLIENTE'),
     'Lola entra desde la lista con su cupo semanal';
   assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_x') and cliente_id = pruebas.id('cliente_l1')), 'Lola ya no está en la lista';
@@ -2306,6 +2317,256 @@ do $$ begin
   assert exists (select 1 from public.pagos where contrato_id = pruebas.id('con_fc2') and estado = 'PAGADO'), 'lo cobrado se queda';
   raise notice 'OK cobros fuera de contrato';
 end $$;
+
+\echo
+\echo '== 48. Quién gestiona el horario, clases vacías y mover clases con sus alumnos (0038)'
+select pruebas.sistema();
+-- Ana lo tenía solo para las pruebas de ámbito (bloque 16): aquí el único que gestiona el horario es el admin.
+update public.trabajadores set gestiona_horario = false where id = pruebas.id('tra_ana');
+do $$ begin
+  assert (select gestiona_horario from public.trabajadores where id = pruebas.id('tra_admin')), 'el admin de pruebas gestiona el horario';
+  assert not (select gestiona_horario from public.trabajadores where id = pruebas.id('tra_recep')), 'recepción no';
+end $$;
+-- El permiso en la lista no vale: solo gestiona_horario.
+insert into public.trabajador_permisos (trabajador_id, permiso) values (pruebas.id('tra_recep'), 'HORARIOS_GESTIONAR'), (pruebas.id('tra_recep'), 'CLASES_CREAR_CANCELAR');
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+do $$ begin
+  assert not public.tiene_permiso('HORARIOS_GESTIONAR') and not public.tiene_permiso('CLASES_CREAR_CANCELAR'), 'sin gestiona_horario no hay permisos de horario aunque estén en la lista';
+  assert public.tiene_permiso('RESERVAS_GESTIONAR'), 'los demás permisos siguen igual';
+  assert not public.gestiona_horario(), 'gestiona_horario() false';
+end $$;
+select pruebas.espera_error(format('select public.eliminar_plantilla(%L)', pruebas.id('pl_lun_0900')), 'No tienes permiso para: HORARIOS_GESTIONAR');
+select pruebas.como('admin');
+do $$ begin
+  assert public.tiene_permiso('HORARIOS_GESTIONAR') and public.tiene_permiso('CLASES_CREAR_CANCELAR') and public.gestiona_horario(), 'el admin con gestiona_horario sí';
+end $$;
+-- Nunca se queda nadie; quien lo tiene lo concede; quien no lo tiene no puede concederlo (se conserva en silencio).
+select pruebas.espera_error(format('update public.trabajadores set gestiona_horario = false where id = %L', pruebas.id('tra_admin')), '%al menos una persona%');
+update public.trabajadores set gestiona_horario = true where id = pruebas.id('tra_recep');
+do $$ begin assert (select gestiona_horario from public.trabajadores where id = pruebas.id('tra_recep')), 'el admin se lo concede a recepción'; end $$;
+update public.trabajadores set gestiona_horario = false where id = pruebas.id('tra_admin');
+do $$ begin assert not (select gestiona_horario from public.trabajadores where id = pruebas.id('tra_admin')), 'ya puede quitárselo: queda recepción'; end $$;
+update public.trabajadores set gestiona_horario = true where id = pruebas.id('tra_admin');
+do $$ begin assert not (select gestiona_horario from public.trabajadores where id = pruebas.id('tra_admin')), 'sin tenerlo no puede dárselo a nadie (ni a sí mismo)'; end $$;
+commit;
+select pruebas.sistema();
+delete from public.trabajador_permisos where trabajador_id = pruebas.id('tra_recep') and permiso in ('HORARIOS_GESTIONAR', 'CLASES_CREAR_CANCELAR');
+update public.trabajadores set gestiona_horario = true where id = pruebas.id('tra_admin');
+update public.trabajadores set gestiona_horario = false where id = pruebas.id('tra_recep');
+
+-- Cancelar una clase en la que no hay nadie la borra; eliminar una cancelada vacía también; una con historial, no.
+select pruebas.guardar('cl_vacia', 'f0000000-0000-4000-8000-000000000481');
+insert into public.clases (id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('cl_vacia'), pruebas.id('act_suelo'), public._hoy() + 4, '13:00', 55, pruebas.id('tra_admin'), 6, true);
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$ begin
+  assert public.cancelar_clase(pruebas.id('cl_vacia'), 'Sobra') = 0, 'nadie afectado';
+  assert not exists (select 1 from public.clases where id = pruebas.id('cl_vacia')), 'la clase vacía se borra al cancelarla';
+  assert exists (select 1 from public.auditoria where accion = 'BORRAR_CLASE' and entidad_id = pruebas.id('cl_vacia')::text), 'queda en el registro';
+end $$;
+commit;
+select pruebas.sistema();
+insert into public.clases (id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria, estado, motivo_cancelacion, cancelado_el)
+  values (pruebas.id('cl_vacia'), pruebas.id('act_suelo'), public._hoy() + 4, '13:00', 55, pruebas.id('tra_admin'), 6, true, 'CANCELADA', 'x', now());
+-- Una cancelada con alumnos (cualquiera de las canceladas de antes con reservas).
+select pruebas.guardar('cl_cancelada_con_gente', (select c.id::text from public.clases c where c.estado = 'CANCELADA' and exists (select 1 from public.reservas r where r.clase_id = c.id) limit 1));
+begin;
+set local role authenticated;
+select pruebas.como('recep');
+select pruebas.espera_error(format('select public.eliminar_clase(%L)', pruebas.id('cl_vacia')), 'No tienes permiso para: CLASES_CREAR_CANCELAR');
+select pruebas.como('admin');
+select pruebas.espera_error(format('select public.eliminar_clase(%L)', pruebas.id('cl_cancelada_con_gente')), 'Esta clase tuvo alumnos%');
+select pruebas.espera_error(format('select public.eliminar_clase(%L)', pruebas.id('pl_lun_0900')), 'La clase no existe.');
+select public.eliminar_clase(pruebas.id('cl_vacia'));
+do $$ begin assert not exists (select 1 from public.clases where id = pruebas.id('cl_vacia')), 'la cancelada vacía se elimina'; end $$;
+commit;
+
+-- Mover las clases con sus alumnos al cambiar la hora o el día de la franja.
+select pruebas.sistema();
+select pruebas.guardar('pl_mover', 'd0000000-0000-4000-8000-000000000482');
+select pruebas.guardar('f_mover', (public._hoy() + 10)::text);
+insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
+  values (pruebas.id('pl_mover'), pruebas.id('act_suelo'), extract(isodow from pruebas.fecha('f_mover'))::int, '12:00', 55, pruebas.id('tra_admin'), 6);
+select public._generar_clases(public._hoy(), public._hoy() + 21);
+select pruebas.guardar('cl_mover', pruebas.clase(pruebas.id('pl_mover'), pruebas.fecha('f_mover'))::text);
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.guardar('res_mover', (public.anadir_alumno(pruebas.id('cl_mover'), pruebas.id('cliente_a'), 'MANUAL')->>'reserva_id'));
+-- Sin mover: la clase con alumnos mantiene su hora; las vacías se recrean a la nueva.
+update public.plantillas_clase set hora_inicio = '12:30' where id = pruebas.id('pl_mover');
+select pruebas.guardar('r_sin_mover', public.plantilla_aplicar_cambios(pruebas.id('pl_mover'))::text);
+do $$
+declare v jsonb := current_setting('pruebas.r_sin_mover')::jsonb;
+begin
+  assert (v->>'movidas')::int = 0 and (v->>'conservadas')::int = 1, format('sin mover: %s', v);
+  assert (select hora_inicio from public.clases where id = pruebas.id('cl_mover')) = '12:00', 'la clase con alumnos se queda a las 12:00';
+  assert (select hora_inicio from public.clases where plantilla_id = pruebas.id('pl_mover') and fecha = pruebas.fecha('f_mover') + 7) = '12:30', 'la vacía de la semana siguiente ya es a las 12:30';
+end $$;
+-- Con mover: va a las 12:30 con su alumno, que recibe aviso.
+select pruebas.guardar('n_avisos_mover', (select count(*)::text from public.avisos));
+select pruebas.guardar('r_mover', public.plantilla_aplicar_cambios(pruebas.id('pl_mover'), true)::text);
+do $$
+declare v jsonb := current_setting('pruebas.r_mover')::jsonb;
+begin
+  assert (v->>'movidas')::int = 1 and (v->>'conservadas')::int = 0, format('con mover: %s', v);
+  assert (select hora_inicio from public.clases where id = pruebas.id('cl_mover')) = '12:30', 'la clase se mueve a las 12:30';
+  assert (select estado from public.reservas where id = pruebas.id('res_mover')) = 'RESERVADA', 'con su alumno';
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_mover') and fecha = pruebas.fecha('f_mover')) = 1, 'una sola clase ese día';
+  assert (select count(*) from public.avisos) = current_setting('pruebas.n_avisos_mover')::int + 1, 'un aviso de cambio de hora';
+  assert exists (select 1 from public.avisos a join public.aviso_destinatarios d on d.aviso_id = a.id
+                  where a.destino_clase_id = pruebas.id('cl_mover') and a.titulo like 'Cambio de hora:%' and d.cliente_id = pruebas.id('cliente_a')), 'dirigido al alumno';
+  assert jsonb_array_length(v->'avisos') = 1, 'el aviso se devuelve para la notificación';
+end $$;
+-- Cambiar el día: a la misma semana (al día siguiente), con su alumno.
+update public.plantillas_clase set dia_semana = case when dia_semana = 7 then 6 else dia_semana + 1 end where id = pruebas.id('pl_mover');
+select pruebas.guardar('r_mover_dia', public.plantilla_aplicar_cambios(pruebas.id('pl_mover'), true)::text);
+do $$
+declare v jsonb := current_setting('pruebas.r_mover_dia')::jsonb; v_pl public.plantillas_clase%rowtype; v_cl public.clases%rowtype;
+begin
+  select * into v_pl from public.plantillas_clase where id = pruebas.id('pl_mover');
+  select * into v_cl from public.clases where id = pruebas.id('cl_mover');
+  assert (v->>'movidas')::int = 1, format('mover de día: %s', v);
+  assert extract(isodow from v_cl.fecha) = v_pl.dia_semana and abs(v_cl.fecha - pruebas.fecha('f_mover')) <= 6, 'al día nuevo de su misma semana';
+  assert (select estado from public.reservas where id = pruebas.id('res_mover')) = 'RESERVADA', 'sigue apuntado';
+  assert not exists (select 1 from public.clases where plantilla_id = pruebas.id('pl_mover') and extract(isodow from fecha) <> v_pl.dia_semana and estado = 'PROGRAMADA'), 'ninguna clase programada en el día antiguo';
+  raise notice 'OK 0038: permiso de horario, clases vacías y mover clases';
+end $$;
+commit;
+
+\echo
+\echo '== 49. Cambios sin publicar: borradores, plazas retenidas y publicar (0039)'
+select pruebas.sistema();
+-- Un alumno nuevo, libre, sin reservas (para reservar y apuntarse a la lista con su tarifa).
+select pruebas.guardar('u_r', '10000000-0000-4000-8000-000000000049');
+select pruebas.guardar('cliente_r', 'e0000000-0000-4000-8000-000000000049');
+insert into auth.users (id, email) values (pruebas.id('u_r'), 'rita@test.local');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_id) values
+  (pruebas.id('cliente_r'), 'Rita', 'Libre', '49494949R', 'rita@test.local', '600 000 049', pruebas.id('u_r'));
+select pruebas.como('admin');
+select pruebas.guardar('con_r', public.crear_contrato(pruebas.id('cliente_r'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 30, 'LIBRE')::text);
+select pruebas.sistema();
+select pruebas.guardar('f_borr', (public._hoy() + 5)::text);
+select pruebas.guardar('f_borr_hasta', (public._hoy() + 21)::text);
+select pruebas.guardar('hoy_borr', public._hoy()::text);
+-- a) Franja nueva sin publicar: el alumno no la ve ni sus clases; el equipo sí, y si le apunta, él sí la ve.
+select pruebas.guardar('pl_borr', 'd0000000-0000-4000-8000-000000000491');
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas, publicada)
+  values (pruebas.id('pl_borr'), pruebas.id('act_suelo'), extract(isodow from pruebas.fecha('f_borr'))::int, '07:30', 55, pruebas.id('tra_admin'), 6, false);
+select public.generar_clases(pruebas.fecha('hoy_borr'), pruebas.fecha('f_borr_hasta'));
+select pruebas.guardar('cl_borr', pruebas.clase(pruebas.id('pl_borr'), pruebas.fecha('f_borr'))::text);
+do $$ begin
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_borr')) >= 3, 'las clases de la franja en borrador existen';
+  assert (select bool_and(not publicada) from public.clases where plantilla_id = pruebas.id('pl_borr')), 'y nacen sin publicar';
+end $$;
+select pruebas.como('r');
+do $$ begin
+  assert (select count(*) from public.plantillas_clase where id = pruebas.id('pl_borr')) = 0, 'el alumno no ve la franja en borrador';
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_borr')) = 0, 'ni sus clases';
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_lun_0900')) > 0, 'las publicadas sí';
+end $$;
+select pruebas.espera_error(format('select public.reservar(%L)', pruebas.id('cl_borr')), 'Esta clase todavía no está publicada.');
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L)', pruebas.id('cl_borr')), 'Esta clase todavía no está publicada.');
+select pruebas.como('admin');
+select pruebas.guardar('res_borr', (public.anadir_alumno(pruebas.id('cl_borr'), pruebas.id('cliente_r'), 'MANUAL')->>'reserva_id'));
+select pruebas.como('r');
+do $$ begin
+  assert (select count(*) from public.clases where id = pruebas.id('cl_borr')) = 1, 'con plaza en ella, sí ve esa clase';
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_borr')) = 1, 'pero solo esa';
+end $$;
+select pruebas.como('a');
+do $$ begin assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_borr')) = 0, 'otro alumno no ve nada'; end $$;
+commit;
+
+-- b) Plazas retenidas: clase publicada de 2 plazas con Rita apuntada por el equipo.
+select pruebas.sistema();
+select pruebas.guardar('cl_ret', 'f0000000-0000-4000-8000-000000000492');
+insert into public.clases (id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('cl_ret'), pruebas.id('act_suelo'), public._hoy() + 6, '12:00', 55, pruebas.id('tra_admin'), 2, true);
+delete from public.reservas where cliente_id = pruebas.id('cliente_r') and clase_id <> pruebas.id('cl_borr');
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.guardar('res_ret', (public.anadir_alumno(pruebas.id('cl_ret'), pruebas.id('cliente_c'), 'MANUAL')->>'reserva_id'));
+-- El admin (gestiona el horario) la quita: la plaza queda retenida.
+select public.cancelar_reserva(pruebas.id('res_ret'), true);
+do $$ begin
+  assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 1, 'una plaza retenida';
+end $$;
+-- Rita (alumna) ve 1 libre: reserva; la segunda (retenida) no se la dan a nadie.
+select pruebas.como('r');
+select public.reservar(pruebas.id('cl_ret'));
+select pruebas.como('a');
+select pruebas.espera_error(format('select public.reservar(%L)', pruebas.id('cl_ret')), 'No quedan plazas libres.');
+-- Lo que cancela el propio alumno no retiene: Rita cancela → sigue habiendo 1 retenida, no 2.
+select pruebas.como('r');
+select public.cancelar_reserva((select id from public.reservas where clase_id = pruebas.id('cl_ret') and cliente_id = pruebas.id('cliente_r') and estado = 'RESERVADA'));
+do $$ begin assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 1, 'el alumno no retiene'; end $$;
+-- Recepción (no gestiona el horario) apunta y quita: tampoco retiene; pero al apuntar sí consume una retenida? No: solo quien gestiona el horario.
+select pruebas.como('recep');
+select pruebas.guardar('res_ret2', (public.anadir_alumno(pruebas.id('cl_ret'), pruebas.id('cliente_c'), 'MANUAL')->>'reserva_id'));
+do $$ begin assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 1, 'recepción no toca las retenidas al apuntar'; end $$;
+select public.cancelar_reserva(pruebas.id('res_ret2'), true);
+do $$ begin assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 1, 'ni al quitar'; end $$;
+-- El equipo que gestiona el horario usa la retenida al apuntar.
+select pruebas.como('admin');
+select public.anadir_alumno(pruebas.id('cl_ret'), pruebas.id('cliente_c'), 'MANUAL');
+do $$ begin assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 0, 'apuntar consume la retenida'; end $$;
+-- Nunca más retenidas que plazas libres: quita a C con la clase llena de otra manera.
+select public.cancelar_reserva((select id from public.reservas where clase_id = pruebas.id('cl_ret') and cliente_id = pruebas.id('cliente_c') and estado = 'RESERVADA'), true);
+do $$ begin assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 1, 'vuelve a retener'; end $$;
+commit;
+
+-- c) La lista de espera no recibe una plaza retenida; publicar la libera y entra el primero.
+select pruebas.sistema();
+update public.clases set plazas = 1, plazas_retenidas = 0 where id = pruebas.id('cl_ret');
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.guardar('res_ret3', (public.anadir_alumno(pruebas.id('cl_ret'), pruebas.id('cliente_c'), 'MANUAL')->>'reserva_id'));
+select pruebas.como('r');
+select public.apuntar_lista_espera(pruebas.id('cl_ret'));
+select pruebas.como('admin');
+select public.cancelar_reserva(pruebas.id('res_ret3'), true);
+do $$ begin
+  assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 1, 'retenida';
+  assert exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_ret') and cliente_id = pruebas.id('cliente_r')), 'Rita sigue en la lista';
+  assert not exists (select 1 from public.reservas where clase_id = pruebas.id('cl_ret') and estado = 'RESERVADA'), 'nadie ocupa la plaza retenida';
+end $$;
+select pruebas.como('recep');
+select pruebas.espera_error('select public.publicar_cambios(false)', 'No tienes permiso para: HORARIOS_GESTIONAR');
+select pruebas.como('admin');
+select pruebas.guardar('n_avisos_pub', (select count(*)::text from public.avisos));
+select pruebas.guardar('r_pub', public.publicar_cambios(true, 'Horario nuevo de otoño')::text);
+do $$
+declare v jsonb := current_setting('pruebas.r_pub')::jsonb;
+begin
+  -- (plazas >= 1: en los bloques anteriores el admin ya ha quitado a gente de otras clases futuras, y esas plazas también estaban retenidas)
+  assert (v->>'franjas')::int = 1 and (v->>'clases')::int >= 3 and (v->>'plazas')::int >= 1, format('publicar: %s', v);
+  assert (select publicada from public.plantillas_clase where id = pruebas.id('pl_borr')), 'la franja queda publicada';
+  assert (select bool_and(publicada) from public.clases where plantilla_id = pruebas.id('pl_borr')), 'y sus clases';
+  assert (select plazas_retenidas from public.clases where id = pruebas.id('cl_ret')) = 0, 'plaza liberada';
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_ret') and cliente_id = pruebas.id('cliente_r') and estado = 'RESERVADA'), 'Rita entra desde la lista';
+  assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_ret')), 'lista vacía';
+  assert (select count(*) from public.avisos) >= current_setting('pruebas.n_avisos_pub')::int + 2, 'aviso a todos y aviso de la lista';
+  assert exists (select 1 from public.avisos where id = (v->>'aviso')::uuid and titulo = 'Horario actualizado' and destino_tipo = 'TODOS' and cuerpo = 'Horario nuevo de otoño'), 'el aviso a todos';
+  assert exists (select 1 from public.auditoria where accion = 'PUBLICAR_CAMBIOS'), 'queda en el registro';
+end $$;
+select pruebas.como('a');
+do $$ begin
+  assert (select count(*) from public.plantillas_clase where id = pruebas.id('pl_borr')) = 1, 'ahora todos ven la franja';
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_borr')) >= 3, 'y sus clases';
+  raise notice 'OK 0039: borradores, plazas retenidas y publicar';
+end $$;
+commit;
+select pruebas.sistema();
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

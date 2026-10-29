@@ -17,7 +17,7 @@ interface Item {
 const items: Item[] = [
   { to: '/', etiqueta: 'Calendario', icono: CalendarDays, permiso: null, principal: true },
   { to: '/clientes', etiqueta: 'Clientes', icono: Users, permiso: 'CLIENTES_VER', principal: true },
-  { to: '/horarios', etiqueta: 'Horarios', icono: ClipboardList, permiso: 'HORARIOS_GESTIONAR', principal: true },
+  { to: '/horarios', etiqueta: 'Horarios', icono: ClipboardList, permiso: null, principal: true }, // 0038: todos lo ven; solo quien gestiona el horario lo edita
   { to: '/avisos', etiqueta: 'Avisos', icono: Bell, permiso: 'AVISOS_ENVIAR', principal: true },
   { to: '/tarifas', etiqueta: 'Tarifas', icono: Tags, permiso: 'TARIFAS_GESTIONAR' },
   { to: '/estadisticas', etiqueta: 'Estadísticas', icono: BarChart3, permiso: 'ESTADISTICAS_VER' },

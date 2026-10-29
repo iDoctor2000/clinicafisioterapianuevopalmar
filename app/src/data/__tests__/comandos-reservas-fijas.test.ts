@@ -10,7 +10,7 @@ const ahora = new Date();
 const hoy = aISODate(ahora);
 const sesionDe = (db: Db, id: string): Sesion => {
   const t = db.trabajadores.find((x) => x.id === id)!;
-  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol };
+  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, gestionaHorario: t.gestionaHorario === true };
 };
 
 describe('rehacerReservasFijas', () => {

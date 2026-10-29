@@ -12,7 +12,7 @@ import type { Db } from '@/data/db';
 function sesionDe(db: Db, id: string): Sesion {
   const t = db.trabajadores.find((x) => x.id === id)!;
   // Igual que la demo (store.ts): sin `ambito`; los comandos lo resuelven desde la ficha.
-  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol };
+  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, gestionaHorario: t.gestionaHorario === true };
 }
 
 const db0 = crearSeed();
@@ -60,7 +60,8 @@ describe('ámbito SUS_CLASES en los comandos', () => {
     if (r.ok) expect(quitarAlumno(ctx(ana, r.db), { reservaId: r.valor.id }).ok).toBe(true);
   });
   it('cancelarClase: solo sus clases (Ana no tiene el permiso; se prueba con un monitor limitado que sí lo tiene)', () => {
-    const db = { ...db0, trabajadores: db0.trabajadores.map((t) => (t.id === 'tra-ana' ? { ...t, permisos: [...t.permisos, 'CLASES_CREAR_CANCELAR' as const] } : t)) };
+    // 0038: el permiso de clases lo da «Gestiona el horario y las clases», no la lista de permisos.
+    const db = { ...db0, trabajadores: db0.trabajadores.map((t) => (t.id === 'tra-ana' ? { ...t, gestionaHorario: true } : t)) };
     const anaConPermiso = sesionDe(db, 'tra-ana');
     expect(cancelarClase(ctx(anaConPermiso, db), { claseId: claseAjena.id, motivo: 'x', claseAlternativaId: null, avisar: false })).toEqual({ ok: false, error: MENSAJE_CLASE_AJENA });
     expect(cancelarClase(ctx(anaConPermiso, db), { claseId: claseMia.id, motivo: 'x', claseAlternativaId: null, avisar: false }).ok).toBe(true);
@@ -76,7 +77,7 @@ describe('ámbito SUS_CLASES en los comandos', () => {
     if (r.ok) expect(r.valor.destinatariosIds).toContain(reservaMia.clienteId);
   });
   it('guardarPlantilla: sin escritura de horarios con SUS_CLASES aunque tenga el permiso', () => {
-    const db = { ...db0, trabajadores: db0.trabajadores.map((t) => (t.id === 'tra-ana' ? { ...t, permisos: [...t.permisos, 'HORARIOS_GESTIONAR' as const] } : t)) };
+    const db = { ...db0, trabajadores: db0.trabajadores.map((t) => (t.id === 'tra-ana' ? { ...t, gestionaHorario: true } : t)) };
     const p = db.plantillas.find((x) => x.monitorId === 'tra-ana')!;
     expect(guardarPlantilla(ctx(sesionDe(db, 'tra-ana'), db), { plantilla: { ...p, plazas: 12 } })).toEqual({ ok: false, error: MENSAJE_HORARIO_LIMITADO });
   });

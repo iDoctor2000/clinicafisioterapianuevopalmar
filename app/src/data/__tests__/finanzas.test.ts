@@ -9,7 +9,7 @@ import type { Db } from '@/data/db';
 
 function sesionDe(db: Db, id: string): Sesion {
   const t = db.trabajadores.find((x) => x.id === id)!;
-  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true };
+  return { tipo: 'TRABAJADOR', userId: t.userId!, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true, gestionaHorario: t.gestionaHorario === true };
 }
 const db0 = crearSeed();
 const ctx = (sesion: Sesion, db: Db = db0): Ctx => ({ db, sesion, ahora: new Date() });

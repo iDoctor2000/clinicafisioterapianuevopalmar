@@ -57,6 +57,8 @@ export interface FilaTrabajador {
   es_monitor: boolean; color: string; activo: boolean; user_id: string | null;
   /** Columna añadida en 0024_finanzas.sql (default false). */
   ve_finanzas?: boolean | null;
+  /** Columna añadida en 0038 (default false). */
+  gestiona_horario?: boolean | null;
 }
 export interface FilaTrabajadorPermiso { trabajador_id: string; permiso: Permiso }
 /** Vista `monitores`: lo que ve un cliente de los trabajadores (sin contacto). */
@@ -84,12 +86,16 @@ export interface FilaPlantillaClase {
   plazas: number; activa: boolean; vigencia_desde: string | null; vigencia_hasta: string | null;
   /** 0021 (ausente antes de esa migración). Solo se lee: la escribe eliminar_plantilla. */
   eliminada_el?: string | null;
+  /** 0039: false = borrador. */
+  publicada?: boolean;
 }
 
 export interface FilaClase {
   id: string; plantilla_id: string | null; actividad_id: string; fecha: string; hora_inicio: string; duracion_min: number;
   monitor_id: string | null; plazas: number; estado: EstadoClase; extraordinaria: boolean; clase_alternativa_id: string | null;
   motivo_cancelacion: string | null; cancelado_el: string | null; cancelado_por: string | null;
+  /** 0039 (ausentes antes de esa migración). */
+  publicada?: boolean; plazas_retenidas?: number | null;
 }
 
 export interface FilaContrato {
@@ -273,7 +279,7 @@ export function aTrabajador(f: FilaTrabajador, permisos: FilaTrabajadorPermiso[]
     id: f.id, nombre: f.nombre, apellidos: f.apellidos, email: f.email, telefono: f.telefono, rol: f.rol,
     permisos: permisos.filter((p) => p.trabajador_id === f.id).map((p) => p.permiso),
     ambito: f.rol === 'ADMIN' ? 'CENTRO' : f.ambito ?? 'CENTRO',
-    esMonitor: f.es_monitor, color: f.color, activo: f.activo, userId: f.user_id, veFinanzas: f.ve_finanzas === true,
+    esMonitor: f.es_monitor, color: f.color, activo: f.activo, userId: f.user_id, veFinanzas: f.ve_finanzas === true, gestionaHorario: f.gestiona_horario === true,
   };
 }
 /** Un cliente solo ve la vista `monitores`: sin contacto, rol MONITOR y sin permisos. */
@@ -286,14 +292,15 @@ export function aTrabajadorDesdeMonitor(f: FilaMonitor): Trabajador {
 /** No incluye user_id: la vinculación con la cuenta de acceso se hace desde Supabase, no desde la app. */
 /**
  * `conFinanzas`: solo quien ve las finanzas manda la columna ve_finanzas (el servidor la conservaría igual,
- * pero así ni siquiera viaja).
+ * pero así ni siquiera viaja). `conHorario`: lo mismo con gestiona_horario (0038).
  */
-export function deTrabajador(t: Trabajador, conFinanzas = false): { trabajador: Omit<FilaTrabajador, 'user_id'>; permisos: FilaTrabajadorPermiso[] } {
+export function deTrabajador(t: Trabajador, conFinanzas = false, conHorario = false): { trabajador: Omit<FilaTrabajador, 'user_id'>; permisos: FilaTrabajadorPermiso[] } {
   return {
     trabajador: {
       id: t.id, nombre: t.nombre, apellidos: t.apellidos, email: t.email, telefono: t.telefono, rol: t.rol,
       ambito: t.rol === 'ADMIN' ? 'CENTRO' : t.ambito, es_monitor: t.esMonitor, color: t.color, activo: t.activo,
       ...(conFinanzas ? { ve_finanzas: t.veFinanzas === true } : {}),
+      ...(conHorario ? { gestiona_horario: t.gestionaHorario === true } : {}),
     },
     permisos: t.permisos.map((p) => ({ trabajador_id: t.id, permiso: p })),
   };
@@ -344,12 +351,15 @@ export function aPlantilla(f: FilaPlantillaClase): PlantillaClase {
     monitorId: f.monitor_id ?? '', plazas: f.plazas, activa: f.activa,
     vigenciaDesde: f.vigencia_desde ? aFecha(f.vigencia_desde) : null, vigenciaHasta: f.vigencia_hasta ? aFecha(f.vigencia_hasta) : null,
     ...(f.eliminada_el ? { eliminadaEl: aInstante(f.eliminada_el) } : {}),
+    ...(f.publicada === false ? { publicada: false } : {}),
   };
 }
+/** `publicada` solo viaja si se conoce (franja nueva: false; al editar se conserva lo que tenga el servidor). */
 export function dePlantilla(p: PlantillaClase): FilaPlantillaClase {
   return {
     id: p.id, actividad_id: p.actividadId, dia_semana: p.diaSemana, hora_inicio: deHora(p.horaInicio), duracion_min: p.duracionMin,
     monitor_id: p.monitorId || null, plazas: p.plazas, activa: p.activa, vigencia_desde: p.vigenciaDesde || null, vigencia_hasta: p.vigenciaHasta || null,
+    ...(p.publicada !== undefined ? { publicada: p.publicada } : {}),
   };
 }
 
@@ -359,16 +369,18 @@ export function aClase(f: FilaClase, ocupadas?: number, enEspera?: number | null
   return {
     ...(ocupadas !== undefined ? { ocupadas } : {}),
     ...(typeof enEspera === 'number' ? { enEspera } : {}),
+    ...(f.publicada === false ? { publicada: false } : {}),
+    ...(f.plazas_retenidas ? { plazasRetenidas: f.plazas_retenidas } : {}),
     id: f.id, plantillaId: f.plantilla_id, actividadId: f.actividad_id, fecha: aFecha(f.fecha), horaInicio: aHora(f.hora_inicio), duracionMin: f.duracion_min,
     monitorId: f.monitor_id ?? '', plazas: f.plazas, estado: f.estado, extraordinaria: f.extraordinaria, claseAlternativaId: f.clase_alternativa_id,
     motivoCancelacion: f.motivo_cancelacion, canceladaEl: aInstanteONull(f.cancelado_el), canceladaPor: f.cancelado_por,
   };
 }
-/** Fila para insertar una clase extraordinaria (sin plantilla, estado PROGRAMADA). */
-export function deClaseNueva(c: Pick<Clase, 'id' | 'actividadId' | 'fecha' | 'horaInicio' | 'duracionMin' | 'monitorId' | 'plazas'>): Pick<FilaClase, 'id' | 'plantilla_id' | 'actividad_id' | 'fecha' | 'hora_inicio' | 'duracion_min' | 'monitor_id' | 'plazas' | 'estado' | 'extraordinaria'> {
+/** Fila para insertar una clase extraordinaria (sin plantilla, estado PROGRAMADA). Nace sin publicar (0039). */
+export function deClaseNueva(c: Pick<Clase, 'id' | 'actividadId' | 'fecha' | 'horaInicio' | 'duracionMin' | 'monitorId' | 'plazas'>): Pick<FilaClase, 'id' | 'plantilla_id' | 'actividad_id' | 'fecha' | 'hora_inicio' | 'duracion_min' | 'monitor_id' | 'plazas' | 'estado' | 'extraordinaria' | 'publicada'> {
   return {
     id: c.id, plantilla_id: null, actividad_id: c.actividadId, fecha: c.fecha, hora_inicio: deHora(c.horaInicio), duracion_min: c.duracionMin,
-    monitor_id: c.monitorId || null, plazas: c.plazas, estado: 'PROGRAMADA', extraordinaria: true,
+    monitor_id: c.monitorId || null, plazas: c.plazas, estado: 'PROGRAMADA', extraordinaria: true, publicada: false,
   };
 }
 
