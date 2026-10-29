@@ -9,7 +9,7 @@ import { tienePermiso } from '@/domain/types';
 import { crearSeed } from '@/data/seed';
 import {
   anadirAlumno, apuntarListaEspera, cancelarClase, cancelarReserva, crearClaseExtraordinaria, eliminarClase, guardarPlantilla, guardarTrabajador,
-  publicarCambios, quitarAlumno, reservar, type Ctx,
+  generarClasesPendientes, publicarCambios, quitarAlumno, reservar, type Ctx,
 } from '@/data/comandos';
 import { vistaClase } from '@/data/selectores';
 import { clasesVisiblesDelDia, evaluarReservaDe } from '@/features/cliente/consultas';
@@ -113,6 +113,23 @@ describe('0038 · clases vacías y mover clases con sus alumnos', () => {
     const re = eliminarClase(ctx(dbSolo, jose), { claseId: soloCancelada.id });
     expect(re.ok && re.db.clases.some((c) => c.id === soloCancelada.id)).toBe(false);
     expect(eliminarClase(ctx(dbSolo, trabajador(db, 'tra-laura')), { claseId: soloCancelada.id })).toMatchObject({ ok: false, error: 'No tienes permiso para: CLASES_CREAR_CANCELAR' });
+  });
+
+  it('0042: una clase de franja quitada no vuelve a generarse (ni al regenerar ni al guardar el horario)', () => {
+    const db = crearSeed();
+    const jose = trabajador(db, 'tra-jose');
+    const vacia = db.clases.find((c) => !!c.plantillaId && c.estado === 'PROGRAMADA' && c.fecha > sumarDias(hoy, 2) && !db.reservas.some((r) => r.claseId === c.id))!;
+    const r = cancelarClase(ctx(db, jose), { claseId: vacia.id, motivo: 'Sobra', claseAlternativaId: null, avisar: false });
+    expect(r.ok && r.valor.borrada).toBe(true);
+    if (!r.ok) return;
+    expect(r.db.clasesQuitadas).toContainEqual({ plantillaId: vacia.plantillaId, fecha: vacia.fecha });
+    const deNuevo = (d: Db) => d.clases.some((c) => c.plantillaId === vacia.plantillaId && c.fecha === vacia.fecha);
+    expect(deNuevo(generarClasesPendientes(r.db, ahora))).toBe(false);
+    const p = r.db.plantillas.find((x) => x.id === vacia.plantillaId)!;
+    const g = guardarPlantilla(ctx(r.db, jose), { plantilla: { ...p, plazas: p.plazas + 1 } });
+    expect(g.ok && deNuevo(g.db)).toBe(false);
+    // Las demás fechas de la franja siguen ahí.
+    expect(g.ok && g.db.clases.filter((c) => c.plantillaId === p.id && c.fecha > hoy).length).toBeGreaterThan(3);
   });
 
   it('al cambiar la hora, «mover» lleva las clases con alumnos a la hora nueva avisándoles; sin «mover» se quedan', () => {

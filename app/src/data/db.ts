@@ -1,6 +1,6 @@
 import type {
   Actividad, Aviso, Clase, Cliente, ConfigCentro, Contrato, EntradaListaEspera, LecturaAviso, Pago, PlantillaClase,
-  PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Trabajador, Id,
+  PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Trabajador, Id, ISODate,
 } from '@/domain/types';
 
 /** Usuario de acceso (en producción lo gestiona Supabase Auth). */
@@ -37,6 +37,8 @@ export interface Db {
   premios: PremioMes[];
   /** Lista de espera de las clases completas (0021). Un alumno solo recibe sus entradas. */
   listaEspera: EntradaListaEspera[];
+  /** Días de una franja cuya clase se quitó a propósito: no se vuelven a generar (0042). Solo en la demo. */
+  clasesQuitadas?: { plantillaId: Id; fecha: ISODate }[];
 }
 
 import type { Tarifa } from '@/domain/types';

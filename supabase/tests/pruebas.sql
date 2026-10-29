@@ -2398,6 +2398,26 @@ do $$ begin
 end $$;
 commit;
 
+-- 0042: una clase de una franja activa que se quita (sin nadie apuntado) no vuelve al regenerar.
+select pruebas.guardar('cl_quitada', (select c.id::text from public.clases c where c.plantilla_id = pruebas.id('pl_lun_0900') and c.fecha > public._hoy() + 2
+  and not exists (select 1 from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') order by c.fecha limit 1));
+select pruebas.guardar('f_quitada', (select fecha::text from public.clases where id = pruebas.id('cl_quitada')));
+select pruebas.guardar('hoy_48', public._hoy()::text);
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.cancelar_clase(pruebas.id('cl_quitada'), 'Sobra');
+select public.generar_clases(pruebas.fecha('hoy_48'), pruebas.fecha('hoy_48') + 70);
+do $$ begin
+  assert not exists (select 1 from public.clases where plantilla_id = pruebas.id('pl_lun_0900') and fecha = pruebas.fecha('f_quitada')), 'el día quitado no vuelve a generarse';
+  assert exists (select 1 from public.clases_quitadas where plantilla_id = pruebas.id('pl_lun_0900') and fecha = pruebas.fecha('f_quitada')), 'queda anotado';
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_lun_0900') and fecha > pruebas.fecha('hoy_48')) >= 3, 'las demás fechas siguen';
+end $$;
+commit;
+select pruebas.sistema();
+select public.mantenimiento_diario();
+do $$ begin assert not exists (select 1 from public.clases where plantilla_id = pruebas.id('pl_lun_0900') and fecha = pruebas.fecha('f_quitada')), 'tampoco con el mantenimiento nocturno'; end $$;
+
 -- Mover las clases con sus alumnos al cambiar la hora o el día de la franja.
 select pruebas.sistema();
 select pruebas.guardar('pl_mover', 'd0000000-0000-4000-8000-000000000482');
