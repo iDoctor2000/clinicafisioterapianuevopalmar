@@ -7,7 +7,7 @@ import * as comandos from './comandos';
 import { generarClasesPendientes, type Ctx, type Resultado } from './comandos';
 import type { ArgsComando, NombreComando, ValorComando } from './tiposComandos';
 import { hayServidor, servidor } from './supabase/cliente';
-import { cargarDb } from './supabase/cargar';
+import { cargarDb, cargarPagos } from './supabase/cargar';
 import { ejecutarRemoto } from './supabase/comandos';
 import * as auth from './supabase/auth';
 import { alRegistrarError, registrar } from '@/lib/diagnostico';
@@ -81,6 +81,19 @@ function sesionDeUsuario(db: Db, userId: string): Sesion | null {
   }
   return null;
 }
+
+/**
+ * Solo SUPABASE: comandos que únicamente cambian unas pocas tablas. Tras ellos se vuelven a leer solo esas
+ * (≈ 0,5 s) en vez de todo el centro (≈ 3 s). El resto recarga todo.
+ */
+const recargaParcial: { [K in NombreComando]?: (db: Db) => Promise<Db> } = {
+  guardarPago: async (db) => ({ ...db, pagos: await cargarPagos() }),
+  borrarPago: async (db) => ({ ...db, pagos: await cargarPagos() }),
+};
+
+/** Recarga completa en curso (se comparte: varias peticiones seguidas hacen como mucho una más al terminar). */
+let recargaEnCurso: Promise<void> | null = null;
+let otraRecarga = false;
 
 let detenerTiempoReal: (() => void) | null = null;
 let detenerAuth: (() => void) | null = null;
@@ -164,7 +177,21 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
         set({ ultimoError: rr.error });
         return rr;
       }
-      await get().recargar();
+      const parcial = recargaParcial[nombre] as ((db: Db) => Promise<Db>) | undefined;
+      let hecho = false;
+      if (parcial) {
+        try {
+          const t0 = performance.now();
+          set({ db: await parcial(get().db) });
+          registrar('arranque', `Datos recargados en parte tras ${nombre} (${Math.round(performance.now() - t0)} ms)`);
+          hecho = true;
+          // Si había una recarga completa a medias, pudo leer los datos de antes: que se repita al terminar.
+          if (recargaEnCurso) otraRecarga = true;
+        } catch (e) {
+          console.warn(`[supabase] Recarga parcial tras ${nombre} fallida; se recarga todo:`, e instanceof Error ? e.message : String(e));
+        }
+      }
+      if (!hecho) await get().recargar();
       const fresco = get().db;
       set({ ultimoError: null });
       const valor = rr.valor(fresco);
@@ -296,14 +323,22 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
 
     recargar: async () => {
       if (MODO !== 'SUPABASE') return;
-      const usuario = get().usuarioAuth;
-      if (!usuario) return;
-      if (!(await auth.haySesionViva())) return; // caducada: el evento SALIDA ya vacía el estado
-      try {
-        await cargarYResolver(usuario);
-      } catch (e) {
-        console.warn('[supabase] No se han podido recargar los datos:', e instanceof Error ? e.message : String(e));
-      }
+      // Si ya hay una en marcha, no se lanza otra a la vez: se pide una más al terminar y se espera a esa.
+      if (recargaEnCurso) { otraRecarga = true; return recargaEnCurso; }
+      recargaEnCurso = (async () => {
+        do {
+          otraRecarga = false;
+          const usuario = get().usuarioAuth;
+          if (!usuario) return;
+          if (!(await auth.haySesionViva())) return; // caducada: el evento SALIDA ya vacía el estado
+          try {
+            await cargarYResolver(usuario);
+          } catch (e) {
+            console.warn('[supabase] No se han podido recargar los datos:', e instanceof Error ? e.message : String(e));
+          }
+        } while (otraRecarga);
+      })().finally(() => { recargaEnCurso = null; });
+      return recargaEnCurso;
     },
 
     terminarRecuperacionContrasena: () => set({ recuperandoContrasena: false }),
