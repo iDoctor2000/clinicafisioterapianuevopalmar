@@ -453,13 +453,22 @@ export function eliminarClase(ctx: Ctx, args: { claseId: Id }): Resultado<void> 
   if (!clase) return fallo('La clase no existe.');
   const ea = exigirClaseMia(db, sesion, clase);
   if (ea) return fallo(ea);
-  if (clase.estado !== 'CANCELADA') return fallo('Solo se puede eliminar una clase cancelada. Si quieres quitarla, cancélala.');
-  if (db.reservas.some((r) => r.claseId === clase.id)) return fallo('Esta clase tuvo alumnos: se conserva en el historial. Si al final se da, usa «Reactivar clase».');
-  return ok(auditar(borrarClase(db, clase.id), sesion, ahora, 'BORRAR_CLASE', 'clase', clase.id, `${descClase(db, clase)} · cancelada y vacía`), undefined);
+  // 0041: cualquier clase sin nadie apuntado (programada o cancelada), aunque alguien se apuntara y lo cancelara.
+  if (db.reservas.some((r) => r.claseId === clase.id && r.estado === 'RESERVADA')) return fallo('Esta clase tiene alumnos apuntados: para quitarla, cancélala (se les avisa y se les da recuperación).');
+  if (clase.estado === 'PROGRAMADA' && db.reservas.some((r) => r.claseId === clase.id && r.asistencia === 'ASISTE')) return fallo('Esta clase ya se dio: se conserva en el historial.');
+  return ok(auditar(borrarClase(db, clase.id), sesion, ahora, 'BORRAR_CLASE', 'clase', clase.id, `${descClase(db, clase)} · sin nadie apuntado (${clase.estado.toLowerCase()})`), undefined);
 }
 
+/** Borra la clase con sus reservas canceladas y su lista de espera; las recuperaciones que salieron de ella se conservan. */
 function borrarClase(db: Db, claseId: Id): Db {
-  return { ...db, clases: db.clases.filter((c) => c.id !== claseId), listaEspera: db.listaEspera.filter((e) => e.claseId !== claseId) };
+  const idsReservas = new Set(db.reservas.filter((r) => r.claseId === claseId).map((r) => r.id));
+  return {
+    ...db,
+    clases: db.clases.filter((c) => c.id !== claseId),
+    reservas: db.reservas.filter((r) => r.claseId !== claseId),
+    recuperaciones: db.recuperaciones.map((x) => (x.reservaOrigenId && idsReservas.has(x.reservaOrigenId) ? { ...x, reservaOrigenId: null } : x.usadaEnReservaId && idsReservas.has(x.usadaEnReservaId) ? { ...x, usadaEnReservaId: null } : x)),
+    listaEspera: db.listaEspera.filter((e) => e.claseId !== claseId),
+  };
 }
 
 /**
@@ -468,8 +477,8 @@ function borrarClase(db: Db, claseId: Id): Db {
  * (los festivos no se recuperan) y, si se pide, avisa a los alumnos.
  */
 function cancelarClaseInterna(db: Db, sesion: Sesion, ahora: Date, clase: Clase, motivo: string, claseAlternativaId: Id | null, avisar: boolean): { db: Db; afectados: number; avisoId: Id | null; borrada: boolean } {
-  // 0038: una clase en la que no hay nadie (ni hubo) no se cancela: se borra.
-  if (!db.reservas.some((r) => r.claseId === clase.id)) {
+  // 0038/0041: una clase en la que no hay nadie apuntado no se cancela: se borra (las reservas canceladas se van con ella).
+  if (!db.reservas.some((r) => r.claseId === clase.id && r.estado === 'RESERVADA')) {
     return { db: auditar(borrarClase(db, clase.id), sesion, ahora, 'BORRAR_CLASE', 'clase', clase.id, `${descClase(db, clase)} · estaba vacía · ${motivo}`), afectados: 0, avisoId: null, borrada: true };
   }
   const actividad = db.actividades.find((a) => a.id === clase.actividadId)!;
@@ -639,10 +648,11 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
   let reactivadas = 0;
   const avisoIds: Id[] = [];
   if (existe) {
-    const soloAutomatica = (r: Reserva) => r.origen === 'AUTOMATICA' && r.estado === 'RESERVADA';
+    // 0041: retienen la clase solo las reservas activas que no son del horario fijo (las automáticas se regeneran; las canceladas no cuentan).
+    const retiene = (r: Reserva) => r.estado === 'RESERVADA' && r.origen !== 'AUTOMATICA';
     // 0033: lo que ya ha empezado (también lo de hoy ya dado) no se toca.
     const futuras = nuevo.clases.filter((c) => c.plantillaId === p.id && c.estado === 'PROGRAMADA' && !yaEmpezada(c, ahora));
-    const borrables = new Set(futuras.filter((c) => nuevo.reservas.every((r) => r.claseId !== c.id || soloAutomatica(r))).map((c) => c.id));
+    const borrables = new Set(futuras.filter((c) => !nuevo.reservas.some((r) => r.claseId === c.id && retiene(r))).map((c) => c.id));
     conservadas = futuras.length - borrables.size;
     // Las conservadas mantienen su día y hora (sus alumnos ya cuentan con ellas), pero toman la
     // actividad, el monitor, la duración y las plazas nuevas (nunca menos plazas que alumnos apuntados).

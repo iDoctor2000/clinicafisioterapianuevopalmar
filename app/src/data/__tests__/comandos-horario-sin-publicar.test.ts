@@ -97,17 +97,22 @@ describe('0038 · clases vacías y mover clases con sus alumnos', () => {
     expect(r.ok && r.valor).toEqual({ afectados: 0, borrada: true });
     expect(r.ok && r.db.clases.some((c) => c.id === vacia.id)).toBe(false);
     expect(r.ok && r.db.auditoria[0]).toMatchObject({ accion: 'BORRAR_CLASE', entidadId: vacia.id });
-    // Una cancelada que tuvo alumnos no se puede eliminar; una cancelada vacía, sí.
+    // Con alumnos apuntados no se elimina (se cancela, con avisos); al cancelarla sigue en el historial.
     const conGente = db.clases.find((c) => c.estado === 'PROGRAMADA' && !esPasada(c.fecha, c.horaInicio, ahora) && ocupadas(db, c.id) > 0)!;
+    expect(eliminarClase(ctx(db, jose), { claseId: conGente.id })).toMatchObject({ ok: false, error: expect.stringMatching(/tiene alumnos apuntados/) });
     const rc = cancelarClase(ctx(db, jose), { claseId: conGente.id, motivo: 'Avería', claseAlternativaId: null, avisar: false });
     expect(rc.ok && rc.valor.borrada).toBe(false);
-    if (!rc.ok) return;
-    expect(eliminarClase(ctx(rc.db, jose), { claseId: conGente.id })).toMatchObject({ ok: false, error: expect.stringMatching(/tuvo alumnos/) });
-    const dbCancelada: Db = { ...db, clases: db.clases.map((c) => (c.id === vacia.id ? { ...c, estado: 'CANCELADA', motivoCancelacion: 'x', canceladaEl: ahora.toISOString() } : c)) };
-    expect(eliminarClase(ctx(dbCancelada, jose), { claseId: conGente.id })).toMatchObject({ ok: false, error: expect.stringMatching(/Solo se puede eliminar una clase cancelada/) });
-    const re = eliminarClase(ctx(dbCancelada, jose), { claseId: vacia.id });
-    expect(re.ok && re.db.clases.some((c) => c.id === vacia.id)).toBe(false);
-    expect(eliminarClase(ctx(dbCancelada, trabajador(db, 'tra-laura')), { claseId: vacia.id })).toMatchObject({ ok: false, error: 'No tienes permiso para: CLASES_CREAR_CANCELAR' });
+    // 0041: una clase en la que alguien se apuntó y lo canceló no tiene a nadie: se puede eliminar (o cancelar, que la borra) y la recuperación se conserva.
+    const cancelada = db.reservas.find((r) => r.estado === 'CANCELADA_RECUPERABLE' && db.clases.some((c) => c.id === r.claseId && c.estado === 'PROGRAMADA' && !esPasada(c.fecha, c.horaInicio, ahora) && ocupadas(db, c.id) === 0));
+    const soloCancelada: Clase = cancelada ? db.clases.find((c) => c.id === cancelada.claseId)! : { ...vacia, id: 'cla-solo-cancelada' };
+    const dbSolo: Db = cancelada ? db : { ...db, clases: [...db.clases, soloCancelada], reservas: [...db.reservas, { ...reservaManual(soloCancelada, 'maria', 'res-solo-cancelada'), estado: 'CANCELADA_RECUPERABLE' as const }] };
+    const rs = cancelarClase(ctx(dbSolo, jose), { claseId: soloCancelada.id, motivo: 'Sobra', claseAlternativaId: null, avisar: true });
+    expect(rs.ok && rs.valor).toEqual({ afectados: 0, borrada: true });
+    expect(rs.ok && rs.db.reservas.some((r) => r.claseId === soloCancelada.id)).toBe(false);
+    expect(rs.ok && rs.db.recuperaciones.length).toBe(dbSolo.recuperaciones.length);
+    const re = eliminarClase(ctx(dbSolo, jose), { claseId: soloCancelada.id });
+    expect(re.ok && re.db.clases.some((c) => c.id === soloCancelada.id)).toBe(false);
+    expect(eliminarClase(ctx(dbSolo, trabajador(db, 'tra-laura')), { claseId: soloCancelada.id })).toMatchObject({ ok: false, error: 'No tienes permiso para: CLASES_CREAR_CANCELAR' });
   });
 
   it('al cambiar la hora, «mover» lleva las clases con alumnos a la hora nueva avisándoles; sin «mover» se quedan', () => {
