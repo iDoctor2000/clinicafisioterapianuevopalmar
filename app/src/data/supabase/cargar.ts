@@ -11,6 +11,7 @@
  */
 import { addMonths } from 'date-fns';
 import { aISODate } from '@/domain/fechas';
+import type { Pago } from '@/domain/types';
 import { DB_VERSION, type Db } from '../db';
 import { mensajeError, servidor } from './cliente';
 import {
@@ -69,6 +70,20 @@ export async function leerPaginado<T>(nombre: string, consulta: Paginada<T>, max
   return filas;
 }
 
+/** Cobros (0013). RLS: el personal con CLIENTES_VER (en su ámbito, y desde 0024 con las finanzas) y cada cliente los suyos. */
+function leerPagos(): Promise<FilaPago[]> {
+  const sb = servidor();
+  return leerPaginado<FilaPago>('pagos', (d, h) => sb.from('pagos').select('*', { count: 'exact' }).order('vence_el', { ascending: true, nullsFirst: false }).order('creado_el').order('id').range(d, h) as unknown as Consulta<FilaPago>);
+}
+
+/**
+ * Solo los cobros: tras guardar o borrar un cobro no hace falta volver a leer todo el centro (≈ 25 tablas),
+ * porque eso solo cambia la tabla `pagos` (y el registro de cambios).
+ */
+export async function cargarPagos(): Promise<Pago[]> {
+  return (await leerPagos()).map(aPago);
+}
+
 export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
   const sb = servidor();
   const { desde, hasta } = rangoCarga(ahora);
@@ -106,7 +121,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     leerPaginado<FilaContratoFinanzas>('contratos_finanzas', de('contratos_finanzas'), 1),
     leerPaginado<FilaContratoFranja>('contrato_franjas', de('contrato_franjas', 'contrato_id', 'plantilla_id')),
     // Cobros (0013). RLS: el personal con CLIENTES_VER (en su ámbito) y cada cliente los suyos.
-    leerPaginado<FilaPago>('pagos', (d, h) => sb.from('pagos').select('*', { count: 'exact' }).order('vence_el', { ascending: true, nullsFirst: false }).order('creado_el').order('id').range(d, h) as unknown as Consulta<FilaPago>),
+    leerPagos(),
     // Las reservas no tienen fecha propia: se filtran por la de su clase (relación embebida clases!inner).
     leerPaginado<FilaReserva>('reservas', (d, h) => sb.from('reservas').select('*, clases!inner(fecha)', { count: 'exact' }).gte('clases.fecha', desde).lte('clases.fecha', hasta).order('id').range(d, h) as unknown as Consulta<FilaReserva>),
     leerPaginado<FilaRecuperacion>('recuperaciones', de('recuperaciones')),
