@@ -5,7 +5,7 @@
  *                    errores que ha visto la gente y señales de fallo).
  *   /informe 30    → lo mismo con otros días (1 a 90).
  *   /hoy           → el último día.
- *   /informehoy    → los cambios hechos hoy desde las 00:00, uno a uno (también /cambios).
+ *   /informehoy    → los cambios hechos hoy desde las 00:00, uno a uno, y los errores de hoy (también /cambios).
  *   /errores [N]   → solo los errores.
  *   /ayuda         → la lista de órdenes.
  *
@@ -53,6 +53,8 @@ export interface CambiosHoy {
   cobros: { cobrados: number; importe_centimos: number; pendientes_nuevos: number };
   sin_publicar: { franjas: number; clases: number; plazas: number };
   errores: number;
+  /** 0046: cuáles (ausente si falta esa migración). */
+  errores_detalle?: { mensaje: string; tipo: string; veces: number; personas: number; quien: string; ultima: string }[];
 }
 
 const ACCIONES: Record<string, string> = {
@@ -144,7 +146,14 @@ export function formatearCambiosHoy(c: CambiosHoy): string {
   resumen.push(`COBROS: ${c.cobros.cobrados} ${c.cobros.cobrados === 1 ? 'cobrado' : 'cobrados'} hoy (${euros(c.cobros.importe_centimos)}), ${c.cobros.pendientes_nuevos} ${c.cobros.pendientes_nuevos === 1 ? 'pendiente nuevo' : 'pendientes nuevos'}.`);
   const sp = c.sin_publicar;
   if (sp.franjas + sp.clases + sp.plazas > 0) resumen.push(`SIN PUBLICAR: ${sp.franjas} franjas y ${sp.clases} clases nuevas, ${sp.plazas} plazas retenidas (los alumnos aún no lo ven).`);
-  resumen.push(`Errores que ha visto la gente hoy: ${c.errores}.`);
+  if (c.errores === 0) resumen.push('ERRORES: ninguno hoy.');
+  else {
+    resumen.push(`ERRORES: ${c.errores} hoy.`);
+    for (const t of c.errores_detalle ?? []) {
+      resumen.push(`· ${t.mensaje} — ${t.veces} ${t.veces === 1 ? 'vez' : 'veces'}, ${t.personas} ${t.personas === 1 ? 'persona' : 'personas'} (${t.quien.split(', ').map((q) => QUIEN[q] ?? q).join(', ')}; ${TIPO_ERROR[t.tipo] ?? t.tipo}; última ${t.ultima})`);
+    }
+    if (!c.errores_detalle) resumen.push('(El detalle sale con /errores 1.)');
+  }
   const linea = (x: { hora: string; quien: string; accion: string; detalle: string }) => `${x.hora} ${x.quien} · ${cambio(x.accion)}${x.detalle ? `: ${x.detalle}` : ''}`;
   const montar = (nEq: number, nAl: number) => {
     const l = [...cabecera, ...resumen];
@@ -174,7 +183,7 @@ const AYUDA = [
   '/informe – cómo va la app los últimos 7 días',
   '/informe 30 – lo mismo con otros días (1 a 90)',
   '/hoy – el último día',
-  '/informehoy – los cambios de hoy desde las 00:00, uno a uno (también /cambios)',
+  '/informehoy – los cambios y los errores de hoy desde las 00:00 (también /cambios)',
   '/errores – solo los errores que ha visto la gente (también /errores 30)',
 ].join('\n');
 

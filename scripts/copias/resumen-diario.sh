@@ -190,7 +190,8 @@ select line from (
         ('0042', to_regclass('public.clases_quitadas') is not null),
         ('0043', to_regprocedure('public.mover_fijos_de_franja(uuid, uuid, uuid[], boolean)') is not null),
         ('0044', pg_get_functiondef('public._anonimizar(text)'::regprocedure) like '%v_comunes%'),
-        ('0045', to_regprocedure('public.informe_cambios_hoy()') is not null))
+        ('0045', to_regprocedure('public.informe_cambios_hoy()') is not null),
+        ('0046', pg_get_functiondef('public.informe_cambios_hoy()'::regprocedure) like '%errores_detalle%'))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

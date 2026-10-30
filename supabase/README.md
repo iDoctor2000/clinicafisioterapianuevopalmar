@@ -348,7 +348,7 @@ fallo). Sin datos personales (iniciales). Piezas: la migración `0036_informe_te
 `informe_uso`, solo para el servidor) y la Edge Function `supabase/functions/telegram/`.
 
 Órdenes: `/informe` (7 días), `/informe 30`, `/hoy`, `/informehoy` (los cambios de hoy desde las 00:00, uno a
-uno, los más recientes primero; también `/cambios`), `/errores`, `/ayuda`. `/informehoy` necesita la migración
+uno, los más recientes primero, y los errores de hoy —estos con la 0046—; también `/cambios`), `/errores`, `/ayuda`. `/informehoy` necesita la migración
 `0045_informe_cambios_hoy.sql` y volver a desplegar la función `telegram` (mismo paso 4 de abajo: pegar el
 `index.ts` nuevo y Deploy, con "Verify JWT" desactivado).
 
