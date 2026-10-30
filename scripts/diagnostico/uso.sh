@@ -33,9 +33,12 @@ trap 'rm -rf "$TMP"' EXIT
 # 1) Diccionario nombre → iniciales (alumnos y equipo). No se imprime.
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' > "$TMP/nombres.tsv" <<'SQL'
 select trim(nombre || ' ' || apellidos), upper(left(trim(nombre), 1)) || '.' || upper(left(trim(apellidos), 1)) || '.' from public.clientes
+-- (un nombre suelto que es también una palabra de la app no se tapa: hay una ficha de pruebas llamada «Cliente»; 0044)
 union all select trim(nombre), upper(left(trim(nombre), 1)) || '.' from public.clientes where length(trim(nombre)) > 2
+  and lower(trim(nombre)) not in ('cliente', 'clientes', 'alumno', 'alumna', 'alumnos', 'clase', 'clases', 'prueba', 'pruebas', 'monitor', 'monitora', 'centro', 'equipo', 'tarifa', 'reserva', 'plaza', 'franja', 'aviso')
 union all select trim(nombre || ' ' || apellidos), upper(left(trim(nombre), 1)) || '.' || upper(left(trim(apellidos), 1)) || '. (equipo)' from public.trabajadores
 union all select trim(nombre), upper(left(trim(nombre), 1)) || '. (equipo)' from public.trabajadores where length(trim(nombre)) > 2
+  and lower(trim(nombre)) not in ('cliente', 'clientes', 'alumno', 'alumna', 'alumnos', 'clase', 'clases', 'prueba', 'pruebas', 'monitor', 'monitora', 'centro', 'equipo', 'tarifa', 'reserva', 'plaza', 'franja', 'aviso')
 union all select email, '[correo]' from public.clientes where coalesce(email, '') <> ''
 union all select email, '[correo]' from public.trabajadores where coalesce(email, '') <> '';
 SQL

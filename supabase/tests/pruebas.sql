@@ -2690,4 +2690,17 @@ commit;
 select pruebas.sistema();
 
 \echo
+\echo '== 52. El informe no tapa palabras normales que coinciden con un nombre (0044)'
+select pruebas.sistema();
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono)
+  values ('e0000000-0000-4000-8000-000000000052', 'Cliente', 'De Pruebas', '52525252C', 'cliente.pruebas@test.local', '600 000 052') on conflict (id) do nothing;
+do $$ begin
+  assert public._anonimizar('El cliente ya tiene plaza en esta clase.') = 'El cliente ya tiene plaza en esta clase.', public._anonimizar('El cliente ya tiene plaza en esta clase.');
+  assert public._anonimizar('Cliente De Pruebas canceló') = 'C.D. canceló', 'el nombre completo se tapa siempre';
+  assert public._anonimizar('Berta Fija y Berta') = 'B.F. y B.', 'los nombres normales se siguen tapando';
+  raise notice 'OK 0044: informe sin tapar palabras normales';
+end $$;
+delete from public.clientes where id = 'e0000000-0000-4000-8000-000000000052';
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

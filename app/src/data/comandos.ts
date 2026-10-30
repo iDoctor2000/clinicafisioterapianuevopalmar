@@ -23,6 +23,7 @@ import { indexar, nuevoId, type Db } from './db';
 import { cobrosDeRenovacion } from '@/domain/renovaciones';
 import { mesDe } from '@/domain/cobros';
 import { portadaOrdenada } from './selectores';
+import { MENSAJE_DNI_REPETIDO } from './supabase/mensajes';
 
 export type Resultado<T = void> = { ok: true; db: Db; valor: T } | { ok: false; error: string };
 
@@ -896,6 +897,9 @@ export function guardarCliente(ctx: Ctx, args: { cliente: Omit<Cliente, 'id'> & 
   const e = exigir(sesion, 'CLIENTES_EDITAR');
   if (e) return fallo(e);
   const existente = args.cliente.id ? db.clientes.find((c) => c.id === args.cliente.id) : undefined;
+  // Como el índice clientes_dni_unico del servidor (mismo mensaje que ve la persona allí).
+  const dni = args.cliente.dni.trim().toUpperCase();
+  if (dni && db.clientes.some((c) => c.id !== args.cliente.id && c.dni.trim().toUpperCase() === dni)) return fallo(MENSAJE_DNI_REPETIDO);
   let cliente: Cliente = { ...args.cliente, id: args.cliente.id ?? nuevoId('cli') };
   if (existente && !tienePermiso(sesion, 'CLINICA_VER')) cliente = { ...cliente, clinica: existente.clinica };
   let nuevo: Db = { ...db, clientes: existente ? db.clientes.map((c) => (c.id === cliente.id ? cliente : c)) : [...db.clientes, cliente] };
