@@ -32,7 +32,11 @@ const cambios: CambiosHoy = {
   cambios_alumnos: [{ hora: '10:05', quien: 'B.F.', accion: 'CANCELAR_RESERVA', detalle: 'B.F. · Suelo 2026-11-02 09:00 · CANCELADA_RECUPERABLE' }],
   cobros: { cobrados: 2, importe_centimos: 12350, pendientes_nuevos: 1 },
   sin_publicar: { franjas: 1, clases: 11, plazas: 37 },
-  errores: 0,
+  errores: 3,
+  errores_detalle: [
+    { mensaje: 'anadirAlumno: No quedan plazas libres.', tipo: 'accion', veces: 2, personas: 1, quien: 'EQUIPO', ultima: '11:20' },
+    { mensaje: 'Elige la forma de pago.', tipo: 'pantalla', veces: 1, personas: 1, quien: 'EQUIPO', ultima: '09:05' },
+  ],
 };
 const deps = (pedidos: number[] = []) => ({ secreto: 'S3creto', chats: ['111'], pedirInforme: async (d: number) => { pedidos.push(d); return informe; }, pedirCambiosHoy: async () => { pedidos.push(-1); return cambios; } });
 
@@ -103,6 +107,9 @@ describe('bot de Telegram', () => {
     expect(j.text).toContain('COBROS: 2 cobrados hoy (123,50 €), 1 pendiente nuevo');
     expect(j.text).toContain('SIN PUBLICAR: 1 franjas y 11 clases nuevas, 37 plazas retenidas');
     expect(j.text).toContain('10:05 B.F. · Cancela');
+    expect(j.text).toContain('ERRORES: 3 hoy.');
+    expect(j.text).toContain('· anadirAlumno: No quedan plazas libres. — 2 veces, 1 persona (equipo; acción que no se pudo hacer; última 11:20)');
+    expect(j.text.indexOf('ERRORES')).toBeLessThan(j.text.indexOf('CAMBIOS DEL EQUIPO'));
     // Un chat no autorizado no recibe nada.
     const p2: number[] = [];
     expect((await (await atender(peticion('/informehoy', 999), deps(p2))).json()).text).toContain('privado');
@@ -127,5 +134,8 @@ describe('bot de Telegram', () => {
     expect(t).toContain('EQUIPO: nadie ha hecho cambios hoy.');
     expect(t).toContain('ALUMNOS: no han hecho nada ellos solos hoy.');
     expect(t).not.toContain('SIN PUBLICAR');
+    expect(formatearCambiosHoy({ ...cambios, errores: 0, errores_detalle: [] })).toContain('ERRORES: ninguno hoy.');
+    // Sin la migración 0046: el número y dónde ver el detalle.
+    expect(formatearCambiosHoy({ ...cambios, errores_detalle: undefined })).toContain('(El detalle sale con /errores 1.)');
   });
 });

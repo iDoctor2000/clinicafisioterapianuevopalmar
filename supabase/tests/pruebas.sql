@@ -2703,8 +2703,10 @@ end $$;
 delete from public.clientes where id = 'e0000000-0000-4000-8000-000000000052';
 
 \echo
-\echo '== 53. Cambios de hoy para el bot de Telegram (0045)'
+\echo '== 53. Cambios de hoy para el bot de Telegram (0045) y sus errores (0046)'
 select pruebas.sistema();
+insert into public.errores_app (tipo_usuario, tipo, mensaje) values
+  ('EQUIPO', 'accion', 'anadirAlumno: Berta Fija ya tiene plaza en esta clase.'), ('EQUIPO', 'accion', 'anadirAlumno: Berta Fija ya tiene plaza en esta clase.');
 do $$
 declare v jsonb := public.informe_cambios_hoy(); v_txt text;
 begin
@@ -2714,6 +2716,11 @@ begin
   v_txt := v::text;
   assert v_txt not like '%Berta Fija%' and v_txt not like '%Ana Libre%' and v_txt not like '%@test.local%', 'sin nombres ni correos';
   assert not exists (select 1 from jsonb_array_elements(v->'cambios_equipo') e where e->>'accion' in ('ASISTENCIA', 'MANTENIMIENTO', 'GENERAR_CLASES')), 'sin las acciones que solo se cuentan';
+  -- 0046: los errores de hoy, con su mensaje (sin nombres) y cuántos.
+  assert v ? 'errores_detalle', 'detalle de errores';
+  assert (select coalesce(sum((e->>'veces')::int), 0) from jsonb_array_elements(v->'errores_detalle') e) <= (v->>'errores')::int, 'el detalle cuadra con el total';
+  assert exists (select 1 from jsonb_array_elements(v->'errores_detalle') e
+                  where e->>'mensaje' = 'anadirAlumno: B.F. ya tiene plaza en esta clase.' and (e->>'veces')::int = 2 and e->>'quien' = 'EQUIPO'), format('error de hoy, sin el nombre: %s', v->'errores_detalle');
   raise notice 'OK 0045: cambios de hoy (% del equipo, % de alumnos)', jsonb_array_length(v->'cambios_equipo'), jsonb_array_length(v->'cambios_alumnos');
 end $$;
 begin;
@@ -2722,6 +2729,7 @@ select pruebas.como('admin');
 select pruebas.espera_error('select public.informe_cambios_hoy()', '%permission denied%');
 commit;
 select pruebas.sistema();
+delete from public.errores_app;
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'
