@@ -109,3 +109,17 @@ describe('foto de la hoja firmada en papel (0025)', () => {
     expect(adjuntarConsentimiento(ctx(clienteSesion('maria')), { clienteId: 'maria', adjunto: 'data:x' }).ok).toBe(false);
   });
 });
+
+describe('guardarCliente: DNI repetido', () => {
+  it('no deja crear otra ficha con el DNI de una existente (aunque esté de baja), con el mismo mensaje que el servidor', () => {
+    const jose = trabajador('tra-jose');
+    const otra = db0.clientes.find((c) => c.dni.trim() !== '')!;
+    const deBaja: Db = { ...db0, clientes: db0.clientes.map((c) => (c.id === otra.id ? { ...c, activo: false } : c)) };
+    const { id: _id, ...sinId } = otra;
+    const r = guardarCliente(ctx(jose, deBaja), { cliente: { ...sinId, nombre: 'Nueva', dni: ` ${otra.dni.toLowerCase()} ` } });
+    expect(r).toMatchObject({ ok: false, error: expect.stringMatching(/^Ya hay otra ficha con ese DNI/) });
+    // Editar la propia ficha con su DNI sí, y una ficha nueva sin DNI también.
+    expect(guardarCliente(ctx(jose), { cliente: { ...otra, telefono: '600 111 222' } }).ok).toBe(true);
+    expect(guardarCliente(ctx(jose), { cliente: { ...sinId, nombre: 'Sin', dni: '' } }).ok).toBe(true);
+  });
+});

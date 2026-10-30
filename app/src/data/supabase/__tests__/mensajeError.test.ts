@@ -15,4 +15,11 @@ describe('mensajeError', () => {
     expect(mensajeError({ message: 'No quedan plazas.' })).toBe('No quedan plazas.');
     expect(mensajeError(null)).toBe('Se ha producido un error inesperado.');
   });
+
+  it('explica en español los datos repetidos', () => {
+    // Lo que vio el equipo al dar de alta a alguien con el DNI de otra ficha (29/10).
+    expect(mensajeError({ message: 'duplicate key value violates unique constraint "clientes_dni_unico"', code: '23505' })).toMatch(/^Ya hay otra ficha con ese DNI/);
+    expect(mensajeError({ message: 'duplicate key value violates unique constraint "reservas_una_activa_por_cliente_clase"' })).toBe('Ese alumno ya tiene plaza en esta clase.');
+    expect(mensajeError({ message: 'duplicate key value violates unique constraint "otra_cosa"' })).toMatch(/^Ya existe un registro igual/);
+  });
 });
