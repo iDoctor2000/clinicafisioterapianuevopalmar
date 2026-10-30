@@ -62,6 +62,33 @@ select left(p.id::text, 8) as id, p.dia_semana as dia, p.hora_inicio as hora, a.
   from public.plantillas_clase p join public.actividades a on a.id = p.actividad_id
  order by p.dia_semana, p.hora_inicio;
 
+\echo '== Días quitados de franjas (clases_quitadas · 0042): no se vuelven a generar'
+select left(q.plantilla_id::text, 8) as franja, p.dia_semana as dia, p.hora_inicio as hora, a.nombre as actividad, q.fecha,
+       q.quitada_el at time zone 'Europe/Madrid' as quitada, case when q.quitada_por is null then 'migración' else 'persona' end as por,
+       exists (select 1 from public.clases c where c.plantilla_id = q.plantilla_id and c.fecha = q.fecha) as tiene_clase
+  from public.clases_quitadas q join public.plantillas_clase p on p.id = q.plantilla_id join public.actividades a on a.id = p.actividad_id
+ where q.fecha >= public._hoy() - 7
+ order by q.fecha, p.hora_inicio;
+
+\echo '== Franjas activas y vigentes con días SIN clase en las próximas 4 semanas (lo que ve Nuria como "falta en el calendario")'
+select left(p.id::text, 8) as franja, p.dia_semana as dia, p.hora_inicio as hora, a.nombre as actividad, d::date as fecha,
+       case when exists (select 1 from public.dias_cierre dc where dc.fecha = d::date) then 'cierre'
+            when exists (select 1 from public.clases_quitadas q where q.plantilla_id = p.id and q.fecha = d::date) then 'quitada'
+            else 'SIN MOTIVO' end as motivo
+  from public.plantillas_clase p join public.actividades a on a.id = p.actividad_id
+  cross join generate_series(public._hoy(), public._hoy() + 27, interval '1 day') d
+ where p.activa and p.eliminada_el is null and extract(isodow from d) = p.dia_semana
+   and (p.vigencia_desde is null or d::date >= p.vigencia_desde) and (p.vigencia_hasta is null or d::date <= p.vigencia_hasta)
+   and not exists (select 1 from public.clases c where c.plantilla_id = p.id and c.fecha = d::date)
+ order by d, p.hora_inicio;
+
+\echo '== Clases futuras de los próximos 14 días (todas, con franja y reservas)'
+select c.fecha, c.hora_inicio as hora, a.nombre as actividad, left(c.plantilla_id::text, 8) as franja, left(c.id::text, 8) as clase, c.estado, c.publicada, c.plazas, c.plazas_retenidas,
+       (select count(*) from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') as reservadas
+  from public.clases c join public.actividades a on a.id = c.actividad_id
+ where c.fecha between public._hoy() and public._hoy() + 13
+ order by c.fecha, c.hora_inicio;
+
 \echo '== Registro de cambios de los últimos días (sin asistencias ni mantenimiento)'
 select a.instante at time zone 'Europe/Madrid' as cuando, a.accion, a.entidad, left(a.entidad_id, 8) as id, left(a.detalle, 160) as detalle
   from public.auditoria a
