@@ -115,7 +115,7 @@ describe('0038 · clases vacías y mover clases con sus alumnos', () => {
     expect(eliminarClase(ctx(dbSolo, trabajador(db, 'tra-laura')), { claseId: soloCancelada.id })).toMatchObject({ ok: false, error: 'No tienes permiso para: CLASES_CREAR_CANCELAR' });
   });
 
-  it('0042: una clase de franja quitada no vuelve a generarse (ni al regenerar ni al guardar el horario)', () => {
+  it('0042: una clase de franja quitada no vuelve a generarse al regenerar; 0047: al guardar la franja, sí', () => {
     const db = crearSeed();
     const jose = trabajador(db, 'tra-jose');
     const vacia = db.clases.find((c) => !!c.plantillaId && c.estado === 'PROGRAMADA' && c.fecha > sumarDias(hoy, 2) && !db.reservas.some((r) => r.claseId === c.id))!;
@@ -127,7 +127,8 @@ describe('0038 · clases vacías y mover clases con sus alumnos', () => {
     expect(deNuevo(generarClasesPendientes(r.db, ahora))).toBe(false);
     const p = r.db.plantillas.find((x) => x.id === vacia.plantillaId)!;
     const g = guardarPlantilla(ctx(r.db, jose), { plantilla: { ...p, plazas: p.plazas + 1 } });
-    expect(g.ok && deNuevo(g.db)).toBe(false);
+    expect(g.ok && deNuevo(g.db)).toBe(true);
+    expect(g.ok && g.valor.recuperadas).toBe(1);
     // Las demás fechas de la franja siguen ahí.
     expect(g.ok && g.db.clases.filter((c) => c.plantillaId === p.id && c.fecha > hoy).length).toBeGreaterThan(3);
   });

@@ -37,7 +37,7 @@ export interface Db {
   premios: PremioMes[];
   /** Lista de espera de las clases completas (0021). Un alumno solo recibe sus entradas. */
   listaEspera: EntradaListaEspera[];
-  /** Días de una franja cuya clase se quitó a propósito: no se vuelven a generar (0042). Solo en la demo. */
+  /** Días de una franja cuya clase se quitó a propósito: no se vuelven a generar (0042) hasta que se vuelva a guardar la franja (0047). Solo lo ve el personal. */
   clasesQuitadas?: { plantillaId: Id; fecha: ISODate }[];
 }
 

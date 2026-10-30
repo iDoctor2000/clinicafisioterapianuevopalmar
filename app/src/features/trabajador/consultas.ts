@@ -4,7 +4,7 @@ import { es } from 'date-fns/locale';
 import type { Actividad, Clase, Cliente, Contrato, DiaSemana, EntradaListaEspera, Id, ISODate, PlantillaClase, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import type { Db } from '@/data/db';
 import { contratoActivoDe, recuperacionesDisponiblesDe, tarifaDe, vistaClase, type ClaseVista } from '@/data/selectores';
-import { aISODate, diasEntre, esPasada, estaEntre, inicioSemana, sumarDias } from '@/domain/fechas';
+import { aISODate, diaSemanaDe, diasEntre, esPasada, estaEntre, inicioSemana, sumarDias } from '@/domain/fechas';
 
 // ---------------------------------------------------------------------------
 // Cambios del horario sin publicar (0039)
@@ -125,6 +125,31 @@ export function clasesPorDiaDeSemana(db: Db, fecha: ISODate): { fecha: ISODate; 
     fecha: f,
     clases: db.clases.filter((c) => c.fecha === f && claseVisibleEnCalendario(db, c)).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio)).map((c) => vistaClase(db, c)),
   }));
+}
+
+/** Un día en que a una franja activa le toca clase y no la hay (0047): el calendario del personal lo enseña con su motivo. */
+export interface HuecoFranja {
+  plantilla: PlantillaClase;
+  actividad: Actividad;
+  fecha: ISODate;
+  /** QUITADA: alguien eliminó la clase (0042). SIN_CLASE: falta sin motivo conocido (no debería pasar). */
+  motivo: 'QUITADA' | 'SIN_CLASE';
+}
+
+/** Franjas activas y vigentes del día sin clase ese día (desde hoy; los días de cierre no cuentan). */
+export function huecosDeFranjas(db: Db, fecha: ISODate, hoy: ISODate): HuecoFranja[] {
+  if (fecha < hoy || db.config.diasCierre.some((d) => d.fecha === fecha)) return [];
+  const dia = diaSemanaDe(fecha);
+  return db.plantillas
+    .filter((p) => p.activa && !p.eliminadaEl && p.diaSemana === dia && (!p.vigenciaDesde || fecha >= p.vigenciaDesde) && (!p.vigenciaHasta || fecha <= p.vigenciaHasta))
+    .filter((p) => !db.clases.some((c) => c.plantillaId === p.id && c.fecha === fecha))
+    .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+    .flatMap((p) => {
+      const actividad = db.actividades.find((a) => a.id === p.actividadId);
+      if (!actividad) return [];
+      const quitada = (db.clasesQuitadas ?? []).some((q) => q.plantillaId === p.id && q.fecha === fecha);
+      return [{ plantilla: p, actividad, fecha, motivo: quitada ? 'QUITADA' as const : 'SIN_CLASE' as const }];
+    });
 }
 
 export function clasesSueltasDe(vista: ClaseVista): number {
@@ -410,7 +435,7 @@ export interface RejillaSemana {
 }
 
 /** Franja horaria real que ocupan las clases de la semana (de la primera a la última). */
-export function rejillaSemana(clases: ClaseVista[]): RejillaSemana | null {
+export function rejillaSemana(clases: { clase: Pick<Clase, 'horaInicio' | 'duracionMin'> }[]): RejillaSemana | null {
   if (clases.length === 0) return null;
   const tramoMin = clases.every((v) => minutosDe(v.clase.horaInicio) % 60 === 0) ? 60 : 30;
   let desde = Infinity;

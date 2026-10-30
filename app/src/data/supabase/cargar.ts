@@ -22,6 +22,7 @@ import {
   type FilaPago, type FilaMonitor,
   type FilaOcupacionClase, type FilaPlantillaClase, type FilaPortadaImagen, type FilaPremioMes, type FilaRecuperacion, type FilaReserva, type FilaTarifa,
   type FilaTarifaCupo, type FilaTrabajador, type FilaTrabajadorPermiso,
+  aClaseQuitada, type FilaClaseQuitada,
 } from './mapeo';
 
 /** Meses hacia atrás y hacia delante que se cargan de clases y reservas. */
@@ -100,7 +101,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
 
   const [
     cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, ocupacion, contratos, finanzas, franjas, pagos,
-    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios, listaEspera, miListaEspera,
+    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios, listaEspera, miListaEspera, clasesQuitadas,
   ] = await Promise.all([
     leerPaginado<FilaDiaCierre>('dias_cierre', de('dias_cierre', 'fecha')),
     leerPaginado<FilaActividad>('actividades', de('actividades', 'orden', 'nombre', 'id')),
@@ -136,6 +137,8 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     // Lista de espera (0021). RLS: el personal las de su ámbito; cada alumno las suyas (y su posición, por la vista).
     leerPaginado<FilaListaEspera>('lista_espera', de('lista_espera', 'clase_id', 'creado_el', 'id'), 2),
     leerPaginado<FilaMiListaEspera>('mi_lista_espera', de('mi_lista_espera', 'clase_id'), 1),
+    // Días quitados de franjas (0042): el calendario del personal enseña el hueco y deja volver a poner la clase (0047).
+    leerPaginado<FilaClaseQuitada>('clases_quitadas', (d, h) => sb.from('clases_quitadas').select('*', { count: 'exact' }).gte('fecha', desde).order('plantilla_id').order('fecha').range(d, h) as unknown as Consulta<FilaClaseQuitada>, 1),
   ]);
 
   const clinicaPorCliente = new Map(clinicas.map((c) => [c.cliente_id, c]));
@@ -166,5 +169,6 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     portada: portada.map(aPortadaImagen),
     premios: premios.map(aPremioMes),
     listaEspera: listaEspera.map((e) => aEntradaListaEspera(e, posicionPorEntrada.get(e.id))),
+    clasesQuitadas: clasesQuitadas.map(aClaseQuitada),
   };
 }

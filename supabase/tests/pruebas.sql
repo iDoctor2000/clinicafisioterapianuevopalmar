@@ -2731,5 +2731,73 @@ commit;
 select pruebas.sistema();
 delete from public.errores_app;
 
+\echo '== 54. Guardar una franja recupera sus días quitados; restaurar una clase quitada (0047)'
+select pruebas.sistema();
+select pruebas.guardar('pl_54', 'd0000000-0000-4000-8000-000000000540');
+select pruebas.guardar('f_54', (public._hoy() + 8)::text);
+insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
+  values (pruebas.id('pl_54'), pruebas.id('act_suelo'), extract(isodow from pruebas.fecha('f_54'))::int, '13:00', 55, pruebas.id('tra_admin'), 6);
+select public._generar_clases(public._hoy(), public._hoy() + 21);
+-- Un alumno fijo de esa franja (contrato nuevo de cliente_a con la franja), para comprobar que la clase restaurada le apunta.
+select pruebas.guardar('k_54', 'c0000000-0000-4000-8000-000000000540');
+insert into public.contratos (id, cliente_id, tarifa_id, fecha_inicio, fecha_fin, modalidad, estado)
+  values (pruebas.id('k_54'), pruebas.id('cliente_a'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 30, 'FIJO', 'ACTIVO');
+insert into public.contrato_franjas (contrato_id, plantilla_id) values (pruebas.id('k_54'), pruebas.id('pl_54'));
+select public._generar_reservas_automaticas(pruebas.id('k_54'));
+select pruebas.guardar('cl_54', pruebas.clase(pruebas.id('pl_54'), pruebas.fecha('f_54'))::text);
+select pruebas.guardar('hoy_54', public._hoy()::text);
+do $$ begin
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_54') and cliente_id = pruebas.id('cliente_a') and estado = 'RESERVADA' and origen = 'AUTOMATICA'), 'el fijo está apuntado';
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+-- Se quita la reserva automática y la clase (como hizo N.: la clase sobraba); la franja sigue.
+select public.cancelar_reserva((select id from public.reservas where clase_id = pruebas.id('cl_54') and cliente_id = pruebas.id('cliente_a') and estado = 'RESERVADA'), true);
+select public.eliminar_clase(pruebas.id('cl_54'));
+select public.generar_clases(pruebas.fecha('hoy_54'), pruebas.fecha('hoy_54') + 21);
+do $$ begin
+  assert not exists (select 1 from public.clases where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54')), 'quitada: no vuelve sola (0042)';
+  assert exists (select 1 from public.clases_quitadas where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54')), 'anotada';
+end $$;
+-- 1) Guardar la franja (cambiar las plazas) la recupera, con su alumno fijo.
+update public.plantillas_clase set plazas = 8 where id = pruebas.id('pl_54');
+select pruebas.guardar('r_54', public.plantilla_aplicar_cambios(pruebas.id('pl_54'))::text);
+do $$
+declare v jsonb := current_setting('pruebas.r_54')::jsonb; v_cl uuid;
+begin
+  assert (v->>'recuperadas')::int = 1, format('un día recuperado: %s', v);
+  select id into v_cl from public.clases where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54');
+  assert v_cl is not null, 'la clase del día quitado vuelve al guardar la franja';
+  assert (select plazas from public.clases where id = v_cl) = 8, 'con las plazas nuevas';
+  assert not exists (select 1 from public.clases_quitadas where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54')), 'ya no está quitada';
+  assert exists (select 1 from public.reservas where clase_id = v_cl and cliente_id = pruebas.id('cliente_a') and estado = 'RESERVADA'), 'el fijo vuelve a estar apuntado';
+  assert exists (select 1 from public.auditoria where accion = 'EDITAR_HORARIO' and entidad_id = pruebas.id('pl_54')::text and detalle like '%1 días quitados vuelven%'), 'queda en el registro';
+end $$;
+-- 2) Se vuelve a quitar; «Volver a poner la clase» desde el calendario.
+select public.cancelar_reserva((select id from public.reservas where clase_id = pruebas.clase(pruebas.id('pl_54'), pruebas.fecha('f_54')) and cliente_id = pruebas.id('cliente_a') and estado = 'RESERVADA'), true);
+select public.eliminar_clase(pruebas.clase(pruebas.id('pl_54'), pruebas.fecha('f_54')));
+select pruebas.espera_error(format('select public.restaurar_clase_quitada(%L, %L)', pruebas.id('pl_54'), pruebas.fecha('f_54') + 1), '%no le toca clase ese día%');
+select pruebas.espera_error(format('select public.restaurar_clase_quitada(%L, %L)', pruebas.id('pl_54'), pruebas.fecha('hoy_54') - 7), '%ya ha pasado%');
+select pruebas.guardar('cl_54b', public.restaurar_clase_quitada(pruebas.id('pl_54'), pruebas.fecha('f_54'))::text);
+do $$ begin
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54')) = 1, 'la clase vuelve';
+  assert (select estado from public.clases where id = pruebas.id('cl_54b')) = 'PROGRAMADA', 'programada';
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_54b') and cliente_id = pruebas.id('cliente_a') and estado = 'RESERVADA' and origen = 'AUTOMATICA'), 'con su alumno fijo';
+  assert not exists (select 1 from public.clases_quitadas where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54')), 'ya no está quitada';
+  assert exists (select 1 from public.auditoria where accion = 'RESTAURAR_CLASE' and entidad_id = pruebas.id('cl_54b')::text), 'registro';
+end $$;
+select pruebas.espera_error(format('select public.restaurar_clase_quitada(%L, %L)', pruebas.id('pl_54'), pruebas.fecha('f_54')), '%ya tiene clase%');
+-- Sin permiso de clases no se puede.
+select pruebas.como('recep');
+select pruebas.espera_error(format('select public.restaurar_clase_quitada(%L, %L)', pruebas.id('pl_54'), pruebas.fecha('f_54') + 7), '%');
+commit;
+select pruebas.sistema();
+-- El mantenimiento nocturno no deshace nada de esto.
+select public.mantenimiento_diario();
+do $$ begin
+  assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54')) = 1, 'sigue tras el mantenimiento';
+end $$;
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'

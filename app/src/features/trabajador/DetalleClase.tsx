@@ -238,7 +238,7 @@ export function DetalleClase() {
       <HojaAnadirAlumno abierta={anadir} onCerrar={() => setAnadir(false)} claseId={clase.id} yaApuntados={activas.map((r) => r.clienteId)} />
       <HojaCancelarClase abierta={cancelar} onCerrar={() => setCancelar(false)} claseId={clase.id} afectados={activas.length} />
       <Confirmacion abierta={eliminar} onCerrar={() => setEliminar(false)} titulo="Eliminar clase" textoConfirmar="Eliminar clase" peligro onConfirmar={() => void confirmarEliminar()}>
-        <p>La clase de <strong className="text-ink">{actividad.nombre}</strong> del {fechaCorta(clase.fecha)} a las {clase.horaInicio} desaparece del calendario. No hay nadie apuntado, así que no hay a quién avisar.</p>
+        <p>La clase de <strong className="text-ink">{actividad.nombre}</strong> del {fechaCorta(clase.fecha)} a las {clase.horaInicio} desaparece del calendario. No hay nadie apuntado, así que no hay a quién avisar.{clase.plantillaId && <> Ese día queda <strong className="text-ink">quitado</strong> de su franja: en el calendario se verá como hueco y se puede volver a poner desde ahí (también vuelve si guardas la franja en Horarios).</>}</p>
         {canceladas.length > 0 && <p>{canceladas.length === 1 ? 'Hay 1 cancelación apuntada' : `Hay ${canceladas.length} cancelaciones apuntadas`} en esta clase: desaparecen con ella, pero la recuperación que se dio por cancelar se conserva.</p>}
       </Confirmacion>
       <Confirmacion abierta={reactivar} onCerrar={() => setReactivar(false)} titulo="Reactivar clase" textoConfirmar="Reactivar clase" onConfirmar={() => void confirmarReactivar()}>

@@ -637,7 +637,7 @@ export function crearClaseExtraordinaria(ctx: Ctx, args: { actividadId: Id; fech
  * `mover` (0038): al cambiar el día o la hora, las clases futuras con alumnos se mueven también al
  * día y hora nuevos (misma semana) y se avisa a sus alumnos; si no, mantienen su día y hora.
  */
-export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id }; mover?: boolean }): Resultado<{ plantilla: PlantillaClase; conservadas: number; movidas: number; canceladas: number; afectados: number; reactivadas: number; avisoIds: Id[] }> {
+export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClase, 'id'> & { id?: Id }; mover?: boolean }): Resultado<{ plantilla: PlantillaClase; conservadas: number; movidas: number; canceladas: number; afectados: number; reactivadas: number; recuperadas: number; avisoIds: Id[] }> {
   const { db, sesion, ahora } = ctx;
   const e = exigir(sesion, 'HORARIOS_GESTIONAR');
   if (e) return fallo(e);
@@ -652,8 +652,13 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
   let canceladas = 0;
   let afectados = 0;
   let reactivadas = 0;
+  let recuperadas = 0;
   const avisoIds: Id[] = [];
   if (existe) {
+    // 0047: guardar la franja es decir «se da estos días»: sus días quitados (0042) desde hoy vuelven a generarse.
+    const hoy = aISODate(ahora);
+    const quitados = (nuevo.clasesQuitadas ?? []).filter((q) => q.plantillaId === p.id && q.fecha >= hoy).length;
+    if (quitados > 0) { recuperadas = quitados; nuevo = { ...nuevo, clasesQuitadas: nuevo.clasesQuitadas!.filter((q) => !(q.plantillaId === p.id && q.fecha >= hoy)) }; }
     // 0041: retienen la clase solo las reservas activas que no son del horario fijo (las automáticas se regeneran; las canceladas no cuentan).
     const retiene = (r: Reserva) => r.estado === 'RESERVADA' && r.origen !== 'AUTOMATICA';
     // 0033: lo que ya ha empezado (también lo de hoy ya dado) no se toca.
@@ -714,8 +719,27 @@ export function guardarPlantilla(ctx: Ctx, args: { plantilla: Omit<PlantillaClas
     }
   }
   nuevo = generarClasesPendientes(nuevo, ahora);
-  const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas; ${movidas} movidas con sus alumnos; ${canceladas} canceladas; ${reactivadas} reactivadas` : `${p.diaSemana} ${p.horaInicio}`;
-  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas, movidas, canceladas, afectados, reactivadas, avisoIds });
+  const detalle = existe ? `${p.diaSemana} ${p.horaInicio} · clases futuras recreadas; ${conservadas} conservadas con reservas; ${movidas} movidas con sus alumnos; ${canceladas} canceladas; ${reactivadas} reactivadas; ${recuperadas} días quitados vuelven` : `${p.diaSemana} ${p.horaInicio}`;
+  return ok(auditar(nuevo, sesion, ahora, existe ? 'EDITAR_HORARIO' : 'CREAR_HORARIO', 'plantilla', p.id, detalle), { plantilla: p, conservadas, movidas, canceladas, afectados, reactivadas, recuperadas, avisoIds });
+}
+
+/** Vuelve a poner la clase de un día quitado (0042) de una franja activa, con sus alumnos fijos (0047). */
+export function restaurarClaseQuitada(ctx: Ctx, args: { plantillaId: Id; fecha: ISODate }): Resultado<{ claseId: Id }> {
+  const { db, sesion, ahora } = ctx;
+  const e = exigir(sesion, 'CLASES_CREAR_CANCELAR');
+  if (e) return fallo(e);
+  if (limitadoASusClases(db, sesion)) return fallo(MENSAJE_HORARIO_LIMITADO);
+  const p = db.plantillas.find((x) => x.id === args.plantillaId);
+  if (!p || !p.activa || p.eliminadaEl) return fallo('Esa franja ya no está en el horario.');
+  if (args.fecha < aISODate(ahora)) return fallo('Ese día ya ha pasado.');
+  if (diaSemanaDe(args.fecha) !== p.diaSemana || (p.vigenciaDesde && args.fecha < p.vigenciaDesde) || (p.vigenciaHasta && args.fecha > p.vigenciaHasta)) return fallo('A esa franja no le toca clase ese día.');
+  if (esDiaCierre(args.fecha, db.config)) return fallo('Ese día el centro está cerrado.');
+  if (db.clases.some((c) => c.plantillaId === p.id && c.fecha === args.fecha)) return fallo('Ese día ya tiene clase.');
+  let nuevo: Db = { ...db, clasesQuitadas: (db.clasesQuitadas ?? []).filter((q) => !(q.plantillaId === p.id && q.fecha === args.fecha)) };
+  nuevo = generarClasesPendientes(nuevo, ahora);
+  const clase = nuevo.clases.find((c) => c.plantillaId === p.id && c.fecha === args.fecha);
+  if (!clase) return fallo('No se ha podido crear la clase.');
+  return ok(auditar(nuevo, sesion, ahora, 'RESTAURAR_CLASE', 'clase', clase.id, `${descClase(nuevo, clase)} · vuelve a ponerse la clase quitada`), { claseId: clase.id });
 }
 
 /**

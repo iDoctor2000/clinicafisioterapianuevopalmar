@@ -175,11 +175,16 @@ const impl: Impl = {
     // desactiva o termina su vigencia, cancela las que tienen alumnos avisándoles (0020). Con
     // `mover` (0038) mueve también las clases con alumnos al día y hora nuevos.
     // Antes de la 0020 devolvía solo un número (las conservadas): se aceptan las dos formas.
-    const res = existe ? await rpc<number | { conservadas: number; movidas?: number; canceladas: number; afectados: number; reactivadas?: number; avisos: string[] }>('plantilla_aplicar_cambios', { p_plantilla_id: p.id, p_mover: args.mover === true }) : 0;
-    const r = typeof res === 'object' && res ? res : { conservadas: Number(res) || 0, movidas: 0, canceladas: 0, afectados: 0, reactivadas: 0, avisos: [] as string[] };
+    const res = existe ? await rpc<number | { conservadas: number; movidas?: number; canceladas: number; afectados: number; reactivadas?: number; recuperadas?: number; avisos: string[] }>('plantilla_aplicar_cambios', { p_plantilla_id: p.id, p_mover: args.mover === true }) : 0;
+    const r = typeof res === 'object' && res ? res : { conservadas: Number(res) || 0, movidas: 0, canceladas: 0, afectados: 0, reactivadas: 0, recuperadas: 0, avisos: [] as string[] };
     await regenerarClases();
     enviarPushAvisos(r.avisos ?? []);
-    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, movidas: r.movidas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, reactivadas: r.reactivadas ?? 0, avisoIds: r.avisos ?? [] });
+    return (db) => ({ plantilla: db.plantillas.find((x) => x.id === p.id) ?? p, conservadas: r.conservadas ?? 0, movidas: r.movidas ?? 0, canceladas: r.canceladas ?? 0, afectados: r.afectados ?? 0, reactivadas: r.reactivadas ?? 0, recuperadas: r.recuperadas ?? 0, avisoIds: r.avisos ?? [] });
+  },
+
+  async restaurarClaseQuitada(args) {
+    const id = await rpc<string>('restaurar_clase_quitada', { p_plantilla_id: args.plantillaId, p_fecha: args.fecha });
+    return () => ({ claseId: String(id) });
   },
 
   async eliminarPlantilla(args) {

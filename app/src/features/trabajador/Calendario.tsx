@@ -1,13 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarPlus, ChevronLeft, ChevronRight, DoorClosed, Moon } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, DoorClosed, Moon, RotateCcw } from 'lucide-react';
 import type { ClaseVista } from '@/data/selectores';
 import { DIAS_SEMANA_CORTO, diaSemanaDe, esDiaCierre, fechaLarga, horaFin, hoyISO, inicioSemana, mesLargo, sumarDias, sumarMeses } from '@/domain/fechas';
 import { Boton, Chip, Entrada, Hoja, Seleccion, Vacio, toast } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useTrabajador } from './useTrabajador';
-import { clasesPorDiaDeSemana, clasesPorFechaEntre, clasesSueltasDe, monitores, semanasDelMes, textoRangoSemana } from './consultas';
-import { BarraOcupacion, Encabezado, Segmentado, may } from './comunes';
+import { clasesPorDiaDeSemana, clasesPorFechaEntre, clasesSueltasDe, huecosDeFranjas, monitores, semanasDelMes, textoRangoSemana, type HuecoFranja } from './consultas';
+import { BarraOcupacion, Confirmacion, Encabezado, Segmentado, may } from './comunes';
 import { cumpleanosProximos } from '@/domain/logros';
 import { CalendarioSemana } from './CalendarioSemana';
 import { CalendarioMes } from './CalendarioMes';
@@ -32,13 +32,24 @@ function guardarVista(v: Vista) {
 }
 
 export function Calendario() {
-  const { db, puede, limitado } = useTrabajador();
+  const { db, puede, limitado, ejecutar } = useTrabajador();
   const hoy = hoyISO();
   const [fecha, setFecha] = useState(hoy);
   const [vista, setVistaEstado] = useState<Vista>(leerVista);
   const [nueva, setNueva] = useState(false);
-  const semana = clasesPorDiaDeSemana(db, fecha);
-  const dia = semana.find((d) => d.fecha === fecha) ?? { fecha, clases: [] };
+  // 0047: los días en que a una franja le toca clase y no la hay se enseñan como hueco (quien ve solo sus clases, no).
+  const semana = clasesPorDiaDeSemana(db, fecha).map((d) => ({ ...d, huecos: limitado ? [] : huecosDeFranjas(db, d.fecha, hoy) }));
+  const dia = semana.find((d) => d.fecha === fecha) ?? { fecha, clases: [], huecos: [] };
+  const [restaurar, setRestaurar] = useState<HuecoFranja | null>(null);
+  const [restaurando, setRestaurando] = useState(false);
+  const puedeRestaurar = puede('CLASES_CREAR_CANCELAR') && !limitado;
+  const confirmarRestaurar = async () => {
+    if (!restaurar || restaurando) return;
+    setRestaurando(true);
+    const r = await ejecutar('restaurarClaseQuitada', { plantillaId: restaurar.plantilla.id, fecha: restaurar.fecha });
+    setRestaurando(false);
+    if (r.ok) { toast.ok('La clase vuelve a estar en el calendario, con sus alumnos fijos apuntados.'); setRestaurar(null); } else toast.error(r.error);
+  };
   const cierre = db.config.diasCierre.find((d) => d.fecha === fecha);
   const setVista = (v: Vista) => { setVistaEstado(v); guardarVista(v); };
 
@@ -79,9 +90,12 @@ export function Calendario() {
               <DoorClosed className="h-5 w-5 shrink-0" /> <span>Día de cierre: <strong className="text-ink">{cierre.motivo}</strong>. No hay clases.</span>
             </div>
           )}
-          {dia.clases.length === 0 && !cierre && <Vacio icono={Moon} titulo={limitado ? 'No tienes clases este día' : 'Sin clases este día'} texto={limitado ? 'Solo se muestran las clases que impartes.' : 'No hay clases programadas ni extraordinarias.'} />}
+          {dia.clases.length === 0 && dia.huecos.length === 0 && !cierre && <Vacio icono={Moon} titulo={limitado ? 'No tienes clases este día' : 'Sin clases este día'} texto={limitado ? 'Solo se muestran las clases que impartes.' : 'No hay clases programadas ni extraordinarias.'} />}
           <div className="grid gap-3 md:grid-cols-2">
-            {dia.clases.map((v) => <TarjetaClase key={v.clase.id} vista={v} />)}
+            {[
+              ...dia.clases.map((v) => ({ hora: v.clase.horaInicio, nodo: <TarjetaClase key={v.clase.id} vista={v} /> })),
+              ...dia.huecos.map((h) => ({ hora: h.plantilla.horaInicio, nodo: <TarjetaHueco key={`hueco-${h.plantilla.id}`} hueco={h} onRestaurar={puedeRestaurar ? setRestaurar : undefined} /> })),
+            ].sort((a, b) => a.hora.localeCompare(b.hora)).map((x) => x.nodo)}
           </div>
         </>
       )}
@@ -94,7 +108,7 @@ export function Calendario() {
             onAnterior={() => setFecha(sumarDias(fecha, -7))} onSiguiente={() => setFecha(sumarDias(fecha, 7))}
             onHoy={fecha !== hoy ? () => setFecha(hoy) : undefined}
           />
-          <CalendarioSemana semana={semana} hoy={hoy} cierres={db.config.diasCierre} limitado={limitado} />
+          <CalendarioSemana semana={semana} hoy={hoy} cierres={db.config.diasCierre} limitado={limitado} onRestaurar={puedeRestaurar ? setRestaurar : undefined} />
         </>
       )}
 
@@ -111,6 +125,44 @@ export function Calendario() {
       )}
 
       <HojaNuevaClase abierta={nueva} onCerrar={() => setNueva(false)} fechaInicial={fecha < hoy ? hoy : fecha} onCreada={(f) => { setFecha(f); setNueva(false); }} />
+      <Confirmacion abierta={restaurar != null} onCerrar={() => setRestaurar(null)} titulo="Volver a poner la clase" textoConfirmar="Volver a ponerla" deshabilitado={restaurando} onConfirmar={() => void confirmarRestaurar()}>
+        {restaurar && (
+          <>
+            <p>La clase de <strong className="text-ink">{restaurar.actividad.nombre}</strong> del {fechaLarga(restaurar.fecha)} a las {restaurar.plantilla.horaInicio} {restaurar.motivo === 'QUITADA' ? 'se quitó del calendario' : 'falta en el calendario'} aunque la franja sigue en Horarios.</p>
+            <p>Al volver a ponerla, los alumnos fijos de esa franja quedan apuntados como siempre. Si la franja está publicada, la clase también.</p>
+          </>
+        )}
+      </Confirmacion>
+    </div>
+  );
+}
+
+/** Hueco de una franja en la vista de día (0047): la clase de ese día se quitó (o falta) y se puede volver a poner. */
+function TarjetaHueco({ hueco, onRestaurar }: { hueco: HuecoFranja; onRestaurar?: (hueco: HuecoFranja) => void }) {
+  const { plantilla, actividad, motivo } = hueco;
+  return (
+    <div className="bg-white/70 rounded-2xl border-2 border-dashed border-ink/15 p-4 text-ink-soft">
+      <div className="flex gap-4">
+        <div className="w-16 shrink-0 text-center">
+          <div className="text-xl font-bold leading-tight">{plantilla.horaInicio}</div>
+          <div className="text-xs text-ink-muted">{horaFin(plantilla.horaInicio, plantilla.duracionMin)}</div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <IconoActividad actividad={actividad} tamano="xs" />
+            <span className="font-semibold text-lg leading-tight">{actividad.nombre}</span>
+            <Chip tono={motivo === 'QUITADA' ? 'cocoa' : 'rojo'}>{motivo === 'QUITADA' ? 'Clase quitada' : 'Falta la clase'}</Chip>
+          </div>
+          <div className="text-sm text-ink-muted mt-0.5">
+            {motivo === 'QUITADA' ? 'Alguien eliminó la clase de este día; la franja sigue en Horarios.' : 'A esta franja le toca clase hoy y no la hay. Vuelve a ponerla; si pasa a menudo, avisa a quien mantiene la app.'}
+          </div>
+          {onRestaurar && (
+            <div className="mt-2">
+              <Boton variante="suave" tamano="sm" onClick={() => onRestaurar(hueco)}><RotateCcw className="h-4 w-4" /> Volver a poner la clase</Boton>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
