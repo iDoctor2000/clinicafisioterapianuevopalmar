@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Moon } from 'lucide-react';
+import { Moon, RotateCcw } from 'lucide-react';
 import type { ClaseVista } from '@/data/selectores';
 import { DIAS_SEMANA_CORTO, diaSemanaDe } from '@/domain/fechas';
 import { Vacio } from '@/ui';
 import { cn } from '@/lib/cn';
-import { carrilesDe, minutosDe, rejillaSemana } from './consultas';
+import { carrilesDe, minutosDe, rejillaSemana, type HuecoFranja } from './consultas';
 import { BarraOcupacion } from './comunes';
 
 /** Altura en píxeles de una hora en la rejilla. */
@@ -14,6 +14,8 @@ const ANCHO_HORAS = 52;
 export interface DiaConClases {
   fecha: string;
   clases: ClaseVista[];
+  /** Franjas a las que ese día les toca clase y no la hay (0047): se enseñan como hueco. */
+  huecos?: HuecoFranja[];
 }
 
 /**
@@ -21,11 +23,11 @@ export interface DiaConClases {
  * en las que hay clases) y una columna por día. En móvil se desplaza en
  * horizontal con la cabecera de días y la columna de horas fijas.
  */
-export function CalendarioSemana({ semana, hoy, cierres, limitado }: { semana: DiaConClases[]; hoy: string; cierres: { fecha: string; motivo: string }[]; limitado?: boolean }) {
+export function CalendarioSemana({ semana, hoy, cierres, limitado, onRestaurar }: { semana: DiaConClases[]; hoy: string; cierres: { fecha: string; motivo: string }[]; limitado?: boolean; onRestaurar?: (hueco: HuecoFranja) => void }) {
   const domingo = semana[6];
-  const dias = domingo && domingo.clases.length > 0 ? semana : semana.slice(0, 6);
+  const dias = domingo && (domingo.clases.length > 0 || (domingo.huecos?.length ?? 0) > 0) ? semana : semana.slice(0, 6);
   const todas = dias.flatMap((d) => d.clases);
-  const rejilla = rejillaSemana(todas);
+  const rejilla = rejillaSemana([...todas, ...dias.flatMap((d) => (d.huecos ?? []).map((h) => ({ clase: { horaInicio: h.plantilla.horaInicio, duracionMin: h.plantilla.duracionMin } })))]);
 
   if (!rejilla) {
     return (
@@ -85,12 +87,36 @@ export function CalendarioSemana({ semana, hoy, cierres, limitado }: { semana: D
               {carrilesDe(d.clases).map(({ vista, carril, carriles }) => (
                 <BloqueClase key={vista.clase.id} vista={vista} top={((minutosDe(vista.clase.horaInicio) - rejilla.desdeMin) / 60) * ALTO_HORA} alto={(vista.clase.duracionMin / 60) * ALTO_HORA} carril={carril} carriles={carriles} />
               ))}
+              {(d.huecos ?? []).map((h) => (
+                <BloqueHueco key={h.plantilla.id} hueco={h} top={((minutosDe(h.plantilla.horaInicio) - rejilla.desdeMin) / 60) * ALTO_HORA} alto={(h.plantilla.duracionMin / 60) * ALTO_HORA} onRestaurar={onRestaurar} />
+              ))}
             </div>
           );
         })}
       </div>
     </div>
   );
+}
+
+/** Hueco de una franja (0047): la clase de ese día se quitó o falta. Con permiso, se vuelve a poner con un toque. */
+function BloqueHueco({ hueco, top, alto, onRestaurar }: { hueco: HuecoFranja; top: number; alto: number; onRestaurar?: (hueco: HuecoFranja) => void }) {
+  const { plantilla, actividad, motivo } = hueco;
+  const texto = motivo === 'QUITADA' ? 'Clase quitada' : 'Falta la clase';
+  const contenido = (
+    <>
+      <div className="flex items-center justify-between gap-1 font-semibold leading-tight tabular-nums">
+        <span>{plantilla.horaInicio}</span>
+        {onRestaurar && <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+      </div>
+      <div className="truncate font-semibold leading-tight">{actividad.nombre}</div>
+      <div className="text-[10px] font-semibold leading-tight">{texto}</div>
+    </>
+  );
+  const clase = 'absolute left-[3px] right-[3px] rounded-lg border-2 border-dashed px-1.5 py-1 text-xs overflow-hidden text-left text-ink-soft bg-white/70';
+  const estilo = { top: top + 1, height: Math.max(alto - 3, 28), borderColor: actividad.color };
+  const titulo = `${actividad.nombre} · ${plantilla.horaInicio} · ${texto.toLowerCase()}${onRestaurar ? ' · toca para volver a ponerla' : ''}`;
+  if (!onRestaurar) return <div className={clase} style={estilo} title={titulo}>{contenido}</div>;
+  return <button type="button" onClick={() => onRestaurar(hueco)} className={cn(clase, 'tap hover:ring-2 hover:ring-beige-300 focus-visible:ring-2 focus-visible:ring-beige-300 outline-none')} style={estilo} title={titulo}>{contenido}</button>;
 }
 
 function BloqueClase({ vista, top, alto, carril, carriles }: { vista: ClaseVista; top: number; alto: number; carril: number; carriles: number }) {

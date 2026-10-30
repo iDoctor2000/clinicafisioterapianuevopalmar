@@ -481,6 +481,12 @@ export function aLectura(f: FilaAvisoLectura): LecturaAviso {
 // ---------------------------------------------------------------------------
 
 /** Tabla lista_espera (0021): el personal ve las de su ámbito; cada alumno las suyas. */
+/** Días quitados de una franja (0042/0047). RLS: solo el personal. */
+export interface FilaClaseQuitada { plantilla_id: string; fecha: string }
+export function aClaseQuitada(f: FilaClaseQuitada): { plantillaId: string; fecha: string } {
+  return { plantillaId: f.plantilla_id, fecha: f.fecha };
+}
+
 export interface FilaListaEspera { id: string; clase_id: string; cliente_id: string; reserva_cambio_id: string | null; creado_el: string }
 /** Vista mi_lista_espera (0021): la posición del alumno autenticado en cada lista. */
 export interface FilaMiListaEspera { id: string; clase_id: string; posicion: number }

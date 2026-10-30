@@ -127,7 +127,24 @@ with
         (select count(distinct cliente_id) from (select cliente_id from public.pagos
           where estado = 'PAGADO' and mes >= (date_trunc('month', (select d from hoy)) - interval '2 months')::date
           group by cliente_id, mes having count(*) > 1) x),
-        'Puede ser correcto (su tarifa y un bono). Si es el mismo pago apuntado dos veces, en la app: Más → Cobros → pestaña Repetidos, y se borra el que sobre desde la ficha del alumno.')
+        'Puede ser correcto (su tarifa y un bono). Si es el mismo pago apuntado dos veces, en la app: Más → Cobros → pestaña Repetidos, y se borra el que sobre desde la ficha del alumno.'),
+      -- 0047: a una franja activa le toca clase un día y no la hay. Si el día está "quitado" (0042) es a propósito (ℹ️);
+      -- si no, algo falla en la generación (⚠️). El calendario del personal enseña los dos como hueco.
+      (13, true, 'Franjas activas con algún día sin clase en las próximas 4 semanas (sin estar quitado ni ser cierre)',
+        (select count(*) from public.plantillas_clase p
+          cross join generate_series((select d from hoy), (select d from hoy) + 27, interval '1 day') d
+          where p.activa and p.eliminada_el is null and extract(isodow from d) = p.dia_semana
+            and (p.vigencia_desde is null or d::date >= p.vigencia_desde) and (p.vigencia_hasta is null or d::date <= p.vigencia_hasta)
+            and not exists (select 1 from public.dias_cierre dc where dc.fecha = d::date)
+            and not exists (select 1 from public.clases c where c.plantilla_id = p.id and c.fecha = d::date)
+            and (to_regclass('public.clases_quitadas') is null or not exists (select 1 from public.clases_quitadas q where q.plantilla_id = p.id and q.fecha = d::date))),
+        'La franja sale en Horarios y en el calendario falta la clase de ese día, sin motivo. En el calendario (vista Día o Semana) el hueco sale como "Falta la clase": tócalo y "Volver a poner la clase". Si vuelve a salir mañana, avisa a quien mantiene la app.'),
+      (14, false, 'Días de franjas quitados a propósito en las próximas 4 semanas',
+        (select case when to_regclass('public.clases_quitadas') is null then 0 else (select count(*) from public.clases_quitadas q join public.plantillas_clase p on p.id = q.plantilla_id
+          where p.activa and p.eliminada_el is null and q.fecha between (select d from hoy) and (select d from hoy) + 27
+            and extract(isodow from q.fecha) = p.dia_semana
+            and (p.vigencia_desde is null or q.fecha >= p.vigencia_desde) and (p.vigencia_hasta is null or q.fecha <= p.vigencia_hasta)) end),
+        'Son clases que alguien eliminó ("Eliminar clase") y por eso no se vuelven a crear. En el calendario salen como "Clase quitada": si alguna tiene que darse, tócala y "Volver a poner la clase" (o guarda la franja en Horarios, que las recupera todas).')
   )
 select line from (
   select 1 as o, '## Resumen de las últimas 24 horas (' || to_char(now() at time zone 'Europe/Madrid', 'DD/MM/YYYY HH24:MI') || ', hora de Madrid)' as line
@@ -191,7 +208,8 @@ select line from (
         ('0043', to_regprocedure('public.mover_fijos_de_franja(uuid, uuid, uuid[], boolean)') is not null),
         ('0044', pg_get_functiondef('public._anonimizar(text)'::regprocedure) like '%v_comunes%'),
         ('0045', to_regprocedure('public.informe_cambios_hoy()') is not null),
-        ('0046', pg_get_functiondef('public.informe_cambios_hoy()'::regprocedure) like '%errores_detalle%'))
+        ('0046', pg_get_functiondef('public.informe_cambios_hoy()'::regprocedure) like '%errores_detalle%'),
+        ('0047', to_regprocedure('public.restaurar_clase_quitada(uuid, date)') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

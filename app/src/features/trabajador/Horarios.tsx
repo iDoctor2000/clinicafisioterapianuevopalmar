@@ -134,6 +134,7 @@ function HojaPlantilla({ plantilla, diaInicial, onCerrar }: { plantilla: Plantil
       else if (r.valor.reactivadas > 0) toast.ok(`Franja actualizada. ${r.valor.reactivadas === 1 ? 'Se ha reactivado 1 clase' : `Se han reactivado ${r.valor.reactivadas} clases`} que estaban canceladas: sus alumnos vuelven a tener plaza y se les ha avisado.`);
       else if (r.valor.canceladas > 0) toast.ok(`Franja actualizada. ${r.valor.canceladas === 1 ? 'Se ha cancelado 1 clase' : `Se han cancelado ${r.valor.canceladas} clases`} con alumnos; ${r.valor.afectados === 1 ? 'el alumno ha recibido' : `los ${r.valor.afectados} alumnos han recibido`} aviso y recuperación.`);
       else if (r.valor.conservadas > 0) toast.info(`Franja actualizada en el calendario. ${r.valor.conservadas === 1 ? 'Una clase con alumnos apuntados mantiene' : `${r.valor.conservadas} clases con alumnos apuntados mantienen`} su día y hora para no descolocarles; la actividad, el monitor y las plazas sí se han cambiado.`);
+      else if (r.valor.recuperadas > 0) toast.ok(`Franja actualizada. ${r.valor.recuperadas === 1 ? 'Vuelve al calendario 1 día que se había quitado' : `Vuelven al calendario ${r.valor.recuperadas} días que se habían quitado`} de esta franja, con sus alumnos fijos.`);
       else toast.ok('Franja actualizada. Sus clases futuras ya tienen el nuevo horario.');
       onCerrar();
     } else toast.error(r.error);
