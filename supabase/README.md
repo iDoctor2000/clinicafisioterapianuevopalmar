@@ -347,7 +347,10 @@ usan, qué hacen, avisos leídos, uso del equipo, pasar lista, errores que ha vi
 fallo). Sin datos personales (iniciales). Piezas: la migración `0036_informe_telegram.sql` (función
 `informe_uso`, solo para el servidor) y la Edge Function `supabase/functions/telegram/`.
 
-Órdenes: `/informe` (7 días), `/informe 30`, `/hoy`, `/errores`, `/ayuda`.
+Órdenes: `/informe` (7 días), `/informe 30`, `/hoy`, `/informehoy` (los cambios de hoy desde las 00:00, uno a
+uno, los más recientes primero; también `/cambios`), `/errores`, `/ayuda`. `/informehoy` necesita la migración
+`0045_informe_cambios_hoy.sql` y volver a desplegar la función `telegram` (mismo paso 4 de abajo: pegar el
+`index.ts` nuevo y Deploy, con "Verify JWT" desactivado).
 
 ### Activarlo (una sola vez, unos 10 minutos)
 
