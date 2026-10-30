@@ -2703,4 +2703,25 @@ end $$;
 delete from public.clientes where id = 'e0000000-0000-4000-8000-000000000052';
 
 \echo
+\echo '== 53. Cambios de hoy para el bot de Telegram (0045)'
+select pruebas.sistema();
+do $$
+declare v jsonb := public.informe_cambios_hoy(); v_txt text;
+begin
+  assert v ? 'cambios_equipo' and v ? 'cambios_alumnos' and v ? 'cobros' and v ? 'sin_publicar', format('estructura: %s', left(v::text, 300));
+  assert jsonb_array_length(v->'cambios_equipo') > 0, 'hoy el equipo de pruebas ha hecho cambios';
+  -- Sin datos personales: ni nombres completos de alumnos ni correos.
+  v_txt := v::text;
+  assert v_txt not like '%Berta Fija%' and v_txt not like '%Ana Libre%' and v_txt not like '%@test.local%', 'sin nombres ni correos';
+  assert not exists (select 1 from jsonb_array_elements(v->'cambios_equipo') e where e->>'accion' in ('ASISTENCIA', 'MANTENIMIENTO', 'GENERAR_CLASES')), 'sin las acciones que solo se cuentan';
+  raise notice 'OK 0045: cambios de hoy (% del equipo, % de alumnos)', jsonb_array_length(v->'cambios_equipo'), jsonb_array_length(v->'cambios_alumnos');
+end $$;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.espera_error('select public.informe_cambios_hoy()', '%permission denied%');
+commit;
+select pruebas.sistema();
+
+\echo
 \echo '== Todas las comprobaciones han pasado.'

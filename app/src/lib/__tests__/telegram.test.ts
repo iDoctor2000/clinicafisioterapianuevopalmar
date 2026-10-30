@@ -1,6 +1,6 @@
 /** Bot de Telegram (supabase/functions/telegram): seguridad, órdenes y texto del informe. */
 import { describe, expect, it } from 'vitest';
-import { atender, formatearInforme, type Informe } from '../../../../supabase/functions/telegram/index';
+import { atender, formatearCambiosHoy, formatearInforme, type CambiosHoy, type Informe } from '../../../../supabase/functions/telegram/index';
 
 const informe: Informe = {
   generado: '27/10/2026 18:00', dias: 7,
@@ -19,7 +19,22 @@ const peticion = (texto: string, chat = 111, secreto = 'S3creto') => new Request
   method: 'POST', headers: { 'X-Telegram-Bot-Api-Secret-Token': secreto, 'Content-Type': 'application/json' },
   body: JSON.stringify({ message: { chat: { id: chat }, text: texto } }),
 });
-const deps = (pedidos: number[] = []) => ({ secreto: 'S3creto', chats: ['111'], pedirInforme: async (d: number) => { pedidos.push(d); return informe; } });
+const cambios: CambiosHoy = {
+  generado: '30/10/2026 12:00',
+  equipo: [{ quien: 'N.L.', acciones: 12 }, { quien: 'I.C.', acciones: 3 }],
+  acciones_equipo: [{ accion: 'ASISTENCIA', veces: 9 }, { accion: 'EDITAR_HORARIO', veces: 4 }, { accion: 'MOVER_FIJO', veces: 2 }],
+  acciones_alumnos: [{ accion: 'CANCELAR_RESERVA', veces: 3, personas: 2 }],
+  automaticas: 1,
+  cambios_equipo: [
+    { hora: '11:58', quien: 'N.L.', accion: 'MOVER_FIJO', detalle: 'A.G.: Reformer jueves 10:30 → Reformer jueves 09:30 (4 reservas quitadas, 4 nuevas, 0 sin plaza)' },
+    { hora: '11:40', quien: 'N.L.', accion: 'EDITAR_HORARIO', detalle: 'clases futuras recreadas; 0 conservan día y hora' },
+  ],
+  cambios_alumnos: [{ hora: '10:05', quien: 'B.F.', accion: 'CANCELAR_RESERVA', detalle: 'B.F. · Suelo 2026-11-02 09:00 · CANCELADA_RECUPERABLE' }],
+  cobros: { cobrados: 2, importe_centimos: 12350, pendientes_nuevos: 1 },
+  sin_publicar: { franjas: 1, clases: 11, plazas: 37 },
+  errores: 0,
+};
+const deps = (pedidos: number[] = []) => ({ secreto: 'S3creto', chats: ['111'], pedirInforme: async (d: number) => { pedidos.push(d); return informe; }, pedirCambiosHoy: async () => { pedidos.push(-1); return cambios; } });
 
 describe('bot de Telegram', () => {
   it('sin el secreto de Telegram no contesta nada', async () => {
@@ -68,7 +83,49 @@ describe('bot de Telegram', () => {
   });
 
   it('si la base de datos falla, lo dice', async () => {
-    const r = await atender(peticion('/informe'), { secreto: 'S3creto', chats: ['111'], pedirInforme: async () => { throw new Error('caída'); } });
+    const caida = { secreto: 'S3creto', chats: ['111'], pedirInforme: async () => { throw new Error('caída'); }, pedirCambiosHoy: async () => { throw new Error('caída'); } };
+    const r = await atender(peticion('/informe'), caida);
     expect((await r.json()).text).toContain('No he podido sacar el informe: caída');
+    expect((await (await atender(peticion('/informehoy'), caida)).json()).text).toContain('No he podido sacar los cambios de hoy: caída');
+  });
+
+  it('/informehoy (y /infromehoy, /cambios) da los cambios de hoy uno a uno, los más recientes primero', async () => {
+    const pedidos: number[] = [];
+    const j = await (await atender(peticion('/informehoy'), deps(pedidos))).json();
+    await atender(peticion('/infromehoy'), deps(pedidos));
+    await atender(peticion('/cambios@NuevoPalmarBot'), deps(pedidos));
+    expect(pedidos).toEqual([-1, -1, -1]);
+    expect(j.text).toContain('cambios de hoy desde las 00:00');
+    expect(j.text).toContain('EQUIPO: 15 acciones (N.L. 12, I.C. 3)');
+    expect(j.text).toContain('2 alumnos pasados de franja');
+    expect(j.text).toContain('11:58 N.L. · Pasa de franja: A.G.: Reformer jueves 10:30 → Reformer jueves 09:30');
+    expect(j.text.indexOf('11:58')).toBeLessThan(j.text.indexOf('11:40'));
+    expect(j.text).toContain('COBROS: 2 cobrados hoy (123,50 €), 1 pendiente nuevo');
+    expect(j.text).toContain('SIN PUBLICAR: 1 franjas y 11 clases nuevas, 37 plazas retenidas');
+    expect(j.text).toContain('10:05 B.F. · Cancela');
+    // Un chat no autorizado no recibe nada.
+    const p2: number[] = [];
+    expect((await (await atender(peticion('/informehoy', 999), deps(p2))).json()).text).toContain('privado');
+    expect(p2).toEqual([]);
+  });
+
+  it('si los cambios de hoy no caben en un mensaje, se recortan (primero los de los alumnos) y lo dice', () => {
+    const muchos: CambiosHoy = {
+      ...cambios,
+      cambios_equipo: Array.from({ length: 80 }, (_, i) => ({ hora: '10:00', quien: 'N.L.', accion: 'EDITAR_CONTRATO', detalle: `X.Y.: fin 2026-11-30 (${i} reservas quitadas, 0 nuevas)` })),
+      cambios_alumnos: Array.from({ length: 40 }, () => ({ hora: '09:00', quien: 'B.F.', accion: 'RESERVAR', detalle: 'B.F. → Suelo 2026-11-02 09:00 (CUPO_SEMANAL)' })),
+    };
+    const t = formatearCambiosHoy(muchos);
+    expect(t.length).toBeLessThanOrEqual(3900);
+    expect(t).toMatch(/CAMBIOS DEL EQUIPO \(los más recientes primero; \d+ de 80\)/);
+    expect(t).not.toContain('ALUMNOS (los más recientes');
+    expect(t).toContain('ALUMNOS (ellos solos)');
+  });
+
+  it('un día sin cambios se entiende', () => {
+    const t = formatearCambiosHoy({ ...cambios, equipo: [], acciones_equipo: [], acciones_alumnos: [], automaticas: 0, cambios_equipo: [], cambios_alumnos: [], cobros: { cobrados: 0, importe_centimos: 0, pendientes_nuevos: 0 }, sin_publicar: { franjas: 0, clases: 0, plazas: 0 } });
+    expect(t).toContain('EQUIPO: nadie ha hecho cambios hoy.');
+    expect(t).toContain('ALUMNOS: no han hecho nada ellos solos hoy.');
+    expect(t).not.toContain('SIN PUBLICAR');
   });
 });

@@ -5,6 +5,7 @@
  *                    errores que ha visto la gente y señales de fallo).
  *   /informe 30    → lo mismo con otros días (1 a 90).
  *   /hoy           → el último día.
+ *   /informehoy    → los cambios hechos hoy desde las 00:00, uno a uno (también /cambios).
  *   /errores [N]   → solo los errores.
  *   /ayuda         → la lista de órdenes.
  *
@@ -14,7 +15,8 @@
  *     se contesta nada.
  *   · Solo se contesta con datos a los chats de TELEGRAM_CHATS (números separados por comas). A
  *     cualquier otro se le dice que el bot es privado (y su número de chat, para poder darlo de alta).
- *   · El informe sale de `informe_uso()` (0036), que ya viene sin datos personales (iniciales).
+ *   · El informe sale de `informe_uso()` (0036) y los cambios de hoy de `informe_cambios_hoy()` (0045), que ya
+ *     vienen sin datos personales (iniciales).
  *
  * La respuesta va en la propia contestación al webhook (método sendMessage), así que no hace falta
  * guardar el token del bot en Supabase.
@@ -39,12 +41,38 @@ export interface Informe {
   errores?: { total: number; personas: number; por_quien: Record<string, number>; top: { mensaje: string; tipo: string; veces: number; personas: number; quien: string; ultima: string }[] };
 }
 
+/** Lo que devuelve `informe_cambios_hoy()` (0045). */
+export interface CambiosHoy {
+  generado: string;
+  equipo: { quien: string; acciones: number }[];
+  acciones_equipo: { accion: string; veces: number }[];
+  acciones_alumnos: { accion: string; veces: number; personas: number }[];
+  automaticas: number;
+  cambios_equipo: { hora: string; quien: string; accion: string; detalle: string }[];
+  cambios_alumnos: { hora: string; quien: string; accion: string; detalle: string }[];
+  cobros: { cobrados: number; importe_centimos: number; pendientes_nuevos: number };
+  sin_publicar: { franjas: number; clases: number; plazas: number };
+  errores: number;
+}
+
 const ACCIONES: Record<string, string> = {
   RESERVAR: 'reservas', CANCELAR_RESERVA: 'cancelaciones', LISTA_ESPERA: 'lista de espera', CONSENTIMIENTO: 'consentimientos firmados',
   ASISTENCIA: 'marcas de asistencia', RENOVAR_CONTRATO: 'renovaciones', ANADIR_ALUMNO: 'alumnos apuntados a clases', CREAR_CONTRATO: 'contrataciones nuevas',
   EDITAR_CONTRATO: 'contrataciones editadas', FINALIZAR_CONTRATO: 'contratos finalizados', EDITAR_HORARIO: 'cambios de horario', GENERAR_CLASES: 'clases generadas',
   CANCELAR_CLASE: 'clases canceladas', REACTIVAR_CLASE: 'clases reactivadas', PUBLICAR_AVISO: 'avisos publicados', CONSENTIMIENTO_PAPEL: 'consentimientos en papel',
   RESERVAS_AUTOMATICAS: 'repasos de reservas fijas', ELIMINAR_FRANJA: 'franjas eliminadas', BAJA_CIERRA_CONTRATO: 'bajas', EDITAR_CLIENTE: 'fichas editadas', CREAR_CLIENTE: 'alumnos nuevos',
+  BORRAR_CLASE: 'clases eliminadas', CREAR_HORARIO: 'franjas nuevas', MOVER_FIJO: 'alumnos pasados de franja', PUBLICAR_CAMBIOS: 'publicaciones del horario',
+  COBRO_PENDIENTE_SUSTITUIDO: 'cobros repetidos quitados', COBROS_FUERA_DE_CONTRATO: 'cobros fuera de contrato quitados', ANULAR_RECUPERACION: 'recuperaciones anuladas',
+  CREAR_CLASE_EXTRA: 'clases extraordinarias', QUITAR_ALUMNO: 'alumnos quitados de clases',
+};
+/** Cada cambio, en singular (para la lista de hoy). */
+const CAMBIO: Record<string, string> = {
+  RESERVAR: 'Reserva', CANCELAR_RESERVA: 'Cancela', LISTA_ESPERA: 'Lista de espera', CONSENTIMIENTO: 'Firma el consentimiento', ANADIR_ALUMNO: 'Apunta',
+  RENOVAR_CONTRATO: 'Renueva', CREAR_CONTRATO: 'Contratación nueva', EDITAR_CONTRATO: 'Edita contratación', FINALIZAR_CONTRATO: 'Finaliza contrato',
+  EDITAR_HORARIO: 'Cambia franja', CREAR_HORARIO: 'Franja nueva', ELIMINAR_FRANJA: 'Elimina franja', CANCELAR_CLASE: 'Cancela clase', BORRAR_CLASE: 'Elimina clase',
+  REACTIVAR_CLASE: 'Reactiva clase', PUBLICAR_AVISO: 'Aviso', PUBLICAR_CAMBIOS: 'Publica el horario', MOVER_FIJO: 'Pasa de franja', CONSENTIMIENTO_PAPEL: 'Consentimiento en papel',
+  BAJA_CIERRA_CONTRATO: 'Baja', EDITAR_CLIENTE: 'Edita ficha', CREAR_CLIENTE: 'Alumno nuevo', COBRO_PENDIENTE_SUSTITUIDO: 'Cobro repetido quitado',
+  COBROS_FUERA_DE_CONTRATO: 'Cobros fuera de contrato', ANULAR_RECUPERACION: 'Anula recuperación', CREAR_CLASE_EXTRA: 'Clase extraordinaria',
 };
 const QUIEN: Record<string, string> = { ALUMNO: 'alumnos', EQUIPO: 'equipo', SIN_SESION: 'sin entrar' };
 const TIPO_ERROR: Record<string, string> = { pantalla: 'mensaje en pantalla', accion: 'acción que no se pudo hacer', fallo: 'fallo de la app' };
@@ -97,11 +125,56 @@ export function formatearInforme(i: Informe, soloErrores = false): string {
   return texto.length > MAX_MENSAJE ? `${texto.slice(0, MAX_MENSAJE)}\n…` : texto;
 }
 
+const euros = (c: number) => `${(c / 100).toLocaleString('es-ES', { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 })} €`;
+const cambio = (a: string) => CAMBIO[a] ?? a.charAt(0) + a.slice(1).toLowerCase().replace(/_/g, ' ');
+
+/** Los cambios de hoy en texto para Telegram. Si no cabe en un mensaje, se recortan las listas (lo más reciente se queda). */
+export function formatearCambiosHoy(c: CambiosHoy): string {
+  const cabecera: string[] = [`Nuevo Palmar · cambios de hoy desde las 00:00 (${c.generado})`, ''];
+  const resumen: string[] = [];
+  const totalEquipo = c.equipo.reduce((n, e) => n + e.acciones, 0);
+  if (totalEquipo === 0) resumen.push('EQUIPO: nadie ha hecho cambios hoy.');
+  else {
+    resumen.push(`EQUIPO: ${totalEquipo} ${totalEquipo === 1 ? 'acción' : 'acciones'} (${c.equipo.map((e) => `${e.quien} ${e.acciones}`).join(', ')}).`);
+    resumen.push(`${c.acciones_equipo.map((x) => `${x.veces} ${accion(x.accion)}`).join(', ')}.`);
+  }
+  if (c.acciones_alumnos.length > 0) resumen.push(`ALUMNOS (ellos solos): ${c.acciones_alumnos.map((x) => `${x.veces} ${accion(x.accion)} (${x.personas})`).join(', ')}.`);
+  else resumen.push('ALUMNOS: no han hecho nada ellos solos hoy.');
+  if (c.automaticas > 0) resumen.push(`Automáticas (mantenimiento, lista de espera…): ${c.automaticas}.`);
+  resumen.push(`COBROS: ${c.cobros.cobrados} ${c.cobros.cobrados === 1 ? 'cobrado' : 'cobrados'} hoy (${euros(c.cobros.importe_centimos)}), ${c.cobros.pendientes_nuevos} ${c.cobros.pendientes_nuevos === 1 ? 'pendiente nuevo' : 'pendientes nuevos'}.`);
+  const sp = c.sin_publicar;
+  if (sp.franjas + sp.clases + sp.plazas > 0) resumen.push(`SIN PUBLICAR: ${sp.franjas} franjas y ${sp.clases} clases nuevas, ${sp.plazas} plazas retenidas (los alumnos aún no lo ven).`);
+  resumen.push(`Errores que ha visto la gente hoy: ${c.errores}.`);
+  const linea = (x: { hora: string; quien: string; accion: string; detalle: string }) => `${x.hora} ${x.quien} · ${cambio(x.accion)}${x.detalle ? `: ${x.detalle}` : ''}`;
+  const montar = (nEq: number, nAl: number) => {
+    const l = [...cabecera, ...resumen];
+    if (c.cambios_equipo.length > 0) {
+      l.push('', `CAMBIOS DEL EQUIPO (los más recientes primero${nEq < c.cambios_equipo.length ? `; ${nEq} de ${c.cambios_equipo.length}` : ''})`);
+      l.push(...c.cambios_equipo.slice(0, nEq).map(linea));
+    }
+    if (c.cambios_alumnos.length > 0 && nAl > 0) {
+      l.push('', `ALUMNOS (los más recientes${nAl < c.cambios_alumnos.length ? `; ${nAl} de ${c.cambios_alumnos.length}` : ''})`);
+      l.push(...c.cambios_alumnos.slice(0, nAl).map(linea));
+    }
+    return l.join('\n');
+  };
+  // Se quitan primero líneas de los alumnos y después del equipo hasta que quepa.
+  let nEq = c.cambios_equipo.length;
+  let nAl = c.cambios_alumnos.length;
+  let texto = montar(nEq, nAl);
+  while (texto.length > MAX_MENSAJE && (nAl > 0 || nEq > 0)) {
+    if (nAl > 0) nAl -= 1; else nEq -= 1;
+    texto = montar(nEq, nAl);
+  }
+  return texto.length > MAX_MENSAJE ? `${texto.slice(0, MAX_MENSAJE)}\n…` : texto;
+}
+
 const AYUDA = [
   'Órdenes:',
   '/informe – cómo va la app los últimos 7 días',
   '/informe 30 – lo mismo con otros días (1 a 90)',
   '/hoy – el último día',
+  '/informehoy – los cambios de hoy desde las 00:00, uno a uno (también /cambios)',
   '/errores – solo los errores que ha visto la gente (también /errores 30)',
 ].join('\n');
 
@@ -109,7 +182,11 @@ export interface Dependencias {
   secreto: string;
   chats: string[];
   pedirInforme: (dias: number) => Promise<Informe>;
+  pedirCambiosHoy: () => Promise<CambiosHoy>;
 }
+
+/** Órdenes que dan los cambios de hoy (con la falta de ortografía habitual incluida). */
+const ORDENES_CAMBIOS = ['/informehoy', '/infromehoy', '/informe_hoy', '/cambios', '/cambioshoy'];
 
 const respuesta = (chatId: number | string, text: string) =>
   new Response(JSON.stringify({ method: 'sendMessage', chat_id: chatId, text, disable_web_page_preview: true }), { headers: { 'Content-Type': 'application/json' } });
@@ -130,6 +207,13 @@ export async function atender(req: Request, d: Dependencias): Promise<Response> 
   const nombre = orden.split('@')[0].toLowerCase();
   const dias = Math.min(90, Math.max(1, Number.parseInt(arg ?? '', 10) || (nombre === '/hoy' ? 1 : 7)));
   if (nombre === '/start' || nombre === '/ayuda' || nombre === '/help') return respuesta(chatId, AYUDA);
+  if (ORDENES_CAMBIOS.includes(nombre)) {
+    try {
+      return respuesta(chatId, formatearCambiosHoy(await d.pedirCambiosHoy()));
+    } catch (e) {
+      return respuesta(chatId, `No he podido sacar los cambios de hoy: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   if (nombre !== '/informe' && nombre !== '/hoy' && nombre !== '/errores') return respuesta(chatId, `No conozco esa orden.\n\n${AYUDA}`);
   try {
     const informe = await d.pedirInforme(nombre === '/hoy' ? 1 : dias);
@@ -141,19 +225,21 @@ export async function atender(req: Request, d: Dependencias): Promise<Response> 
 
 if (typeof Deno !== 'undefined') {
   const env = (n: string) => Deno!.env.get(n)?.trim() ?? '';
+  const rpc = async (nombre: string, cuerpo: Record<string, unknown>, migracion: string): Promise<unknown> => {
+    const url = env('SUPABASE_URL');
+    const clave = env('SUPABASE_SERVICE_ROLE_KEY');
+    const r = await fetch(`${url}/rest/v1/rpc/${nombre}`, {
+      method: 'POST',
+      headers: { apikey: clave, Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cuerpo),
+    });
+    if (!r.ok) throw new Error(`la base de datos ha respondido ${r.status} (¿falta la migración ${migracion}?)`);
+    return r.json();
+  };
   Deno.serve((req) => atender(req, {
     secreto: env('TELEGRAM_SECRETO'),
     chats: env('TELEGRAM_CHATS').split(',').map((x) => x.trim()).filter(Boolean),
-    pedirInforme: async (dias) => {
-      const url = env('SUPABASE_URL');
-      const clave = env('SUPABASE_SERVICE_ROLE_KEY');
-      const r = await fetch(`${url}/rest/v1/rpc/informe_uso`, {
-        method: 'POST',
-        headers: { apikey: clave, Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_dias: dias }),
-      });
-      if (!r.ok) throw new Error(`la base de datos ha respondido ${r.status} (¿falta la migración 0036?)`);
-      return (await r.json()) as Informe;
-    },
+    pedirInforme: async (dias) => (await rpc('informe_uso', { p_dias: dias }, '0036')) as Informe,
+    pedirCambiosHoy: async () => (await rpc('informe_cambios_hoy', {}, '0045')) as CambiosHoy,
   }));
 }
