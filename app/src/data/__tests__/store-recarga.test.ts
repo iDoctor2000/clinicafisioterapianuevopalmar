@@ -5,14 +5,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { crearSeed } from '@/data/seed';
 
-const llamadas = { cargarDb: 0, cargarPagos: 0, enCurso: 0, maxEnCurso: 0 };
+const llamadas = { cargarDb: 0, cargarPagos: 0, enCurso: 0, maxEnCurso: 0, remotas: [] as string[] };
 const db0 = crearSeed();
 const jose = db0.trabajadores.find((t) => t.id === 'tra-jose')!;
 
 vi.mock('@/data/supabase/cliente', () => ({ hayServidor: () => true, servidor: () => ({ rpc: () => Promise.resolve({}) }), mensajeError: (e: unknown) => String(e) }));
 vi.mock('@/data/supabase/tiempoReal', () => ({ activarTiempoReal: () => () => undefined }));
 vi.mock('@/data/supabase/push', () => ({ enviarPushPendientes: () => Promise.resolve(), invocarEnvioPush: () => Promise.resolve({ fallidas: 0, borradas: 0 }) }));
-vi.mock('@/data/supabase/comandos', () => ({ ejecutarRemoto: async () => ({ ok: true, valor: () => undefined }) }));
+vi.mock('@/data/supabase/comandos', () => ({
+  ejecutarRemoto: async (nombre: string, args: unknown) => {
+    llamadas.remotas.push(`${nombre} ${JSON.stringify(args)}`);
+    await new Promise((r) => setTimeout(r, 30));
+    return { ok: true, valor: () => `hecho ${llamadas.remotas.length}` };
+  },
+}));
 vi.mock('@/data/supabase/cargar', () => ({
   cargarDb: async () => {
     llamadas.cargarDb += 1;
@@ -38,7 +44,7 @@ const { useStore } = await import('@/data/store');
 describe('recargas con servidor', () => {
   beforeEach(async () => {
     await useStore.getState().arrancar();
-    Object.assign(llamadas, { cargarDb: 0, cargarPagos: 0, enCurso: 0, maxEnCurso: 0 });
+    Object.assign(llamadas, { cargarDb: 0, cargarPagos: 0, enCurso: 0, maxEnCurso: 0, remotas: [] });
   });
 
   it('guardar o borrar un cobro solo vuelve a leer los cobros', async () => {
@@ -57,5 +63,17 @@ describe('recargas con servidor', () => {
     await Promise.all([useStore.getState().recargar(), useStore.getState().recargar(), useStore.getState().recargar(), useStore.getState().recargar()]);
     expect(llamadas.maxEnCurso).toBe(1);
     expect(llamadas.cargarDb).toBeLessThanOrEqual(2);
+  });
+
+  it('un doble toque no manda la orden dos veces: la segunda recibe el resultado de la primera', async () => {
+    const { ejecutar } = useStore.getState();
+    const [a, b] = await Promise.all([ejecutar('reservar', { claseId: 'cla-1' }), ejecutar('reservar', { claseId: 'cla-1' })]);
+    expect(llamadas.remotas).toEqual(['reservar {"claseId":"cla-1"}']);
+    expect(a).toEqual(b);
+    expect(a.ok).toBe(true);
+    // Con otros datos sí se manda; y cuando la primera ha terminado, la misma orden se puede repetir.
+    await Promise.all([ejecutar('reservar', { claseId: 'cla-1' }), ejecutar('reservar', { claseId: 'cla-2' })]);
+    expect(llamadas.remotas).toHaveLength(3);
+    expect(llamadas.remotas.slice(1).sort()).toEqual(['reservar {"claseId":"cla-1"}', 'reservar {"claseId":"cla-2"}']);
   });
 });
