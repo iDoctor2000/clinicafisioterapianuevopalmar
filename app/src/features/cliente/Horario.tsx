@@ -210,7 +210,7 @@ export function Horario() {
   );
 }
 
-function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { vista: ClaseVista; ahora: Date; onCerrar: () => void; onReservar: () => void; onCancelar: () => void }) {
+function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { vista: ClaseVista; ahora: Date; onCerrar: () => void; onReservar: () => Promise<void>; onCancelar: () => void }) {
   const { db, cliente } = useCliente();
   const ejecutar = useStore((s) => s.ejecutar);
   const { clase, actividad, monitor, libresAlumnos: libres } = vista;
@@ -226,6 +226,12 @@ function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { 
   const [modo, setModo] = useState<'NORMAL' | 'CAMBIO'>(evSinPlazas && !evSinPlazas.ok && opciones.some((o) => !o.motivo) ? 'CAMBIO' : 'NORMAL');
   const [cambioId, setCambioId] = useState<string>(opciones.find((o) => !o.motivo)?.vista.reserva.id ?? '');
   const [enviando, setEnviando] = useState(false);
+  const [reservando, setReservando] = useState(false);
+  const reservarAhora = async () => {
+    if (reservando) return;
+    setReservando(true);
+    try { await onReservar(); } finally { setReservando(false); }
+  };
   const puedeApuntarse = modo === 'NORMAL' ? !!evSinPlazas?.ok : !!cambioId;
 
   const apuntarse = async () => {
@@ -321,7 +327,7 @@ function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { 
         ) : ofrecerLista ? (
           <Boton tamano="lg" ancho disabled={!puedeApuntarse} cargando={enviando} onClick={() => void apuntarse()}>Apuntarme a la lista de espera</Boton>
         ) : (
-          <Boton tamano="lg" ancho disabled={!ev?.ok} onClick={onReservar}>Reservar</Boton>
+          <Boton tamano="lg" ancho disabled={!ev?.ok} cargando={reservando} onClick={() => void reservarAhora()}>Reservar</Boton>
         )}
         <Boton variante="fantasma" ancho onClick={onCerrar}>Volver al horario</Boton>
       </div>

@@ -91,6 +91,13 @@ const recargaParcial: { [K in NombreComando]?: (db: Db) => Promise<Db> } = {
   borrarPago: async (db) => ({ ...db, pagos: await cargarPagos() }),
 };
 
+/**
+ * Órdenes en curso, por nombre y argumentos. Si llega la misma orden mientras la primera aún se está guardando
+ * (doble toque en un botón), no se vuelve a mandar: recibe el mismo resultado que la primera. Si no, la segunda
+ * fallaría con mensajes como «Ya tienes plaza en esta clase» aunque todo haya ido bien.
+ */
+const enCurso = new Map<string, Promise<Resultado<unknown>>>();
+
 /** Recarga completa en curso (se comparte: varias peticiones seguidas hacen como mucho una más al terminar). */
 let recargaEnCurso: Promise<void> | null = null;
 let otraRecarga = false;
@@ -343,13 +350,27 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
 
     terminarRecuperacionContrasena: () => set({ recuperandoContrasena: false }),
 
-    ejecutar: (async (nombre: NombreComando, args: unknown) => {
-      const t0 = performance.now();
-      const r = await ejecutarInterno(nombre, args);
-      const ms = Math.round(performance.now() - t0);
-      if (r.ok) registrar('comando', `${nombre} correcto (${ms} ms)`, { args });
-      else registrar('comando', `${nombre} FALLIDO (${ms} ms): ${r.error}`, { args });
-      return r;
+    ejecutar: ((nombre: NombreComando, args: unknown) => {
+      let clave: string;
+      try { clave = `${nombre}|${JSON.stringify(args) ?? ''}`; } catch { clave = ''; }
+      const repetida = clave ? enCurso.get(clave) : undefined;
+      if (repetida) {
+        registrar('comando', `${nombre} repetido mientras se guardaba: se ignora`, { args });
+        return repetida;
+      }
+      const promesa = (async () => {
+        const t0 = performance.now();
+        const r = await ejecutarInterno(nombre, args);
+        const ms = Math.round(performance.now() - t0);
+        if (r.ok) registrar('comando', `${nombre} correcto (${ms} ms)`, { args });
+        else registrar('comando', `${nombre} FALLIDO (${ms} ms): ${r.error}`, { args });
+        return r;
+      })();
+      if (clave) {
+        enCurso.set(clave, promesa);
+        void promesa.finally(() => { if (enCurso.get(clave) === promesa) enCurso.delete(clave); });
+      }
+      return promesa;
     }) as Estado['ejecutar'],
 
     reiniciarDemo: () => {

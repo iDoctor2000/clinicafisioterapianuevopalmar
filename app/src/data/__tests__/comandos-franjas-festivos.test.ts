@@ -101,7 +101,8 @@ describe('0033: deshacer un cambio de horario y reactivar clases', () => {
     const ya = { ...db.clases.find((c) => c.plantillaId === plantilla.id)!, id: 'cla-ya-dada', fecha: hoy, horaInicio: '00:00' };
     const res: Reserva = { id: 'res-ya', claseId: ya.id, clienteId: db.clientes[0].id, contratoId: null, origen: 'MANUAL', estado: 'RESERVADA', asistencia: 'ASISTE',
       recuperacionUsadaId: null, creadaEl: ahora.toISOString(), creadaPor: 'tra-jose', canceladaEl: null, canceladaPor: null } as Reserva;
-    const db1 = { ...db, clases: [...db.clases.filter((c) => !(c.plantillaId === plantilla.id && c.fecha === hoy)), ya], reservas: [...db.reservas, res] } as Db;
+    // Hoy no puede ser día de cierre (en la demo lo es el 1/11): esa clase se cancelaría por el cierre, no por el cambio.
+    const db1 = { ...db, config: { ...db.config, diasCierre: db.config.diasCierre.filter((d) => d.fecha !== hoy) }, clases: [...db.clases.filter((c) => !(c.plantillaId === plantilla.id && c.fecha === hoy)), ya], reservas: [...db.reservas, res] } as Db;
     const r = guardarPlantilla({ db: db1, sesion: sesionDe(db1, 'tra-jose'), ahora }, { plantilla: { ...plantilla, activa: false } });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
