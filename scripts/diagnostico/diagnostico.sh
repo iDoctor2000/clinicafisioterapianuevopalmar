@@ -155,6 +155,52 @@ select upper(left(cl.nombre, 1)) || '.' || upper(left(cl.apellidos, 1)) || '. ' 
  where k.estado = 'ACTIVO' and k.modalidad = 'FIJO' and k.fecha_fin >= public._hoy()
    and not exists (select 1 from public.reservas r join public.clases c on c.id = r.clase_id where r.contrato_id = k.id and r.estado = 'RESERVADA' and c.fecha >= public._hoy());
 
+\echo '== Equipo: permisos, versión de la app y qué datos de cobros puede leer de verdad cada cuenta'
+-- Iniciales y id corto; nunca correos. «version» es la fecha de compilación de la app que llevaba esa persona
+-- la última vez que la app anotó algo en el servidor (solo se anota cuando hay algún mensaje de error o aviso).
+create temp table _equipo_acceso (trabajador_id uuid primary key, pagos integer, finanzas_contratos integer, error text);
+do $$
+declare t record; v_pagos integer; v_fin integer;
+begin
+  for t in select id, user_id from public.trabajadores where user_id is not null loop
+    begin
+      perform set_config('request.jwt.claim.sub', t.user_id::text, true);
+      perform set_config('request.jwt.claims', json_build_object('sub', t.user_id, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into v_pagos from public.pagos;
+      select count(*) into v_fin from public.contratos_finanzas where coalesce(importe_centimos, 0) <> 0 or coalesce(oferta::text, 'NINGUNA') <> 'NINGUNA' or metodo_pago is not null;
+      execute 'reset role';
+      insert into _equipo_acceso values (t.id, v_pagos, v_fin, null);
+    exception when others then
+      execute 'reset role';
+      insert into _equipo_acceso values (t.id, null, null, left(sqlerrm, 80));
+    end;
+  end loop;
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
+end $$;
+select upper(left(t.nombre, 1)) || '.' || upper(left(coalesce(nullif(t.apellidos, ''), '-'), 1)) || '. ' || left(t.id::text, 8) as quien,
+       t.rol, t.activo, t.es_monitor,
+       coalesce((to_jsonb(t)->>'ve_finanzas')::boolean, false) as ve_cobros,
+       coalesce((to_jsonb(t)->>'gestiona_horario')::boolean, false) as gestiona_horario,
+       (select string_agg(p.permiso::text, ',' order by p.permiso::text) from public.trabajador_permisos p where p.trabajador_id = t.id) as permisos_extra,
+       a.pagos as cobros_que_puede_leer, a.finanzas_contratos as contratos_con_importe_que_puede_leer, a.error,
+       ((to_jsonb(u)->>'last_sign_in_at')::timestamptz) at time zone 'Europe/Madrid' as ultima_entrada,
+       (select e.version from public.errores_app e where e.user_id = t.user_id and e.version <> '' order by e.instante desc limit 1) as version_app,
+       (select e.instante at time zone 'Europe/Madrid' from public.errores_app e where e.user_id = t.user_id and e.version <> '' order by e.instante desc limit 1) as version_vista_el,
+       (select left(e.navegador, 60) from public.errores_app e where e.user_id = t.user_id order by e.instante desc limit 1) as navegador
+  from public.trabajadores t
+  left join _equipo_acceso a on a.trabajador_id = t.id
+  left join auth.users u on u.id = t.user_id
+ order by t.activo desc, t.rol, t.nombre;
+-- Referencia: cuántos hay en total, y las otras puertas al dinero (0027: los importes viven en contratos_pago, sin
+-- acceso desde la app; en contratos quedan siempre vacíos).
+select (select count(*) from public.pagos) as cobros_totales,
+       (select count(*) from public.contratos_pago where coalesce(importe_centimos, 0) <> 0 or oferta <> 'NINGUNA' or metodo_pago is not null) as contratos_con_importe_totales,
+       (select count(*) from public.contratos where importe_centimos is not null or metodo_pago is not null or coalesce(oferta::text, 'NINGUNA') <> 'NINGUNA') as importes_sueltos_en_tabla_contratos,
+       has_table_privilege('authenticated', 'public.contratos_pago', 'SELECT') as contratos_pago_legible_desde_app,
+       has_function_privilege('authenticated', 'public.informe_cambios_hoy()', 'EXECUTE') as informe_bot_ejecutable_desde_app;
+
 \echo '== Permisos de las tablas que usa la función de notificaciones (enviar-push usa el rol service_role)'
 select r.rolname as rol, r.rolbypassrls as salta_rls,
        t.tabla,
