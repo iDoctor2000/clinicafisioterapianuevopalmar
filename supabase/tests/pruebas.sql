@@ -2799,5 +2799,53 @@ do $$ begin
   assert (select count(*) from public.clases where plantilla_id = pruebas.id('pl_54') and fecha = pruebas.fecha('f_54')) = 1, 'sigue tras el mantenimiento';
 end $$;
 
+\echo '== 55. El equipo anota qué versión de la app lleva (0048)'
+select pruebas.sistema();
+delete from public.equipo_aperturas;
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.registrar_apertura('2026-11-01T22:31:00.000Z', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X)', true);
+-- Un alumno no anota nada (ni da error).
+select pruebas.como('a');
+select public.registrar_apertura('2026-11-01T22:31:00.000Z', 'Android', false);
+-- Nadie puede leer la tabla desde la app.
+select pruebas.como('admin');
+select pruebas.espera_error('select count(*) from public.equipo_aperturas', '%permission denied%');
+commit;
+select pruebas.sistema();
+do $$
+declare v jsonb; e jsonb; v_desde timestamptz;
+begin
+  assert (select count(*) from public.equipo_aperturas) = 1, 'solo el admin';
+  select version_desde into v_desde from public.equipo_aperturas;
+  v := public.informe_cambios_hoy();
+  select x into e from jsonb_array_elements(v->'equipo_app') x where x->>'abierta' is not null;
+  assert e->>'version' = '01/11 23:31', format('versión en hora de Madrid: %s', e);
+  assert e->>'movil' = 'iPhone' and (e->>'instalada')::boolean and (e->>'abierta_hoy')::boolean and not (e->>'antigua')::boolean, format('datos: %s', e);
+  assert e->>'quien' ~ '^[A-Z]\.[A-Z-]\.$', 'solo iniciales';
+  assert exists (select 1 from jsonb_array_elements(v->'equipo_app') x where x->>'abierta' is null), 'quien no la ha abierto sale sin datos';
+end $$;
+-- La misma versión no cambia «desde cuándo»; una nueva, sí.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.registrar_apertura('2026-11-01T22:31:00.000Z', 'Mozilla/5.0 (iPhone)', true);
+commit;
+select pruebas.sistema();
+select pruebas.guardar('vd_55', (select version_desde::text from public.equipo_aperturas));
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.registrar_apertura('2026-11-03T09:00:00.000Z', 'Mozilla/5.0 (Linux; Android 10; K)', false);
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select version from public.equipo_aperturas) = '2026-11-03T09:00:00.000Z', 'versión nueva';
+  assert (select movil from (select public._tipo_dispositivo(navegador) movil from public.equipo_aperturas) x) = 'Android', 'Android';
+  assert (select version_desde::text from public.equipo_aperturas) is distinct from current_setting('pruebas.vd_55'), 'versión nueva: cambia desde cuándo';
+end $$;
+delete from public.equipo_aperturas;
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'

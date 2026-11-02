@@ -209,7 +209,8 @@ select line from (
         ('0044', pg_get_functiondef('public._anonimizar(text)'::regprocedure) like '%v_comunes%'),
         ('0045', to_regprocedure('public.informe_cambios_hoy()') is not null),
         ('0046', pg_get_functiondef('public.informe_cambios_hoy()'::regprocedure) like '%errores_detalle%'),
-        ('0047', to_regprocedure('public.restaurar_clase_quitada(uuid, date)') is not null))
+        ('0047', to_regprocedure('public.restaurar_clase_quitada(uuid, date)') is not null),
+        ('0048', to_regprocedure('public.registrar_apertura(text, text, boolean)') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

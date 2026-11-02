@@ -55,6 +55,8 @@ export interface CambiosHoy {
   errores: number;
   /** 0046: cuáles (ausente si falta esa migración). */
   errores_detalle?: { mensaje: string; tipo: string; veces: number; personas: number; quien: string; ultima: string }[];
+  /** 0048: qué versión de la app lleva cada persona del equipo (ausente si falta esa migración). */
+  equipo_app?: { quien: string; version: string | null; antigua: boolean; abierta: string | null; abierta_hoy: boolean; movil: string | null; instalada: boolean | null }[];
 }
 
 const ACCIONES: Record<string, string> = {
@@ -153,6 +155,15 @@ export function formatearCambiosHoy(c: CambiosHoy): string {
       resumen.push(`· ${t.mensaje} — ${t.veces} ${t.veces === 1 ? 'vez' : 'veces'}, ${t.personas} ${t.personas === 1 ? 'persona' : 'personas'} (${t.quien.split(', ').map((q) => QUIEN[q] ?? q).join(', ')}; ${TIPO_ERROR[t.tipo] ?? t.tipo}; última ${t.ultima})`);
     }
     if (!c.errores_detalle) resumen.push('(El detalle sale con /errores 1.)');
+  }
+  if (c.equipo_app && c.equipo_app.length > 0) {
+    resumen.push('APP DEL EQUIPO (versión que lleva cada uno):');
+    for (const e of c.equipo_app) {
+      if (!e.abierta) { resumen.push(`· ${e.quien}: sin datos todavía (no ha abierto la app desde que se anota).`); continue; }
+      const cuando = e.abierta_hoy ? `hoy a las ${e.abierta.slice(6)}` : `el ${e.abierta.slice(0, 5)} a las ${e.abierta.slice(6)}`;
+      const donde = [e.movil, e.instalada === true ? 'app instalada' : e.instalada === false ? 'en el navegador' : null].filter(Boolean).join(', ');
+      resumen.push(`· ${e.quien}: versión del ${e.version ?? '?'}${e.antigua ? ' (hay una más nueva)' : ''}, abierta ${cuando}${donde ? ` (${donde})` : ''}.`);
+    }
   }
   const linea = (x: { hora: string; quien: string; accion: string; detalle: string }) => `${x.hora} ${x.quien} · ${cambio(x.accion)}${x.detalle ? `: ${x.detalle}` : ''}`;
   const montar = (nEq: number, nAl: number) => {

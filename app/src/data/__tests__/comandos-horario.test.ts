@@ -4,7 +4,7 @@ import type { Db } from '@/data/db';
 import type { Sesion } from '@/domain/types';
 import { crearSeed } from '@/data/seed';
 import { guardarPlantilla, type Ctx } from '@/data/comandos';
-import { aISODate, sumarDias } from '@/domain/fechas';
+import { aISODate, esPasada, sumarDias } from '@/domain/fechas';
 
 const ahora = new Date();
 const sesionDe = (db: Db, id: string): Sesion => {
@@ -18,7 +18,8 @@ describe('guardarPlantilla: cambios aplicados a las clases futuras', () => {
     const c0 = ctx();
     const hoy = aISODate(ahora);
     const plantilla = c0.db.plantillas.find((p) => p.activa)!;
-    const futuras = c0.db.clases.filter((c) => c.plantillaId === plantilla.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy);
+    // Solo las que no han empezado: la de hoy puede haber empezado ya, y esa no se toca (0033).
+    const futuras = c0.db.clases.filter((c) => c.plantillaId === plantilla.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy && !esPasada(c.fecha, c.horaInicio, ahora));
     expect(futuras.length).toBeGreaterThan(2);
     // Una clase futura con una reserva hecha por un cliente: debe conservarse.
     const conReserva = futuras.find((c) => c0.db.reservas.some((r) => r.claseId === c.id && r.estado === 'RESERVADA' && r.origen !== 'AUTOMATICA'));
@@ -26,7 +27,7 @@ describe('guardarPlantilla: cambios aplicados a las clases futuras', () => {
     const r = guardarPlantilla(c0, { plantilla: { ...plantilla, horaInicio: nuevaHora } });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    const despues = r.db.clases.filter((c) => c.plantillaId === plantilla.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy);
+    const despues = r.db.clases.filter((c) => c.plantillaId === plantilla.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy && !esPasada(c.fecha, c.horaInicio, ahora));
     // Todas las fechas futuras siguen teniendo su clase (una por fecha), con la hora nueva salvo las conservadas.
     const fechasDespues = new Set(despues.map((c) => c.fecha));
     for (const c of futuras) expect(fechasDespues.has(c.fecha)).toBe(true);

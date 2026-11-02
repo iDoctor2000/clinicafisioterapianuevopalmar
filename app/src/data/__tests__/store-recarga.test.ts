@@ -9,7 +9,8 @@ const llamadas = { cargarDb: 0, cargarPagos: 0, enCurso: 0, maxEnCurso: 0, remot
 const db0 = crearSeed();
 const jose = db0.trabajadores.find((t) => t.id === 'tra-jose')!;
 
-vi.mock('@/data/supabase/cliente', () => ({ hayServidor: () => true, servidor: () => ({ rpc: () => Promise.resolve({}) }), mensajeError: (e: unknown) => String(e) }));
+const rpcs: { nombre: string; args: Record<string, unknown> }[] = [];
+vi.mock('@/data/supabase/cliente', () => ({ hayServidor: () => true, servidor: () => ({ rpc: (nombre: string, args: Record<string, unknown>) => { rpcs.push({ nombre, args }); return Promise.resolve({}); } }), mensajeError: (e: unknown) => String(e) }));
 vi.mock('@/data/supabase/tiempoReal', () => ({ activarTiempoReal: () => () => undefined }));
 vi.mock('@/data/supabase/push', () => ({ enviarPushPendientes: () => Promise.resolve(), invocarEnvioPush: () => Promise.resolve({ fallidas: 0, borradas: 0 }) }));
 vi.mock('@/data/supabase/comandos', () => ({
@@ -39,7 +40,7 @@ vi.mock('@/data/supabase/auth', () => ({
   SESION_CADUCADA: 'caducada',
 }));
 
-const { useStore } = await import('@/data/store');
+const { useStore, anotarApertura } = await import('@/data/store');
 
 describe('recargas con servidor', () => {
   beforeEach(async () => {
@@ -75,5 +76,20 @@ describe('recargas con servidor', () => {
     await Promise.all([ejecutar('reservar', { claseId: 'cla-1' }), ejecutar('reservar', { claseId: 'cla-2' })]);
     expect(llamadas.remotas).toHaveLength(3);
     expect(llamadas.remotas.slice(1).sort()).toEqual(['reservar {"claseId":"cla-1"}', 'reservar {"claseId":"cla-2"}']);
+  });
+
+  it('0048: al abrir la app, el equipo anota su versión (como mucho una vez cada media hora); los alumnos no', () => {
+    const aperturas = () => rpcs.filter((r) => r.nombre === 'registrar_apertura');
+    // Al arrancar con sesión de equipo ya se ha anotado una (beforeEach → arrancar).
+    expect(aperturas().length).toBeGreaterThanOrEqual(1);
+    expect(aperturas()[0].args).toMatchObject({ p_version: expect.any(String), p_navegador: expect.any(String), p_instalada: false });
+    const n = aperturas().length;
+    const sesion = useStore.getState().sesion;
+    anotarApertura(sesion);
+    expect(aperturas()).toHaveLength(n);
+    anotarApertura(sesion, Date.now() + 31 * 60 * 1000);
+    expect(aperturas()).toHaveLength(n + 1);
+    anotarApertura({ tipo: 'CLIENTE', userId: 'u', clienteId: 'c', nombre: 'A' }, Date.now() + 120 * 60 * 1000);
+    expect(aperturas()).toHaveLength(n + 1);
   });
 });

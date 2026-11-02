@@ -10,7 +10,7 @@ import { hayServidor, servidor } from './supabase/cliente';
 import { cargarDb, cargarPagos } from './supabase/cargar';
 import { ejecutarRemoto } from './supabase/comandos';
 import * as auth from './supabase/auth';
-import { alRegistrarError, registrar } from '@/lib/diagnostico';
+import { alRegistrarError, esStandalone, registrar } from '@/lib/diagnostico';
 import { activarTiempoReal } from './supabase/tiempoReal';
 import { enviarPushPendientes, invocarEnvioPush } from './supabase/push';
 
@@ -64,6 +64,21 @@ if (MODO === 'SUPABASE') {
       p_version: __BUILD_TIME__, p_navegador: typeof navigator !== 'undefined' ? navigator.userAgent : '',
     }).then(() => undefined, () => undefined);
   });
+}
+
+/**
+ * 0048: el equipo anota qué versión de la app lleva cada vez que la abre (o vuelve a ella tras media hora).
+ * Lo leen el diagnóstico y el bot (/informehoy). Nunca bloquea ni falla: sin la migración, no hace nada.
+ */
+const MS_ENTRE_APERTURAS = 30 * 60 * 1000;
+let ultimaApertura = 0;
+export function anotarApertura(sesion: Sesion | null, ahora = Date.now()): void {
+  if (MODO !== 'SUPABASE' || sesion?.tipo !== 'TRABAJADOR') return;
+  if (ahora - ultimaApertura < MS_ENTRE_APERTURAS) return;
+  ultimaApertura = ahora;
+  void servidor().rpc('registrar_apertura', {
+    p_version: __BUILD_TIME__, p_navegador: typeof navigator !== 'undefined' ? navigator.userAgent : '', p_instalada: esStandalone(),
+  }).then(() => undefined, () => undefined);
 }
 
 function sesionDeUsuario(db: Db, userId: string): Sesion | null {
@@ -157,6 +172,8 @@ const crearEstado: StateCreator<Estado> = (set, get) => {
   };
 
   const activarEscucha = () => {
+    // Se llama tras cada entrada o arranque con sesión: buen momento para anotar la apertura (0048).
+    anotarApertura(get().sesion);
     if (detenerTiempoReal) return;
     detenerTiempoReal = activarTiempoReal(() => {
       if (get().usuarioAuth) void get().recargar();
@@ -404,3 +421,10 @@ export const useStore: UseBoundStore<StoreApi<Estado>> =
 export const useDb = () => useStore((s) => s.db);
 export const useSesion = () => useStore((s) => s.sesion);
 export const useModo = () => useStore((s) => s.modo);
+
+// 0048: al volver a la app tras un rato, también cuenta como abrirla.
+if (MODO === 'SUPABASE' && typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') anotarApertura(useStore.getState().sesion);
+  });
+}

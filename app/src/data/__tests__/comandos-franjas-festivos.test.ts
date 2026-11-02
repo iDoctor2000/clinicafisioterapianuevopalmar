@@ -4,7 +4,7 @@ import type { Db } from '@/data/db';
 import type { Reserva, Sesion } from '@/domain/types';
 import { crearSeed } from '@/data/seed';
 import { cancelarClase, clasesQueSeCancelarian, guardarPlantilla, reactivarClase } from '@/data/comandos';
-import { aISODate, sumarDias } from '@/domain/fechas';
+import { aISODate, esPasada, sumarDias } from '@/domain/fechas';
 
 const ahora = new Date();
 const hoy = aISODate(ahora);
@@ -44,7 +44,8 @@ describe('quitar una franja', () => {
     expect(r.valor.afectados).toBeGreaterThan(0);
     expect(r.valor.avisoIds.length).toBe(r.valor.canceladas);
     expect(r.db.clases.find((c) => c.id === clase.id)?.estado).toBe('CANCELADA');
-    expect(r.db.clases.some((c) => c.plantillaId === plantilla.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy)).toBe(false);
+    // Ninguna que no haya empezado: la de hoy puede haber empezado ya, y esa no se toca (0033).
+    expect(r.db.clases.some((c) => c.plantillaId === plantilla.id && c.estado === 'PROGRAMADA' && c.fecha >= hoy && !esPasada(c.fecha, c.horaInicio, ahora))).toBe(false);
     expect(r.db.recuperaciones.some((x) => x.clienteId === cliente.id && x.motivo === 'CANCELACION_CENTRO')).toBe(true);
   });
 
