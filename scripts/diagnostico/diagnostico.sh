@@ -193,6 +193,17 @@ select upper(left(t.nombre, 1)) || '.' || upper(left(coalesce(nullif(t.apellidos
   left join _equipo_acceso a on a.trabajador_id = t.id
   left join auth.users u on u.id = t.user_id
  order by t.activo desc, t.rol, t.nombre;
+-- 0048: la última vez que cada persona del equipo abrió la app (versión, dispositivo, instalada o no).
+select to_regclass('public.equipo_aperturas') is not null as hay_aperturas \gset
+\if :hay_aperturas
+select upper(left(t.nombre, 1)) || '.' || upper(left(coalesce(nullif(t.apellidos, ''), '-'), 1)) || '. ' || left(t.id::text, 8) as quien,
+       a.version, a.version < (select max(x.version) from public.equipo_aperturas x) as hay_una_mas_nueva,
+       a.version_desde at time zone 'Europe/Madrid' as lleva_esta_version_desde, a.abierta_el at time zone 'Europe/Madrid' as abierta_por_ultima_vez,
+       public._tipo_dispositivo(a.navegador) as dispositivo, a.instalada
+  from public.trabajadores t left join public.equipo_aperturas a on a.trabajador_id = t.id
+ where t.activo and t.user_id is not null
+ order by a.abierta_el desc nulls last;
+\endif
 -- Referencia: cuántos hay en total, y las otras puertas al dinero (0027: los importes viven en contratos_pago, sin
 -- acceso desde la app; en contratos quedan siempre vacíos).
 select (select count(*) from public.pagos) as cobros_totales,

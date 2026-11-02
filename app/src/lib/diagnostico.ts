@@ -176,7 +176,7 @@ export function instalarDiagnostico(): void {
   window.addEventListener('appinstalled', () => registrar('info', 'App instalada en la pantalla de inicio'));
 }
 
-function esStandalone(): boolean {
+export function esStandalone(): boolean {
   try {
     return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
   } catch {

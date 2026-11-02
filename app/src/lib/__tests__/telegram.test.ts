@@ -129,6 +129,20 @@ describe('bot de Telegram', () => {
     expect(t).toContain('ALUMNOS (ellos solos)');
   });
 
+  it('0048: dice qué versión de la app lleva cada persona del equipo', () => {
+    const t = formatearCambiosHoy({ ...cambios, equipo_app: [
+      { quien: 'J.F.', version: '01/11 23:31', antigua: false, abierta: '02/11 10:15', abierta_hoy: true, movil: 'iPhone', instalada: true },
+      { quien: 'I.C.', version: '27/10 19:50', antigua: true, abierta: '29/10 17:38', abierta_hoy: false, movil: 'Android', instalada: false },
+      { quien: 'N.L.', version: null, antigua: false, abierta: null, abierta_hoy: false, movil: null, instalada: null },
+    ] });
+    expect(t).toContain('APP DEL EQUIPO (versión que lleva cada uno):');
+    expect(t).toContain('· J.F.: versión del 01/11 23:31, abierta hoy a las 10:15 (iPhone, app instalada).');
+    expect(t).toContain('· I.C.: versión del 27/10 19:50 (hay una más nueva), abierta el 29/10 a las 17:38 (Android, en el navegador).');
+    expect(t).toContain('· N.L.: sin datos todavía');
+    // Sin la migración 0048 no sale la sección.
+    expect(formatearCambiosHoy(cambios)).not.toContain('APP DEL EQUIPO');
+  });
+
   it('un día sin cambios se entiende', () => {
     const t = formatearCambiosHoy({ ...cambios, equipo: [], acciones_equipo: [], acciones_alumnos: [], automaticas: 0, cambios_equipo: [], cambios_alumnos: [], cobros: { cobrados: 0, importe_centimos: 0, pendientes_nuevos: 0 }, sin_publicar: { franjas: 0, clases: 0, plazas: 0 } });
     expect(t).toContain('EQUIPO: nadie ha hecho cambios hoy.');
