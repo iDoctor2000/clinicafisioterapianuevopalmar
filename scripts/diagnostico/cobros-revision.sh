@@ -91,7 +91,11 @@ for p in cerr: print('   %s · %s · %s' % (quien.get(p['cli'], p['cli'][:8]), n
 con_mes = {(p['cli'], p['mes']) for p in pagos if p['estado'] != 'CANCELADO'}
 sin = sorted({m[0] for m in tsv('mensuales.tsv') if m[1] <= hoy and (m[0], mes_actual) not in con_mes}, key=lambda c: quien.get(c, ''))
 print('\n-- Con tarifa mensual activa y sin cobro de %s: %d' % (nmes(mes_actual), len(sin)))
-for c in sin: print('   %s' % quien.get(c, c[:8]))
+contratos_de = defaultdict(list)
+for m in tsv('mensuales.tsv'): contratos_de[m[0]].append((m[1], m[2]))
+for c in sin:
+    cobros = sorted((p['mes'][:7], p['estado'].lower(), eur(p['imp'])) for p in pagos if p['cli'] == c and p['estado'] != 'CANCELADO')
+    print('   %s · contrato %s · cobros: %s' % (quien.get(c, c[:8]), ', '.join('%s→%s' % k for k in contratos_de[c]), ', '.join('%s %s %s' % x for x in cobros[-3:]) or 'ninguno'))
 
 raros = [p for p in pagos if re.match(r'(?i)^(mes \d+|renovación) · ', p['concepto'])]
 print('\n-- Cobros con nombre antiguo ("Mes 1 · …"): %d' % len(raros))
