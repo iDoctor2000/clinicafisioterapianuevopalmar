@@ -41,6 +41,11 @@ psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
   "select k.cliente_id, k.fecha_inicio, k.fecha_fin from public.contratos k join public.tarifas t on t.id = k.tarifa_id where k.estado = 'ACTIVO' and t.tipo = 'RECURRENTE'" > "$TMP/mensuales.tsv"
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -c "select public._hoy()" > "$TMP/hoy.txt"
+# Historial de cambios de cada contrato mensual activo (para entender un "sin cobro"): sin nombres.
+psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
+  "select k.cliente_id, to_char(a.instante at time zone 'Europe/Madrid', 'YYYY-MM-DD HH24:MI'), a.accion, left(public._anonimizar(a.detalle), 140)
+     from public.contratos k join public.tarifas t on t.id = k.tarifa_id join public.auditoria a on a.entidad_id = k.id::text
+    where k.estado = 'ACTIVO' and t.tipo = 'RECURRENTE' order by a.instante" > "$TMP/historial.tsv"
 
 if [[ -n "$COPIA" ]]; then
   : "${BACKUP_PASSPHRASE:?Falta BACKUP_PASSPHRASE para leer la copia}"
@@ -96,6 +101,8 @@ for m in tsv('mensuales.tsv'): contratos_de[m[0]].append((m[1], m[2]))
 for c in sin:
     cobros = sorted((p['mes'][:7], p['estado'].lower(), eur(p['imp'])) for p in pagos if p['cli'] == c and p['estado'] != 'CANCELADO')
     print('   %s · contrato %s · cobros: %s' % (quien.get(c, c[:8]), ', '.join('%s→%s' % k for k in contratos_de[c]), ', '.join('%s %s %s' % x for x in cobros[-3:]) or 'ninguno'))
+    for h in tsv('historial.tsv'):
+        if h[0] == c: print('      %s %s: %s' % (h[1], h[2], h[3]))
 
 raros = [p for p in pagos if re.match(r'(?i)^(mes \d+|renovación) · ', p['concepto'])]
 print('\n-- Cobros con nombre antiguo ("Mes 1 · …"): %d' % len(raros))
