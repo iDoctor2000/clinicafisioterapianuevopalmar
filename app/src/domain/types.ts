@@ -304,6 +304,8 @@ export interface EntradaListaEspera {
   creadaEl: ISOInstant;
   /** Posición en la lista (1 = el siguiente en entrar). En Supabase la calcula el servidor para el propio alumno. */
   posicion?: number;
+  /** 0050: espera su propia clase fija (va por delante y entra con su horario fijo). */
+  contratoFijoId?: Id | null;
 }
 
 export type OrigenReserva =
@@ -336,6 +338,8 @@ export interface Reserva {
   creadaPor: Id; // userId (cliente o trabajador) o 'sistema'
   canceladaEl: ISOInstant | null;
   canceladaPor: Id | null;
+  /** 0050: entró sola desde la lista de espera de su clase fija: cancelarla nunca le hace perder la clase. */
+  cancelacionLibre?: boolean;
 }
 
 export type EstadoRecuperacion = 'DISPONIBLE' | 'USADA' | 'CADUCADA';

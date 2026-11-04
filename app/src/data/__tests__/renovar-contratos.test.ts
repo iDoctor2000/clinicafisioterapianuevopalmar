@@ -69,6 +69,9 @@ describe('renovaciones', () => {
     expect(cobrosDeRenovacion(c, '2026-11-30', [{ clienteId: 'x', estado: 'PENDIENTE', mes: '2026-11-01' }])).toEqual([]);
     expect(cobrosDeRenovacion(c, '2026-11-30', [{ clienteId: 'x', estado: 'CANCELADO', mes: '2026-11-01' }])).toHaveLength(1);
     expect(cobrosDeRenovacion({ ...c, importeCentimos: null }, '2026-11-30', [])).toEqual([]);
+    // 0049: sin importe acordado, el precio de la tarifa.
+    expect(cobrosDeRenovacion({ ...c, importeCentimos: null }, '2026-11-30', [], 5800)).toEqual([{ concepto: 'Noviembre 2026', importeCentimos: 5800, venceEl: '2026-11-01', mes: '2026-11-01' }]);
+    expect(cobrosDeRenovacion(c, '2026-11-30', [], 9900)[0].importeCentimos).toBe(5200);
   });
 
   it('renovarContratos alarga el mismo contrato, conserva sus clases fijas, crea el cobro y no repite', () => {

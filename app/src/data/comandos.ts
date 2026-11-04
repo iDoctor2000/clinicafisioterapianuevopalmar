@@ -17,7 +17,7 @@ import { aISODate, diaSemanaDe, esDiaCierre, esPasada, sumarDias } from '@/domai
 import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import {
   caducidadRecuperacion, categoriasPermitidasRecuperacion, clasificarCancelacion, evaluarReserva, generarClases,
-  generarReservasAutomaticas, listaEsperaCerrada, motivoNoCambio, plazasLibres, puedeCancelarCliente, puedeGenerarRecuperacion, caducarVencidas,
+  generarReservasAutomaticas, listaEsperaCerrada, motivoNoCambio, ordenListaEspera, plazasLibres, puedeCancelarCliente, puedeGenerarRecuperacion, caducarVencidas,
 } from '@/domain/rules';
 import { indexar, nuevoId, type Db } from './db';
 import { cobrosDeRenovacion } from '@/domain/renovaciones';
@@ -175,7 +175,8 @@ export function cancelarReserva(ctx: Ctx, args: { reservaId: Id; forzarRecuperab
   if (!puede.ok) return fallo(puede.motivo);
 
   const clasif = clasificarCancelacion(clase, ahora, db.config);
-  const recuperable = args.forzarRecuperable === true ? true : clasif.recuperable;
+  // 0050: si entró sola desde la lista de espera de su clase fija, cancelar nunca le hace perder la clase.
+  const recuperable = args.forzarRecuperable === true || reserva.cancelacionLibre === true ? true : clasif.recuperable;
   const estado = recuperable ? 'CANCELADA_RECUPERABLE' : 'CANCELADA_NO_RECUPERABLE';
   let nuevo: Db = {
     ...db,
@@ -220,7 +221,7 @@ export function cancelarReserva(ctx: Ctx, args: { reservaId: Id; forzarRecuperab
 
 /** Entradas de la lista de espera de una clase, por orden de llegada. */
 function listaDeClase(db: Db, claseId: Id): EntradaListaEspera[] {
-  return db.listaEspera.filter((e) => e.claseId === claseId).sort((a, b) => a.creadaEl.localeCompare(b.creadaEl) || a.id.localeCompare(b.id));
+  return db.listaEspera.filter((e) => e.claseId === claseId).sort(ordenListaEspera);
 }
 
 function contextoCambio(db: Db, ahora: Date, reserva: Reserva | null, claseDestino: Clase) {
@@ -287,7 +288,7 @@ export function salirListaEspera(ctx: Ctx, args: { claseId: Id }): Resultado<voi
   const entrada = db.listaEspera.find((e) => e.claseId === args.claseId && e.clienteId === sesion.clienteId);
   if (!entrada) return ok(db, undefined);
   const clase = db.clases.find((c) => c.id === args.claseId);
-  const nuevo: Db = { ...db, listaEspera: db.listaEspera.filter((e) => e.id !== entrada.id) };
+  const nuevo: Db = { ...db, listaEspera: db.listaEspera.filter((e) => e.id !== entrada.id), listaEsperaRechazos: rechazar(db, entrada) };
   return ok(auditar(nuevo, sesion, ahora, 'LISTA_ESPERA', 'clase', args.claseId, `${nombreCliente(db, sesion.clienteId)} sale de la lista · ${clase ? descClase(db, clase) : args.claseId}`), undefined);
 }
 
@@ -304,8 +305,41 @@ export function quitarDeListaEspera(ctx: Ctx, args: { id: Id }): Resultado<void>
     const ea = exigirClaseMia(db, sesion, clase);
     if (ea) return fallo(ea);
   }
-  const nuevo: Db = { ...db, listaEspera: db.listaEspera.filter((x) => x.id !== entrada.id) };
+  const nuevo: Db = { ...db, listaEspera: db.listaEspera.filter((x) => x.id !== entrada.id), listaEsperaRechazos: rechazar(db, entrada) };
   return ok(auditar(nuevo, sesion, ahora, 'LISTA_ESPERA', 'clase', entrada.claseId, `${nombreCliente(db, entrada.clienteId)} quitado de la lista por el personal · ${clase ? descClase(db, clase) : entrada.claseId}`), undefined);
+}
+
+/** 0050: si sale (o le quitan) de la lista de espera de su clase fija, no se le vuelve a apuntar a ella. */
+function rechazar(db: Db, entrada: EntradaListaEspera): Db['listaEsperaRechazos'] {
+  if (!entrada.contratoFijoId) return db.listaEsperaRechazos;
+  return [...(db.listaEsperaRechazos ?? []), { claseId: entrada.claseId, clienteId: entrada.clienteId }];
+}
+
+/**
+ * 0050: el alumno fijo sin plaza en una clase suya completa queda el primero en la lista de espera de esa clase
+ * (hasta 2 horas antes), salvo que saliera de ella. Quien ya tiene plaza sale de la lista. Espejo de
+ * `_generar_reservas_automaticas` en el servidor.
+ */
+export function fijosAListaEspera(db: Db, ahora: Date): Db {
+  const tienePlaza = (claseId: Id, clienteId: Id) => db.reservas.some((r) => r.claseId === claseId && r.clienteId === clienteId && r.estado === 'RESERVADA');
+  let lista = db.listaEspera.filter((e) => !tienePlaza(e.claseId, e.clienteId));
+  for (const k of db.contratos) {
+    if (k.modalidad !== 'FIJO' || k.estado !== 'ACTIVO') continue;
+    const franjas = new Set(k.franjasFijas.map((f) => f.plantillaId));
+    for (const c of db.clases) {
+      if (c.estado !== 'PROGRAMADA' || !c.plantillaId || !franjas.has(c.plantillaId) || c.fecha < k.fechaInicio || c.fecha > k.fechaFin || listaEsperaCerrada(c, ahora)) continue;
+      if (db.reservas.some((r) => r.claseId === c.id && r.clienteId === k.clienteId && r.estado !== 'CANCELADA_CENTRO')) continue;
+      if (db.reservas.filter((r) => r.claseId === c.id && r.estado === 'RESERVADA').length < c.plazas) continue;
+      if ((db.listaEsperaRechazos ?? []).some((x) => x.claseId === c.id && x.clienteId === k.clienteId)) continue;
+      const existente = lista.find((e) => e.claseId === c.id && e.clienteId === k.clienteId);
+      if (existente) {
+        if (existente.contratoFijoId !== k.id) lista = lista.map((e) => (e.id === existente.id ? { ...e, contratoFijoId: k.id, reservaCambioId: null } : e));
+        continue;
+      }
+      lista = [...lista, { id: nuevoId('esp'), claseId: c.id, clienteId: k.clienteId, reservaCambioId: null, creadaEl: ahora.toISOString(), contratoFijoId: k.id }];
+    }
+  }
+  return lista.length === db.listaEspera.length && lista.every((e, i) => e === db.listaEspera[i]) ? db : { ...db, listaEspera: lista };
 }
 
 /**
@@ -325,7 +359,19 @@ function promoverListaEspera(db: Db, sesion: Sesion, ahora: Date, claseId: Id): 
     let motivo: string | null = null;
     let cuerpo = '';
     let via = '';
-    if (e.reservaCambioId) {
+    if (e.contratoFijoId) {
+      // 0050: alumno fijo de esta clase: entra con su horario fijo y puede cancelar sin perder la clase.
+      const k = nuevo.contratos.find((x) => x.id === e.contratoFijoId);
+      const vale = !!k && k.estado === 'ACTIVO' && clase.fecha >= k.fechaInicio && clase.fecha <= k.fechaFin && k.franjasFijas.some((f) => f.plantillaId === clase.plantillaId);
+      if (!vale || nuevo.reservas.some((r) => r.claseId === clase.id && r.clienteId === e.clienteId && r.estado === 'RESERVADA')) continue;
+      const nueva: Reserva = {
+        id: nuevoId('res'), claseId: clase.id, clienteId: e.clienteId, contratoId: k.id, origen: 'AUTOMATICA', estado: 'RESERVADA', asistencia: 'PENDIENTE',
+        recuperacionUsadaId: null, creadaEl: ahora.toISOString(), creadaPor: 'sistema', canceladaEl: null, canceladaPor: null, cancelacionLibre: true,
+      };
+      nuevo = { ...nuevo, reservas: [...nuevo.reservas, nueva] };
+      via = 'FIJO';
+      cuerpo = 'Se ha liberado sitio en tu clase fija y ya estás apuntado/a. Si no puedes venir, cancélala desde la app: no pierdes la clase.';
+    } else if (e.reservaCambioId) {
       const reserva = nuevo.reservas.find((r) => r.id === e.reservaCambioId && r.clienteId === e.clienteId) ?? null;
       motivo = motivoNoCambio(contextoCambio(nuevo, ahora, reserva, clase));
       if (!motivo && reserva) {
@@ -816,7 +862,7 @@ export function moverFijosDeFranja(ctx: Ctx, args: { origenId: Id; destinoId: Id
     nuevo = auditar(nuevo, sesion, ahora, 'MOVER_FIJO', 'contrato', k.id, `${nombreCliente(db, k.clienteId)}: ${actOr.nombre} ${DIAS_PLURAL[origen.diaSemana]} ${origen.horaInicio} → ${actDe.nombre} ${DIAS_PLURAL[destino.diaSemana]} ${destino.horaInicio}`);
     movidos += 1;
   }
-  return ok(nuevo, { movidos, saltados, sinPlaza, avisoIds });
+  return ok(fijosAListaEspera(nuevo, ahora), { movidos, saltados, sinPlaza, avisoIds });
 }
 
 /**
@@ -909,7 +955,7 @@ export function generarClasesPendientes(db: Db, ahora: Date): Db {
   reservas = reservas.map((r) => (r.estado === 'RESERVADA' && canceladasIds.has(r.claseId) ? { ...r, estado: 'CANCELADA_CENTRO', canceladaEl: ahora.toISOString(), canceladaPor: 'sistema' } : r));
   const recuperaciones = caducarVencidas(db.recuperaciones, desde);
   const contratos = db.contratos.map((c) => (c.estado === 'ACTIVO' && c.fechaFin < desde ? { ...c, estado: 'FINALIZADO' as const } : c));
-  return { ...db, clases, reservas, recuperaciones, contratos };
+  return fijosAListaEspera({ ...db, clases, reservas, recuperaciones, contratos }, ahora);
 }
 
 // ---------------------------------------------------------------------------
@@ -996,7 +1042,7 @@ export function crearContrato(ctx: Ctx, args: { contrato: Omit<Contrato, 'id' | 
     ...q, id: nuevoId('pag'), contratoId: contrato.id, clienteId: contrato.clienteId, creadoEl: ahora.toISOString(),
     pagadoEl: q.estado === 'PAGADO' ? q.pagadoEl ?? ahora.toISOString() : null,
   }));
-  nuevo = { ...nuevo, reservas, pagos: [...pagosPrevios, ...pagos] };
+  nuevo = fijosAListaEspera({ ...nuevo, reservas, pagos: [...pagosPrevios, ...pagos] }, ahora);
   return ok(auditar(nuevo, sesion, ahora, 'CREAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${tarifa.nombre} ${contrato.fechaInicio}→${contrato.fechaFin}`), contrato);
 }
 
@@ -1045,7 +1091,7 @@ export function editarContrato(ctx: Ctx, args: { contratoId: Id; cambios: Cambio
   };
   let reservas = db.reservas.filter((r) => !sobra(r));
   reservas = generarReservasAutomaticas(contrato, db.clases.filter((c) => args.cambios.incluirPasadas || c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
-  const nuevo: Db = quitarCobrosFueraDeContrato({ ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas }, [contrato]);
+  const nuevo: Db = fijosAListaEspera(quitarCobrosFueraDeContrato({ ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas }, [contrato]), ahora);
   return ok(auditar(nuevo, sesion, ahora, 'EDITAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: fin ${contrato.fechaFin}`), contrato);
 }
 
@@ -1064,7 +1110,7 @@ export function renovarContratos(ctx: Ctx, args: { contratoIds: Id[]; hasta: ISO
     const c = db.contratos.find((x) => x.id === id);
     const tarifa = c && db.tarifas.find((t) => t.id === c.tarifaId);
     if (!c || c.estado !== 'ACTIVO' || tarifa?.tipo !== 'RECURRENTE' || c.fechaFin >= args.hasta || (limitadoASusClases(db, sesion) && !esAlumnoMio(db, sesion, c.clienteId))) { saltados++; continue; }
-    const nuevosCobros = cobrosDeRenovacion(c, args.hasta, db.pagos);
+    const nuevosCobros = cobrosDeRenovacion(c, args.hasta, db.pagos, tarifa.precioCentimos ?? null);
     const r = editarContrato({ ...ctx, db }, { contratoId: c.id, cambios: { fechaFin: args.hasta, franjasFijas: c.franjasFijas, notas: c.notas, oferta: c.oferta ?? 'NINGUNA', importeCentimos: c.importeCentimos ?? null, metodoPago: c.metodoPago ?? null, sesionesRestantes: c.sesionesRestantes } });
     if (!r.ok) { saltados++; continue; }
     const pagos = nuevosCobros.map((q): Pago => ({ ...q, id: nuevoId('pag'), contratoId: c.id, clienteId: c.clienteId, estado: 'PENDIENTE', metodo: null, pagadoEl: null, creadoEl: ahora.toISOString() }));
@@ -1123,7 +1169,7 @@ export function rehacerReservasFijas(ctx: Ctx, args: { contratoId: Id }): Result
   if (contrato.modalidad !== 'FIJO' || contrato.estado !== 'ACTIVO') return fallo('Solo para contratos activos de horario fijo.');
   const hoy = aISODate(ahora);
   const g = generarReservasAutomaticas(contrato, db.clases.filter((c) => c.fecha >= hoy), db.reservas, () => nuevoId('res'), ahora.toISOString());
-  const nuevo: Db = { ...db, reservas: g.reservas };
+  const nuevo: Db = fijosAListaEspera({ ...db, reservas: g.reservas }, ahora);
   return ok(auditar(nuevo, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: ${g.creadas} reservas generadas`), { creadas: g.creadas });
 }
 
@@ -1143,7 +1189,7 @@ export function rehacerTodasReservasFijas(ctx: Ctx, _args: Record<string, never>
     contratos += 1;
     creadas += g.creadas;
   }
-  return ok(auditar({ ...db, reservas }, sesion, ahora, 'RESERVAS_AUTOMATICAS', 'sistema', '-', `${creadas} reservas generadas en ${contratos} contratos`), { contratos, creadas });
+  return ok(auditar(fijosAListaEspera({ ...db, reservas }, ahora), sesion, ahora, 'RESERVAS_AUTOMATICAS', 'sistema', '-', `${creadas} reservas generadas en ${contratos} contratos`), { contratos, creadas });
 }
 
 export function finalizarContrato(ctx: Ctx, args: { contratoId: Id; cancelarReservasFuturas: boolean }): Resultado<void> {

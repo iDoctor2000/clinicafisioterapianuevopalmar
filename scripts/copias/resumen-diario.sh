@@ -71,7 +71,8 @@ with
     select k.id as contrato_id, c.id as clase_id,
            exists (select 1 from public.reservas r where r.clase_id = c.id and r.cliente_id = k.cliente_id and r.estado = 'RESERVADA') as tiene_plaza,
            exists (select 1 from public.reservas r where r.clase_id = c.id and r.cliente_id = k.cliente_id and r.estado in ('CANCELADA_RECUPERABLE', 'CANCELADA_NO_RECUPERABLE')) as cancelo_el_alumno,
-           (select count(*) from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') >= c.plazas as completa
+           -- Las plazas retenidas (cambios sin publicar, 0039) cuentan como ocupadas: no son un fallo del mantenimiento.
+           (select count(*) from public.reservas r where r.clase_id = c.id and r.estado = 'RESERVADA') >= c.plazas - coalesce((to_jsonb(c)->>'plazas_retenidas')::integer, 0) as completa
       from public.contratos k
       join public.contrato_franjas f on f.contrato_id = k.id
       join public.clases c on c.plantilla_id = f.plantilla_id and c.estado = 'PROGRAMADA'
@@ -86,7 +87,7 @@ with
         'Un alumno de horario fijo no está apuntado a una clase de su franja y la clase tiene sitio: el mantenimiento nocturno debería haberlo hecho. Pulsa "Rehacer las reservas fijas de todos" en Ajustes y, si vuelve a salir mañana, avisa a quien mantiene la app.'),
       (2, false, 'Alumnos de horario fijo sin plaza en una clase suya porque está completa',
         (select count(*) from huecos_fijos where not tiene_plaza and not cancelo_el_alumno and completa),
-        'Esa clase se llenó mientras el alumno no estaba apuntado. Si quiere ir, que se apunte a la lista de espera o apúntalo a mano cuando se libere plaza.'),
+        'Esa clase se llenó mientras el alumno no estaba apuntado. Desde la 0050 está el primero en su lista de espera: si se libera sitio (hasta 2 horas antes), entra solo y se le avisa. Si las que liberas tú están retenidas, publica los cambios.'),
       (3, true, 'Reservas fijas "canceladas por el centro" en clases que siguen programadas',
         (select count(*) from public.reservas r join public.clases c on c.id = r.clase_id
           where r.origen = 'AUTOMATICA' and r.estado = 'CANCELADA_CENTRO' and c.estado = 'PROGRAMADA' and c.fecha >= (select d from hoy)),
@@ -210,7 +211,9 @@ select line from (
         ('0045', to_regprocedure('public.informe_cambios_hoy()') is not null),
         ('0046', pg_get_functiondef('public.informe_cambios_hoy()'::regprocedure) like '%errores_detalle%'),
         ('0047', to_regprocedure('public.restaurar_clase_quitada(uuid, date)') is not null),
-        ('0048', to_regprocedure('public.registrar_apertura(text, text, boolean)') is not null))
+        ('0048', to_regprocedure('public.registrar_apertura(text, text, boolean)') is not null),
+        ('0049', pg_get_functiondef('public.renovar_contratos(uuid[], date)'::regprocedure) like '%precio_centimos%'),
+        ('0050', to_regclass('public.lista_espera_rechazos') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

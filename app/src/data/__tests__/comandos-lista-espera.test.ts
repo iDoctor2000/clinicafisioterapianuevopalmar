@@ -102,8 +102,11 @@ describe('lista de espera', () => {
       && semana(db.clases.find((c) => c.id === x.claseId)!.fecha) === semana(clase.fecha) && db.clases.find((c) => c.id === x.claseId)!.fecha > hoy);
     expect(deJuan).toBeDefined();
     if (!deJuan) return;
-    // Sin cambio no puede (horario fijo, sin recuperaciones).
-    const sinRec: Db = { ...db, recuperaciones: db.recuperaciones.filter((x) => x.clienteId !== 'juan') };
+    // Sin cambio no puede (horario fijo, sin recuperaciones). Sus clases fijas de esa semana, todas en pie: los datos de
+    // ejemplo cancelan alguna según el día de hoy, y entonces le quedaría cupo libre.
+    const enPie = db.reservas.map((x) => (x.clienteId === 'juan' && x.origen === 'AUTOMATICA' && x.estado !== 'RESERVADA' && semana(db.clases.find((c) => c.id === x.claseId)!.fecha) === semana(clase.fecha)
+      ? { ...x, estado: 'RESERVADA' as const, canceladaEl: null, canceladaPor: null } : x));
+    const sinRec: Db = { ...db, reservas: enPie, recuperaciones: db.recuperaciones.filter((x) => x.clienteId !== 'juan') };
     const r0 = apuntarListaEspera({ db: sinRec, sesion: alumno(db, 'juan'), ahora }, { claseId: clase.id });
     expect(!r0.ok && r0.error).toMatch(/horario fijo/i);
     // Con cambio sí.

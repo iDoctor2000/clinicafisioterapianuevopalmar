@@ -121,6 +121,8 @@ export interface FilaReserva {
   id: string; clase_id: string; cliente_id: string; contrato_id: string | null; origen: OrigenReserva; estado: EstadoReserva;
   asistencia: Asistencia; recuperacion_usada_id: string | null; creado_por: string | null; creado_el: string;
   cancelado_el: string | null; cancelado_por: string | null;
+  /** 0050 (ausente antes de esa migración). */
+  cancelacion_libre?: boolean | null;
 }
 
 export interface FilaRecuperacion {
@@ -422,6 +424,7 @@ export function aReserva(f: FilaReserva): Reserva {
     id: f.id, claseId: f.clase_id, clienteId: f.cliente_id, contratoId: f.contrato_id, origen: f.origen, estado: f.estado, asistencia: f.asistencia,
     recuperacionUsadaId: f.recuperacion_usada_id, creadaEl: aInstante(f.creado_el), creadaPor: actor(f.creado_por),
     canceladaEl: aInstanteONull(f.cancelado_el), canceladaPor: f.cancelado_por,
+    ...(f.cancelacion_libre ? { cancelacionLibre: true } : {}),
   };
 }
 
@@ -487,13 +490,14 @@ export function aClaseQuitada(f: FilaClaseQuitada): { plantillaId: string; fecha
   return { plantillaId: f.plantilla_id, fecha: f.fecha };
 }
 
-export interface FilaListaEspera { id: string; clase_id: string; cliente_id: string; reserva_cambio_id: string | null; creado_el: string }
+export interface FilaListaEspera { id: string; clase_id: string; cliente_id: string; reserva_cambio_id: string | null; creado_el: string; contrato_fijo_id?: string | null }
 /** Vista mi_lista_espera (0021): la posición del alumno autenticado en cada lista. */
 export interface FilaMiListaEspera { id: string; clase_id: string; posicion: number }
 export function aEntradaListaEspera(f: FilaListaEspera, posicion?: number): EntradaListaEspera {
   return {
     ...(posicion !== undefined ? { posicion } : {}),
     id: f.id, claseId: f.clase_id, clienteId: f.cliente_id, reservaCambioId: f.reserva_cambio_id, creadaEl: aInstante(f.creado_el),
+    ...(f.contrato_fijo_id ? { contratoFijoId: f.contrato_fijo_id } : {}),
   };
 }
 

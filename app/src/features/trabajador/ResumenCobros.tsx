@@ -93,16 +93,18 @@ export function ResumenCobros() {
         )}
         {pestana === 'SIN_COBRO' && (
           <>
-            <p className="px-4 pt-4 text-sm text-ink-muted flex gap-2"><UserX className="h-4 w-4 shrink-0 mt-0.5" /> Alumnos con tarifa mensual en {nombreMes(mes)} que no tienen ningún cobro apuntado ese mes, ni pagado ni pendiente. Revisa si pagaron y no se apuntó.</p>
+            <p className="px-4 pt-4 text-sm text-ink-muted flex gap-2"><UserX className="h-4 w-4 shrink-0 mt-0.5" /> Alumnos con tarifa mensual en {nombreMes(mes)} a los que les falta el cobro de <strong className="text-ink">{nombreMes(mes)}</strong> (ni pagado ni pendiente). Los meses anteriores no cuentan aquí: debajo de cada uno sale su último cobro. Apúntalo desde su ficha (Tarifa → Cobros → Añadir cobro).</p>
             <Lista vacio={`Todos los alumnos con tarifa mensual tienen su cobro de ${nombreMes(mes)} apuntado.`}>
               {r.sinCobro.map(({ cliente: c, contrato }) => {
                 const tarifa = db.tarifas.find((t) => t.id === contrato.tarifaId);
+                const ultimo = db.pagos.filter((p) => p.clienteId === c.id && p.estado !== 'CANCELADO').sort((a, b) => b.mes.localeCompare(a.mes))[0];
                 return (
                   <li key={c.id}>
                     <Link to={`/clientes/${c.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-sand tap">
                       <span className="flex-1 min-w-0">
                         <span className="block font-semibold truncate">{nombreCompleto(c)}{!c.activo && <span className="text-rose font-normal"> · de baja</span>}</span>
                         <span className="block text-sm text-ink-muted truncate">{tarifa?.nombre ?? '—'} · {fechaMedia(contrato.fechaInicio)} → {fechaMedia(contrato.fechaFin)}</span>
+                        <span className="block text-sm truncate"><span className="text-rose font-medium">Falta {nombreMes(mes)}</span><span className="text-ink-muted"> · último cobro: {ultimo ? `${tituloCobro(ultimo)} (${ultimo.estado === 'PAGADO' ? 'cobrado' : 'pendiente'})` : 'ninguno'}</span></span>
                       </span>
                       {contrato.importeCentimos != null && <span className="font-semibold tabular-nums">{euros(contrato.importeCentimos)}</span>}
                       <ChevronRight className="h-5 w-5 text-ink-muted shrink-0" />

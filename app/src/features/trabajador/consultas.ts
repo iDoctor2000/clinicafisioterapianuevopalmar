@@ -4,6 +4,7 @@ import { es } from 'date-fns/locale';
 import type { Actividad, Clase, Cliente, Contrato, DiaSemana, EntradaListaEspera, Id, ISODate, PlantillaClase, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import type { Db } from '@/data/db';
 import { contratoActivoDe, recuperacionesDisponiblesDe, tarifaDe, vistaClase, type ClaseVista } from '@/data/selectores';
+import { ordenListaEspera } from '@/domain/rules';
 import { aISODate, diaSemanaDe, diasEntre, esPasada, estaEntre, inicioSemana, sumarDias } from '@/domain/fechas';
 
 // ---------------------------------------------------------------------------
@@ -222,7 +223,7 @@ export interface EsperaDeClase { entrada: EntradaListaEspera; cliente: Cliente |
 export function listaEsperaDeClase(db: Db, claseId: Id): EsperaDeClase[] {
   return db.listaEspera
     .filter((e) => e.claseId === claseId)
-    .sort((a, b) => a.creadaEl.localeCompare(b.creadaEl) || a.id.localeCompare(b.id))
+    .sort(ordenListaEspera)
     .map((entrada, i) => {
       const reserva = entrada.reservaCambioId ? db.reservas.find((r) => r.id === entrada.reservaCambioId) : null;
       const clase = reserva ? db.clases.find((c) => c.id === reserva.claseId) : null;
