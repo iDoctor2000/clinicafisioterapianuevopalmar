@@ -74,7 +74,7 @@ export function HojaRenovarContratos({ onCerrar }: { onCerrar: () => void }) {
   const [confirmar, setConfirmar] = useState(false);
   const [renovando, setRenovando] = useState(false);
   const marcados = lista.filter((x) => !desmarcados.has(x.contrato.id));
-  const cobros = marcados.reduce((s, x) => s + cobrosDeRenovacion(x.contrato, hasta, db.pagos).length, 0);
+  const cobros = marcados.reduce((s, x) => s + cobrosDeRenovacion(x.contrato, hasta, db.pagos, db.tarifas.find((t) => t.id === x.contrato.tarifaId)?.precioCentimos ?? null).length, 0);
   const alternar = (id: string) => setDesmarcados((d) => { const n = new Set(d); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const hastaValida = hasta > hoy;
 

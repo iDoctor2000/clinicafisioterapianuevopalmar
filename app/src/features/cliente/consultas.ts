@@ -3,7 +3,7 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Actividad, Categoria, Clase, Contrato, EntradaListaEspera, Id, ISODate, ISOInstant, PlantillaClase, Recuperacion, Reserva, Tarifa, Trabajador } from '@/domain/types';
 import { CATEGORIA_LABEL } from '@/domain/types';
-import { evaluarReserva, listaEsperaCerrada, motivoNoCambio, sesionesPrevistas, type EvaluacionReserva } from '@/domain/rules';
+import { evaluarReserva, listaEsperaCerrada, motivoNoCambio, sesionesPrevistas, type EvaluacionReserva, ordenListaEspera } from '@/domain/rules';
 import { aISODate, diasEntre, esPasada, fechaCorta, inicioSemana, sumarDias, DIAS_SEMANA_LABEL } from '@/domain/fechas';
 import { indexar, type Db } from '@/data/db';
 import { clasesDelDia, contratoActivoDe, recuperacionesDisponiblesDe, reservasDeCliente, tarifaDe, vistaClase, type ClaseVista, type ReservaVista } from '@/data/selectores';
@@ -49,7 +49,7 @@ export function miEntradaEnLista(db: Db, clienteId: Id, claseId: Id): EntradaLis
 /** Posición en la lista: la del servidor o, en la demo, contando las entradas anteriores de esa clase. */
 export function posicionEnLista(db: Db, entrada: EntradaListaEspera): number {
   if (entrada.posicion) return entrada.posicion;
-  return db.listaEspera.filter((e) => e.claseId === entrada.claseId && (e.creadaEl < entrada.creadaEl || (e.creadaEl === entrada.creadaEl && e.id < entrada.id))).length + 1;
+  return db.listaEspera.filter((e) => e.claseId === entrada.claseId && ordenListaEspera(e, entrada) < 0).length + 1;
 }
 
 /** Cuántos esperan plaza en una clase (la cifra del servidor o, si es mayor, las entradas cargadas). */

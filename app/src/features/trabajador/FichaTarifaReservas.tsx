@@ -372,7 +372,9 @@ export function PestanaReservas({ cliente }: { cliente: Cliente }) {
   const lista = vista === 'PROXIMAS' ? proximas : pasadas;
   const clases = new Map(db.clases.map((c) => [c.id, c]));
   const claseCancelar = cancelar ? clases.get(cancelar.claseId) : null;
-  const clasif = claseCancelar ? clasificarCancelacion(claseCancelar, ahora, db.config) : null;
+  const clasifBase = claseCancelar ? clasificarCancelacion(claseCancelar, ahora, db.config) : null;
+  // 0050: entró sola desde la lista de espera de su clase fija: cancelar nunca le hace perder la clase.
+  const clasif = clasifBase && cancelar?.cancelacionLibre ? { ...clasifBase, recuperable: true } : clasifBase;
 
   const confirmarCancelar = async () => {
     if (!cancelar) return;

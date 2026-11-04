@@ -131,12 +131,15 @@ export function HojaCancelar({ vista, onCerrar }: { vista: ReservaVista | null; 
   if (!vista) return null;
   const { reserva, clase, actividad, monitor } = vista;
   const ahora = new Date();
-  const clasif = clasificarCancelacion(clase, ahora, db.config);
+  // 0050: si entró sola desde la lista de espera de su clase fija, cancelar nunca le hace perder la clase.
+  const clasif = reserva.cancelacionLibre ? { recuperable: true } : clasificarCancelacion(clase, ahora, db.config);
   const limite = db.config.minutosAntelacionCancelacion;
   const limiteTxt = limite % 60 === 0 ? `${limite / 60} ${limite === 60 ? 'hora' : 'horas'}` : `${limite} minutos`;
 
   let explicacion: ReactNode;
-  if (clasif.recuperable) {
+  if (reserva.cancelacionLibre) {
+    explicacion = 'Te apuntamos solos cuando se liberó sitio en tu clase fija: si no puedes venir, cancélala sin problema y podrás recuperarla otro día.';
+  } else if (clasif.recuperable) {
     if (reserva.origen === 'RECUPERACION') explicacion = `Cancelas con más de ${limiteTxt} de antelación: te devolveremos la recuperación que usaste para reservar.`;
     else if (reserva.origen === 'BONO') explicacion = `Cancelas con más de ${limiteTxt} de antelación: te devolveremos la sesión a tu bono.`;
     else explicacion = `Si cancelas ahora, con más de ${limiteTxt} de antelación, podrás recuperar esta clase otro día.`;

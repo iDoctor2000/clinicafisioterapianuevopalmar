@@ -39,6 +39,8 @@ export interface Db {
   listaEspera: EntradaListaEspera[];
   /** Días de una franja cuya clase se quitó a propósito: no se vuelven a generar (0042) hasta que se vuelva a guardar la franja (0047). Solo lo ve el personal. */
   clasesQuitadas?: { plantillaId: Id; fecha: ISODate }[];
+  /** Clases fijas de cuya lista de espera salió el alumno: no se le vuelve a apuntar (0050). Solo en la demo. */
+  listaEsperaRechazos?: { claseId: Id; clienteId: Id }[];
 }
 
 import type { Tarifa } from '@/domain/types';

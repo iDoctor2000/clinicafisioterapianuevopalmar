@@ -189,7 +189,7 @@ export function DetalleClase() {
                     <div className="flex-1 min-w-0">
                       <Link to={`/clientes/${e.entrada.clienteId}`} className="font-semibold hover:underline block truncate">{nombreCompleto(e.cliente)}</Link>
                       <p className="text-sm text-ink-muted">
-                        {e.cambio ? `A cambio de su clase de ${e.cambio.actividad?.nombre ?? ''} del ${fechaCorta(e.cambio.clase.fecha)} a las ${e.cambio.clase.horaInicio}` : 'Reservaría con su tarifa'} · desde el {fechaCorta(e.entrada.creadaEl.slice(0, 10))}
+                        {e.entrada.contratoFijoId ? 'Es su clase fija: entra la primera si se libera sitio' : e.cambio ? `A cambio de su clase de ${e.cambio.actividad?.nombre ?? ''} del ${fechaCorta(e.cambio.clase.fecha)} a las ${e.cambio.clase.horaInicio}` : 'Reservaría con su tarifa'} · desde el {fechaCorta(e.entrada.creadaEl.slice(0, 10))}
                       </p>
                     </div>
                     {puede('RESERVAS_GESTIONAR') && (

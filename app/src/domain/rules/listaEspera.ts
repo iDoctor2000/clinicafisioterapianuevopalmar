@@ -2,8 +2,13 @@
  * Lista de espera (0021): quién puede apuntarse a una clase completa y cuándo entra.
  * Las reglas de verdad viven en SQL (_promover_lista_espera); esto es el espejo para la demo y la UI.
  */
-import type { Actividad, Clase, ConfigCentro, Contrato, Reserva, Tarifa } from '../types';
+import type { Actividad, Clase, ConfigCentro, Contrato, EntradaListaEspera, Reserva, Tarifa } from '../types';
 import { minutosHasta, mismaSemana } from '../fechas';
+
+/** Orden de la lista de espera: primero los alumnos fijos de esa clase (0050), después por orden de llegada. */
+export function ordenListaEspera(a: Pick<EntradaListaEspera, 'id' | 'creadaEl' | 'contratoFijoId'>, b: Pick<EntradaListaEspera, 'id' | 'creadaEl' | 'contratoFijoId'>): number {
+  return Number(!a.contratoFijoId) - Number(!b.contratoFijoId) || a.creadaEl.localeCompare(b.creadaEl) || a.id.localeCompare(b.id);
+}
 
 /** Horas antes de la clase a partir de las cuales la lista de espera deja de actuar. */
 export const HORAS_CIERRE_LISTA_ESPERA = 2;

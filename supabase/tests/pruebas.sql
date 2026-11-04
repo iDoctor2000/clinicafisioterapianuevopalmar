@@ -2847,5 +2847,141 @@ do $$ begin
 end $$;
 delete from public.equipo_aperturas;
 
+\echo '== 56. Un alumno fijo sin plaza en su clase va el primero en la lista de espera y entra solo (0050)'
+select pruebas.sistema();
+select pruebas.guardar('pl_56', 'd0000000-0000-4000-8000-000000000560');
+select pruebas.guardar('f_56', (public._hoy() + 8)::text);
+insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
+  values (pruebas.id('pl_56'), pruebas.id('act_suelo'), extract(isodow from pruebas.fecha('f_56'))::int, '13:30', 55, pruebas.id('tra_admin'), 1);
+select public._generar_clases(public._hoy(), public._hoy() + 30);
+select pruebas.guardar('cl_56', pruebas.clase(pruebas.id('pl_56'), pruebas.fecha('f_56'))::text);
+select pruebas.guardar('cl_56b', pruebas.clase(pruebas.id('pl_56'), pruebas.fecha('f_56') + 7)::text);
+select pruebas.guardar('cl_56c', pruebas.clase(pruebas.id('pl_56'), pruebas.fecha('f_56') + 14)::text);
+-- O ocupa la única plaza; W ya esperaba (desde hace una hora); F es fija de esa franja.
+select pruebas.guardar('cli_o56', 'e0000000-0000-4000-8000-000000000561');
+select pruebas.guardar('cli_w56', 'e0000000-0000-4000-8000-000000000562');
+select pruebas.guardar('cli_f56', 'e0000000-0000-4000-8000-000000000563');
+select pruebas.guardar('u_f56', '20000000-0000-4000-8000-000000000563');
+insert into auth.users (id, email) values (pruebas.id('u_f56'), 'fija56@test.local') on conflict do nothing;
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_id) values
+  (pruebas.id('cli_o56'), 'Olga', 'Ocupa', '56000001O', 'o56@test.local', '600 000 561', null),
+  (pruebas.id('cli_w56'), 'Wenceslao', 'Espera', '56000002W', 'w56@test.local', '600 000 562', null),
+  (pruebas.id('cli_f56'), 'Fabiola', 'Fija', '56000003F', 'fija56@test.local', '600 000 563', pruebas.id('u_f56')) on conflict (id) do nothing;
+insert into public.reservas (clase_id, cliente_id, origen) values (pruebas.id('cl_56'), pruebas.id('cli_o56'), 'MANUAL');
+select pruebas.guardar('res_o56', (select id::text from public.reservas where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_o56')));
+insert into public.reservas (clase_id, cliente_id, origen) values (pruebas.id('cl_56b'), pruebas.id('cli_o56'), 'MANUAL');
+insert into public.lista_espera (clase_id, cliente_id, creado_el) values (pruebas.id('cl_56'), pruebas.id('cli_w56'), now() - interval '1 hour');
+select pruebas.como('admin');
+select pruebas.guardar('con_f56', public.crear_contrato(pruebas.id('cli_f56'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 30, 'FIJO', array[pruebas.id('pl_56')])::text);
+select pruebas.sistema();
+do $$ begin
+  assert not exists (select 1 from public.reservas where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_f56')), 'sin plaza: no se le apunta';
+  assert (select contrato_fijo_id from public.lista_espera where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_f56')) = pruebas.id('con_f56'), 'queda en la lista como fija';
+end $$;
+-- Su posición: la primera, aunque W llegó antes.
+select pruebas.como('f56');
+do $$ begin
+  assert (select posicion from public.mi_lista_espera where clase_id = pruebas.id('cl_56')) = 1, 'la fija va la primera';
+end $$;
+-- Recepción quita a O (quien gestiona el horario la retendría hasta publicar, 0039): la plaza es para F
+-- (no para W), con su horario fijo, y se le avisa.
+select pruebas.como('recep');
+select public.cancelar_reserva(pruebas.id('res_o56'), true);
+select pruebas.sistema();
+do $$
+declare r public.reservas%rowtype;
+begin
+  select * into r from public.reservas where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_f56') and estado = 'RESERVADA';
+  assert found, 'F entra sola';
+  assert r.origen = 'AUTOMATICA' and r.contrato_id = pruebas.id('con_f56') and r.cancelacion_libre, format('con su horario fijo y cancelación libre: %s', row_to_json(r));
+  assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_f56')), 'sale de la lista';
+  assert exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_w56')), 'W sigue esperando';
+  assert exists (select 1 from public.avisos a join public.aviso_destinatarios d on d.aviso_id = a.id
+                  where d.cliente_id = pruebas.id('cli_f56') and a.titulo like '¡Tienes plaza!%' and a.cuerpo like '%clase fija%no pierdes la clase%'), 'aviso al móvil';
+  assert exists (select 1 from public.auditoria where accion = 'LISTA_ESPERA' and detalle like '%entra desde la lista de espera (FIJO)%'), 'registro';
+end $$;
+-- F cancela tarde (con una antelación mínima enorme): aun así no pierde la clase.
+select pruebas.guardar('antelacion_56', (select minutos_antelacion_cancelacion::text from public.config_centro limit 1));
+update public.config_centro set minutos_antelacion_cancelacion = 100000;
+select pruebas.como('f56');
+select pruebas.guardar('can_56', public.cancelar_reserva((select id from public.reservas where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_f56') and estado = 'RESERVADA'))::text);
+select pruebas.sistema();
+update public.config_centro set minutos_antelacion_cancelacion = current_setting('pruebas.antelacion_56')::int;
+do $$ begin
+  assert (current_setting('pruebas.can_56')::jsonb->>'estado') = 'CANCELADA_RECUPERABLE', format('cancelación libre: %s', current_setting('pruebas.can_56'));
+end $$;
+-- Una reserva normal cancelada igual de tarde sí la pierde (la regla de siempre no cambia); su plaza es para F.
+select pruebas.guardar('res_o56b', (select id::text from public.reservas where clase_id = pruebas.id('cl_56b') and cliente_id = pruebas.id('cli_o56')));
+update public.config_centro set minutos_antelacion_cancelacion = 100000;
+select pruebas.como('recep');
+select pruebas.guardar('can_56b', public.cancelar_reserva(pruebas.id('res_o56b'))::text);
+select pruebas.sistema();
+update public.config_centro set minutos_antelacion_cancelacion = current_setting('pruebas.antelacion_56')::int;
+do $$ begin
+  assert (current_setting('pruebas.can_56b')::jsonb->>'estado') = 'CANCELADA_NO_RECUPERABLE', 'la regla normal sigue igual';
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_56b') and cliente_id = pruebas.id('cli_f56') and estado = 'RESERVADA' and cancelacion_libre), 'F entra también en la de la semana siguiente';
+end $$;
+-- Al cancelar F, el mantenimiento no le vuelve a apuntar a esa clase ni a su lista.
+select public._generar_reservas_automaticas(pruebas.id('con_f56'));
+do $$ begin
+  assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_f56')), 'no vuelve a la lista de una clase que canceló';
+  assert not exists (select 1 from public.reservas where clase_id = pruebas.id('cl_56') and cliente_id = pruebas.id('cli_f56') and estado = 'RESERVADA'), 'ni se le apunta';
+end $$;
+-- Si sale de la lista de su clase fija, no se le vuelve a apuntar a ella.
+delete from public.reservas where clase_id = pruebas.id('cl_56c');
+insert into public.reservas (clase_id, cliente_id, origen) values (pruebas.id('cl_56c'), pruebas.id('cli_o56'), 'MANUAL');
+select public._generar_reservas_automaticas(pruebas.id('con_f56'));
+do $$ begin
+  assert exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_56c') and cliente_id = pruebas.id('cli_f56') and contrato_fijo_id is not null), 'otra semana completa: a la lista';
+end $$;
+select pruebas.como('f56');
+select public.salir_lista_espera(pruebas.id('cl_56c'));
+select pruebas.sistema();
+select public._generar_reservas_automaticas(pruebas.id('con_f56'));
+do $$ begin
+  assert exists (select 1 from public.lista_espera_rechazos where clase_id = pruebas.id('cl_56c') and cliente_id = pruebas.id('cli_f56')), 'anotado';
+  assert not exists (select 1 from public.lista_espera where clase_id = pruebas.id('cl_56c') and cliente_id = pruebas.id('cli_f56')), 'no se le vuelve a apuntar';
+end $$;
+-- Nadie lee los rechazos desde la app.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select pruebas.espera_error('select count(*) from public.lista_espera_rechazos', '%permission denied%');
+commit;
+select pruebas.sistema();
+update public.contratos set estado = 'FINALIZADO' where id = pruebas.id('con_f56');
+delete from public.lista_espera where clase_id in (pruebas.id('cl_56'), pruebas.id('cl_56b'), pruebas.id('cl_56c'));
+
+\echo '== 57. Renovar crea el cobro de cada mes nuevo aunque el contrato no tenga importe acordado (0049)'
+select pruebas.sistema();
+update public.tarifas set precio_centimos = 5800 where id = pruebas.id('tar_dir2');
+select pruebas.guardar('cli_r57', 'e0000000-0000-4000-8000-000000000570');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cli_r57'), 'Rita', 'Renueva', '57000001R', 'r57@test.local', '600 000 570') on conflict (id) do nothing;
+select pruebas.como('admin');
+select pruebas.guardar('con_r57', public.crear_contrato(pruebas.id('cli_r57'), pruebas.id('tar_dir2'), public._hoy() - 20, public._hoy() + 5, 'LIBRE')::text);
+select pruebas.sistema();
+delete from public.pagos where cliente_id = pruebas.id('cli_r57');
+update public.contratos_pago set importe_centimos = null where contrato_id = pruebas.id('con_r57');
+select pruebas.como('admin');
+select pruebas.guardar('rn_57', public.renovar_contratos(array[pruebas.id('con_r57')], (date_trunc('month', public._hoy() + 5) + interval '2 months' - interval '1 day')::date)::text);
+select pruebas.sistema();
+do $$
+declare v jsonb := current_setting('pruebas.rn_57')::jsonb;
+begin
+  assert (v->>'renovados')::int = 1 and (v->>'cobros')::int >= 1, format('renueva y crea cobros: %s', v);
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cli_r57') and estado = 'PENDIENTE' and importe_centimos = 5800) = (v->>'cobros')::int, 'con el precio de la tarifa';
+end $$;
+-- Sin precio en la tarifa ni importe acordado: no hay importe que poner, no se crea.
+update public.tarifas set precio_centimos = null where id = pruebas.id('tar_dir2');
+delete from public.pagos where cliente_id = pruebas.id('cli_r57');
+select pruebas.como('admin');
+select pruebas.guardar('rn_57b', public.renovar_contratos(array[pruebas.id('con_r57')], (select fecha_fin + 40 from public.contratos where id = pruebas.id('con_r57')))::text);
+select pruebas.sistema();
+do $$ begin
+  assert (current_setting('pruebas.rn_57b')::jsonb->>'cobros')::int = 0, 'sin importe: ninguno';
+end $$;
+update public.contratos set estado = 'FINALIZADO' where id = pruebas.id('con_r57');
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'

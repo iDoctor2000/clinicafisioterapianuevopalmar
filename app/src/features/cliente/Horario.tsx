@@ -94,7 +94,7 @@ export function Horario() {
               {cancelada ? <Chip tono="rojo">Cancelada</Chip>
                 : mia ? <Chip tono="beige">Tienes plaza</Chip>
                 : pasada ? <Chip tono="gris">Ya ha empezado</Chip>
-                : espera ? <Chip tono="azul">En lista de espera ({posicionEnLista(db, espera)}º)</Chip>
+                : espera ? <Chip tono="azul">{espera.contratoFijoId ? 'Tu clase fija: ' : ''}En lista de espera ({posicionEnLista(db, espera)}º)</Chip>
                 : v.libresAlumnos > 0 ? <Chip tono={v.libresAlumnos <= 2 ? 'ambar' : 'gris'}>{v.libresAlumnos === 1 ? '1 plaza libre' : `${v.libresAlumnos} plazas libres`}</Chip>
                 : <Chip tono="rojo">Completa{enEspera > 0 ? ` · ${enEspera} en espera` : ''}</Chip>}
               {!incluida && !cancelada && !mia && <Chip tono="gris">{compacta ? 'No incluida' : 'No incluida en tu tarifa'}</Chip>}
