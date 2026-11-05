@@ -41,6 +41,12 @@ psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
   "select k.cliente_id, k.fecha_inicio, k.fecha_fin from public.contratos k join public.tarifas t on t.id = k.tarifa_id where k.estado = 'ACTIVO' and t.tipo = 'RECURRENTE'" > "$TMP/mensuales.tsv"
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -c "select public._hoy()" > "$TMP/hoy.txt"
+# Fichas con el mismo nombre que otra (posibles duplicados) y sus cobros: sin nombres, solo iniciales + id corto.
+psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
+  "select c.id, d.id from public.clientes c join public.clientes d on d.id <> c.id
+     and lower(regexp_replace(trim(d.nombre || ' ' || d.apellidos), '\s+', ' ', 'g')) = lower(regexp_replace(trim(c.nombre || ' ' || c.apellidos), '\s+', ' ', 'g'))" > "$TMP/duplicados.tsv"
+psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
+  "select k.cliente_id, k.id, t.nombre, k.fecha_inicio, k.fecha_fin, k.estado from public.contratos k join public.tarifas t on t.id = k.tarifa_id" > "$TMP/contratos.tsv"
 # Historial de cambios de cada contrato mensual activo (para entender un "sin cobro"): sin nombres.
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -q -At -F $'\t' -c \
   "select k.cliente_id, to_char(a.instante at time zone 'Europe/Madrid', 'YYYY-MM-DD HH24:MI'), a.accion, left(public._anonimizar(a.detalle), 140)
@@ -103,6 +109,17 @@ for c in sin:
     print('   %s · contrato %s · cobros: %s' % (quien.get(c, c[:8]), ', '.join('%s→%s' % k for k in contratos_de[c]), ', '.join('%s %s %s' % x for x in cobros[-3:]) or 'ninguno'))
     for h in tsv('historial.tsv'):
         if h[0] == c: print('      %s %s: %s' % (h[1], h[2], h[3]))
+
+ficha = lambda c: '%s · contratos: %s · cobros: %s' % (quien.get(c, c[:8]),
+    ', '.join('%s %s→%s %s' % (k[2], k[3], k[4], k[5].lower()) for k in tsv('contratos.tsv') if k[0] == c) or 'ninguno',
+    ', '.join('%s %s %s' % (p['mes'][:7], p['estado'].lower(), eur(p['imp'])) for p in sorted(pagos, key=lambda p: p['mes']) if p['cli'] == c and p['estado'] != 'CANCELADO') or 'ninguno')
+dups = sorted({tuple(sorted(d)) for d in tsv('duplicados.tsv')})
+print('\n-- Fichas con el mismo nombre (posibles duplicados): %d' % len(dups))
+for a_, b_ in dups:
+    print('   ' + ficha(a_)); print('   = ' + ficha(b_))
+print('\n-- Alumnos de baja con cobros pendientes: detalle')
+for c in sorted({p['cli'] for p in cerr}, key=lambda c: quien.get(c, '')):
+    print('   ' + ficha(c))
 
 raros = [p for p in pagos if re.match(r'(?i)^(mes \d+|renovación) · ', p['concepto'])]
 print('\n-- Cobros con nombre antiguo ("Mes 1 · …"): %d' % len(raros))

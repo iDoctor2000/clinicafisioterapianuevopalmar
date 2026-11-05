@@ -3,7 +3,7 @@
  * Las reglas de verdad viven en SQL (_promover_lista_espera); esto es el espejo para la demo y la UI.
  */
 import type { Actividad, Clase, ConfigCentro, Contrato, EntradaListaEspera, Reserva, Tarifa } from '../types';
-import { minutosHasta, mismaSemana } from '../fechas';
+import { minutosHasta } from '../fechas';
 
 /** Orden de la lista de espera: primero los alumnos fijos de esa clase (0050), después por orden de llegada. */
 export function ordenListaEspera(a: Pick<EntradaListaEspera, 'id' | 'creadaEl' | 'contratoFijoId'>, b: Pick<EntradaListaEspera, 'id' | 'creadaEl' | 'contratoFijoId'>): number {
@@ -24,7 +24,7 @@ export interface ContextoCambio {
   claseDestino: Pick<Clase, 'id' | 'fecha' | 'actividadId'>;
   actividadOrigen: Pick<Actividad, 'nombre' | 'categoria'> | null;
   actividadDestino: Pick<Actividad, 'id' | 'nombre' | 'categoria'>;
-  contrato: Pick<Contrato, 'actividadesPermitidasIds'> | null;
+  contrato: Pick<Contrato, 'actividadesPermitidasIds' | 'fechaInicio' | 'fechaFin'> | null;
   tarifa?: Pick<Tarifa, 'clasesTambienEn' | 'cupos' | 'bono'> | null;
   config: Pick<ConfigCentro, 'minutosAntelacionCancelacion'>;
   ahora: Date;
@@ -40,14 +40,13 @@ export function motivoNoCambio(c: ContextoCambio): string | null {
   if (minutosHasta(claseOrigen.fecha, claseOrigen.horaInicio, c.ahora) < c.config.minutosAntelacionCancelacion) {
     return `Tu clase del ${claseOrigen.fecha.slice(8, 10)}/${claseOrigen.fecha.slice(5, 7)} a las ${claseOrigen.horaInicio} ya no se puede cambiar (hay que hacerlo con ${Math.floor(c.config.minutosAntelacionCancelacion / 60)} horas de antelación).`;
   }
-  if (!mismaSemana(claseOrigen.fecha, claseDestino.fecha)) {
-    return 'Solo se puede cambiar por una clase de la misma semana. Para otra semana, cancela tu clase y apúntate a la lista normalmente.';
-  }
   // 0034: el cambio de categoría vale si la de destino es de la tarifa (volver a su Reformer) o una en la que sus clases también valen.
   const deLaTarifa = (c.tarifa?.cupos ?? []).some((q) => q.categoria === actividadDestino.categoria) || c.tarifa?.bono?.categoria === actividadDestino.categoria;
   if (actividadOrigen && actividadOrigen.categoria !== actividadDestino.categoria && !deLaTarifa && !(c.tarifa?.clasesTambienEn ?? []).includes(actividadDestino.categoria)) {
     return `No se puede cambiar una clase de ${actividadOrigen.nombre.toLowerCase()} por una de ${actividadDestino.nombre.toLowerCase()}.`;
   }
+  // 0051: vale cualquier semana, pero dentro de su contratación.
+  if (c.contrato && (claseDestino.fecha < c.contrato.fechaInicio || claseDestino.fecha > c.contrato.fechaFin)) return 'Esa clase es fuera de las fechas de tu contratación.';
   if (c.contrato && c.contrato.actividadesPermitidasIds.length > 0 && !c.contrato.actividadesPermitidasIds.includes(actividadDestino.id)) {
     return `Tu tarifa no incluye ${actividadDestino.nombre}.`;
   }

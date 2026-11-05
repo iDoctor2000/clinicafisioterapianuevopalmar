@@ -160,7 +160,7 @@ function FilaCobro({ pago, cliente, estado, detalle }: { pago: Pago; cliente: Cl
   const contenido = (
     <>
       <span className="flex-1 min-w-0">
-        <span className="block font-semibold truncate">{cliente ? nombreCompleto(cliente) : 'Alumno'}</span>
+        <span className="block font-semibold truncate">{cliente ? nombreCompleto(cliente) : 'Alumno'}{cliente && !cliente.activo && <span className="text-rose font-normal"> · de baja</span>}</span>
         <span className="block text-sm text-ink-muted truncate">{tituloCobro(pago)} · {detalle}</span>
       </span>
       <span className="font-semibold tabular-nums">{euros(pago.importeCentimos)}</span>

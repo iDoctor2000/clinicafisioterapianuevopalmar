@@ -50,6 +50,7 @@ export function resumenCobrosMes(
   const sinCobro: ResumenCobrosMes['sinCobro'] = [];
   for (const k of db.contratos) {
     if (k.estado === 'CANCELADO' || !mensual.has(k.tarifaId) || k.fechaInicio > fin || k.fechaFin < mes) continue;
+    if (k.importeCentimos === 0) continue; // 0051: importe 0 € = no se cobra
     if (conCobro.has(k.clienteId) || vistos.has(k.clienteId)) continue;
     const cliente = clienteDe.get(k.clienteId);
     if (!cliente || !cliente.activo) continue; // un alumno de baja no se reclama

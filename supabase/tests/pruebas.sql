@@ -1378,8 +1378,10 @@ end $$;
 begin;
 set local role authenticated;
 select pruebas.como('b');
--- Otra semana: no vale como cambio.
-select pruebas.espera_error(format('select public.apuntar_lista_espera(%L, %L)', pruebas.id('cl_x2'), pruebas.id('res_b_mar2')), 'Solo se puede cambiar por una clase de la misma semana.%');
+-- 0051: también vale una clase de otra semana (luego cambia de opinión y elige la de esa semana).
+do $$ begin
+  assert (public.apuntar_lista_espera(pruebas.id('cl_x2'), pruebas.id('res_b_mar2'))->>'posicion')::int = 1, 'a cambio de una clase de otra semana';
+end $$;
 do $$
 declare r jsonb;
 begin
@@ -2982,6 +2984,89 @@ do $$ begin
   assert (current_setting('pruebas.rn_57b')::jsonb->>'cobros')::int = 0, 'sin importe: ninguno';
 end $$;
 update public.contratos set estado = 'FINALIZADO' where id = pruebas.id('con_r57');
+
+\echo '== 58. A cambio de una clase de otra semana; importe 0 € = no se cobra (0051)'
+select pruebas.sistema();
+-- Una clase completa dentro de 9 días; Berta (fija) espera en ella a cambio de su martes de dentro de dos semanas.
+select pruebas.guardar('cl_58', (select id::text from (select gen_random_uuid() as id) x));
+insert into public.clases (id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('cl_58'), pruebas.id('act_suelo'), public._hoy() + 9, '21:00', 55, pruebas.id('tra_ana'), 1, true);
+insert into public.reservas (clase_id, cliente_id, origen) values (pruebas.id('cl_58'), pruebas.id('cliente_c'), 'MANUAL');
+select pruebas.guardar('res_b58', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
+   where r.cliente_id = pruebas.id('cliente_b') and r.estado = 'RESERVADA' and c.fecha >= public._hoy() + 15 and c.fecha <= public._hoy() + 21
+   order by c.fecha limit 1));
+begin;
+set local role authenticated;
+select pruebas.como('b');
+do $$ begin
+  assert pruebas.id('res_b58') is not null, 'Berta tiene una clase fija dentro de dos o tres semanas';
+  assert (public.apuntar_lista_espera(pruebas.id('cl_58'), pruebas.id('res_b58'))->>'posicion')::int = 1, 'se apunta a cambio de una clase de otra semana';
+end $$;
+commit;
+select pruebas.sistema();
+do $$ begin
+  -- Mientras no entra, conserva su clase.
+  assert (select estado from public.reservas where id = pruebas.id('res_b58')) = 'RESERVADA', 'mientras espera, conserva su clase';
+end $$;
+update public.reservas set estado = 'CANCELADA_CENTRO' where clase_id = pruebas.id('cl_58') and cliente_id = pruebas.id('cliente_c');
+do $$ begin
+  assert (select estado from public.reservas where id = pruebas.id('res_b58')) = 'CANCELADA_RECUPERABLE', 'al entrar, su clase de la otra semana se cancela';
+  assert exists (select 1 from public.reservas where clase_id = pruebas.id('cl_58') and cliente_id = pruebas.id('cliente_b') and estado = 'RESERVADA'), 'y entra en la nueva';
+  assert not exists (select 1 from public.recuperaciones where reserva_origen_id = pruebas.id('res_b58')), 'sin recuperación: es un cambio';
+end $$;
+-- Fuera de las fechas de su contratación, no.
+select pruebas.guardar('cl_58b', (select id::text from (select gen_random_uuid() as id) x));
+insert into public.clases (id, actividad_id, fecha, hora_inicio, duracion_min, monitor_id, plazas, extraordinaria)
+  values (pruebas.id('cl_58b'), pruebas.id('act_suelo'), (select fecha_fin + 3 from public.contratos where id = pruebas.id('con_b')), '21:00', 55, pruebas.id('tra_ana'), 1, true);
+insert into public.reservas (clase_id, cliente_id, origen) values (pruebas.id('cl_58b'), pruebas.id('cliente_c'), 'MANUAL');
+select pruebas.guardar('res_b58b', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
+   where r.cliente_id = pruebas.id('cliente_b') and r.estado = 'RESERVADA' and c.fecha > public._hoy() + 2 order by c.fecha limit 1));
+begin;
+set local role authenticated;
+select pruebas.como('b');
+select pruebas.espera_error(format('select public.apuntar_lista_espera(%L, %L)', pruebas.id('cl_58b'), pruebas.id('res_b58b')), '%fuera de las fechas de tu contratación%');
+commit;
+select pruebas.sistema();
+
+-- Importe 0 €: no se cobra.
+update public.tarifas set precio_centimos = 5800 where id = pruebas.id('tar_dir2');
+select pruebas.guardar('cli_s58', 'e0000000-0000-4000-8000-000000000580');
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono) values
+  (pruebas.id('cli_s58'), 'Sonia', 'Sincobro', '58000001S', 's58@test.local', '600 000 580') on conflict (id) do nothing;
+select pruebas.como('admin');
+select pruebas.guardar('con_s58', public.crear_contrato(pruebas.id('cli_s58'), pruebas.id('tar_dir2'), public._hoy() - 20, public._hoy() + 5, 'LIBRE',
+  p_importe_centimos => 5800, p_cobros => jsonb_build_array(jsonb_build_object('concepto', 'Este mes', 'importe_centimos', 5800, 'vence_el', public._hoy() - 20, 'mes', date_trunc('month', public._hoy())::date, 'estado', 'PENDIENTE')))::text);
+select pruebas.sistema();
+do $$ begin
+  assert (select count(*) from public.pagos where cliente_id = pruebas.id('cli_s58') and estado = 'PENDIENTE') = 1, 'un pendiente';
+end $$;
+select pruebas.como('admin');
+select public.editar_contrato(pruebas.id('con_s58'), (select fecha_fin from public.contratos where id = pruebas.id('con_s58')), p_importe_centimos => 0);
+select pruebas.guardar('rn_58', public.renovar_contratos(array[pruebas.id('con_s58')], (select fecha_fin + 40 from public.contratos where id = pruebas.id('con_s58')))::text);
+select pruebas.sistema();
+do $$ begin
+  assert not exists (select 1 from public.pagos where cliente_id = pruebas.id('cli_s58') and estado = 'PENDIENTE'), 'con 0 € los pendientes se quitan';
+  assert (current_setting('pruebas.rn_58')::jsonb->>'cobros')::int = 0, 'y renovar no crea cobros';
+end $$;
+update public.tarifas set precio_centimos = null where id = pruebas.id('tar_dir2');
+update public.contratos set estado = 'FINALIZADO' where id = pruebas.id('con_s58');
+
+\echo '== 59. Ficha duplicada de baja: su pendiente sobra si la activa ya tiene ese mes (0051)'
+select pruebas.sistema();
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono, activo) values
+  ('e0000000-0000-4000-8000-000000000591', 'Alicia', 'Doble  Ficha', '', '', '', true),
+  ('e0000000-0000-4000-8000-000000000592', 'alicia', 'Doble Ficha', '', '', '', false) on conflict (id) do nothing;
+insert into public.pagos (cliente_id, concepto, importe_centimos, vence_el, mes, estado, proveedor, pagado_el) values
+  ('e0000000-0000-4000-8000-000000000591', 'Noviembre 2026', 5800, date '2026-11-01', date '2026-11-01', 'PAGADO', 'EFECTIVO', now()),
+  ('e0000000-0000-4000-8000-000000000592', 'Noviembre 2026', 5800, date '2026-11-01', date '2026-11-01', 'PENDIENTE', 'SIN_INDICAR', null),
+  ('e0000000-0000-4000-8000-000000000592', 'Diciembre 2026', 5800, date '2026-12-01', date '2026-12-01', 'PENDIENTE', 'SIN_INDICAR', null);
+\ir ../migrations/0051_cambio_cualquier_semana_y_sin_cobro.sql
+do $$ begin
+  assert not exists (select 1 from public.pagos where cliente_id = 'e0000000-0000-4000-8000-000000000592' and mes = date '2026-11-01'), 'el noviembre de la duplicada sobra';
+  assert exists (select 1 from public.pagos where cliente_id = 'e0000000-0000-4000-8000-000000000592' and mes = date '2026-12-01'), 'diciembre (la activa no lo tiene) se queda';
+  assert exists (select 1 from public.pagos where cliente_id = 'e0000000-0000-4000-8000-000000000591' and estado = 'PAGADO'), 'el cobrado de la activa se queda';
+end $$;
+delete from public.pagos where cliente_id in ('e0000000-0000-4000-8000-000000000591', 'e0000000-0000-4000-8000-000000000592');
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

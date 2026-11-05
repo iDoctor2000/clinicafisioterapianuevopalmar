@@ -70,7 +70,9 @@ export function opcionesDeCambio(db: Db, clienteId: Id, claseId: Id, ahora: Date
   if (!destino) return [];
   const actividadDestino = db.actividades.find((a) => a.id === destino.actividadId)!;
   return reservasDeCliente(db, clienteId)
-    .filter((v) => v.reserva.estado === 'RESERVADA' && v.clase.id !== claseId && mismaSemanaISO(v.clase.fecha, destino.fecha) && !esPasada(v.clase.fecha, v.clase.horaInicio, ahora))
+    // 0051: cualquier clase futura suya (antes, solo las de esa semana), por fecha.
+    .filter((v) => v.reserva.estado === 'RESERVADA' && v.clase.id !== claseId && !esPasada(v.clase.fecha, v.clase.horaInicio, ahora))
+    .sort((a, b) => a.clase.fecha.localeCompare(b.clase.fecha) || a.clase.horaInicio.localeCompare(b.clase.horaInicio))
     .map((vista) => ({
       vista,
       motivo: motivoNoCambio({
@@ -78,10 +80,6 @@ export function opcionesDeCambio(db: Db, clienteId: Id, claseId: Id, ahora: Date
         contrato: vista.reserva.contratoId ? db.contratos.find((c) => c.id === vista.reserva.contratoId) ?? null : null, config: db.config, ahora,
       }),
     }));
-}
-
-function mismaSemanaISO(a: ISODate, b: ISODate): boolean {
-  return inicioSemana(a) === inicioSemana(b);
 }
 
 export interface EsperaVista { entrada: EntradaListaEspera; vista: ClaseVista; posicion: number; cambio: ReservaVista | null }

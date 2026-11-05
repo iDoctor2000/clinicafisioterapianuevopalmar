@@ -1091,7 +1091,10 @@ export function editarContrato(ctx: Ctx, args: { contratoId: Id; cambios: Cambio
   };
   let reservas = db.reservas.filter((r) => !sobra(r));
   reservas = generarReservasAutomaticas(contrato, db.clases.filter((c) => args.cambios.incluirPasadas || c.fecha >= hoy), reservas, () => nuevoId('res'), ahora.toISOString()).reservas;
-  const nuevo: Db = fijosAListaEspera(quitarCobrosFueraDeContrato({ ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas }, [contrato]), ahora);
+  // 0051: importe 0 € = no se cobra: sus cobros pendientes dejan de deberse.
+  const sinCobro = contrato.importeCentimos === 0 && actual.importeCentimos !== 0;
+  const pagos = sinCobro ? db.pagos.filter((p) => !(p.contratoId === contrato.id && p.estado === 'PENDIENTE')) : db.pagos;
+  const nuevo: Db = fijosAListaEspera(quitarCobrosFueraDeContrato({ ...db, contratos: db.contratos.map((c) => (c.id === contrato.id ? contrato : c)), reservas, pagos }, [contrato]), ahora);
   return ok(auditar(nuevo, sesion, ahora, 'EDITAR_CONTRATO', 'contrato', contrato.id, `${nombreCliente(db, contrato.clienteId)}: fin ${contrato.fechaFin}`), contrato);
 }
 

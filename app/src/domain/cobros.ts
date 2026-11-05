@@ -137,6 +137,8 @@ export function planDeCobros(args: {
   importeCentimos: number | null;
 }): CuotaPlan[] {
   const { tarifa, inicio, fin, oferta } = args;
+  // 0051: importe acordado 0 € = no se cobra (familia, cortesía): ningún cobro.
+  if (args.importeCentimos === 0) return [];
   const base = args.importeCentimos ?? tarifa.precioCentimos ?? 0;
   if (tarifa.tipo !== 'RECURRENTE') return [{ concepto: tarifa.nombre, importeCentimos: base, venceEl: inicio, mes: mesDe(inicio) }];
   const trimestral = oferta === 'TRIMESTRAL' ? importesOfertaTrimestral(tarifa.descripcion) : null;
