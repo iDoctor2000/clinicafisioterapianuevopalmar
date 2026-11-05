@@ -274,7 +274,7 @@ function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { 
         {mia ? (
           <Nota tono="ok">Tienes plaza en esta clase{mia.origen === 'RECUPERACION' ? ' (con una recuperación)' : mia.origen === 'BONO' ? ' (de tu bono)' : ''}.</Nota>
         ) : espera ? (
-          <Nota tono="info">Estás en la lista de espera (posición {posicionEnLista(db, espera)}). Si se libera una plaza, entrarás automáticamente y te avisaremos{espera.reservaCambioId ? '; tu otra clase de esa semana se cambiará por esta' : ''}.</Nota>
+          <Nota tono="info">Estás en la lista de espera (posición {posicionEnLista(db, espera)}). Si se libera una plaza, entrarás automáticamente y te avisaremos{espera.reservaCambioId ? '; tu otra clase se cambiará por esta (mientras tanto, la conservas)' : ''}.</Nota>
         ) : ev?.ok ? (
           <Nota tono="ok">{viaTexto}</Nota>
         ) : ev && ev.codigo === 'SIN_PLAZAS' && clase.estado === 'PROGRAMADA' && !ofrecerLista ? (
@@ -300,8 +300,8 @@ function HojaDetalleClase({ vista, ahora, onCerrar, onReservar, onCancelar }: { 
               <label className={cn('flex items-start gap-3 rounded-xl bg-white p-3 cursor-pointer border', modo === 'CAMBIO' ? 'border-brand-500' : 'border-transparent')}>
                 <input type="radio" name="modo-espera" className="mt-1 h-5 w-5 accent-brand-500" checked={modo === 'CAMBIO'} onChange={() => setModo('CAMBIO')} />
                 <span className="min-w-0 flex-1">
-                  <span className="font-semibold block">A cambio de otra clase mía de esa semana</span>
-                  <span className="text-sm text-ink-soft block">Si entro, mi reserva antigua pasa a esta clase (no gasto nada).</span>
+                  <span className="font-semibold block">A cambio de otra clase mía</span>
+                  <span className="text-sm text-ink-soft block">Si entro, esa clase mía se cancela y paso a esta (no gasto nada). Si no entro, la conservo.</span>
                   {modo === 'CAMBIO' && (
                     <span className="grid gap-1.5 mt-2">
                       {opciones.map((o) => (

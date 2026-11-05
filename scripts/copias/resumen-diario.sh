@@ -213,7 +213,8 @@ select line from (
         ('0047', to_regprocedure('public.restaurar_clase_quitada(uuid, date)') is not null),
         ('0048', to_regprocedure('public.registrar_apertura(text, text, boolean)') is not null),
         ('0049', pg_get_functiondef('public.renovar_contratos(uuid[], date)'::regprocedure) like '%precio_centimos%'),
-        ('0050', to_regclass('public.lista_espera_rechazos') is not null))
+        ('0050', to_regclass('public.lista_espera_rechazos') is not null),
+        ('0051', exists (select 1 from pg_trigger where tgname = 'contratos_pago_sin_cobro')))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'

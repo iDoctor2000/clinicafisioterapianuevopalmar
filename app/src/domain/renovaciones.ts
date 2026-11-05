@@ -48,7 +48,8 @@ function mesesNuevos(desde: ISODate, hasta: ISODate): ISODate[] {
  */
 export function cobrosDeRenovacion(contrato: Contrato, hasta: ISODate, pagos: Pick<Pago, 'clienteId' | 'estado' | 'mes'>[], precioTarifa: number | null = null): { concepto: string; importeCentimos: number; venceEl: ISODate; mes: ISODate }[] {
   const importe = contrato.importeCentimos ?? precioTarifa;
-  if (importe == null) return [];
+  // 0051: importe acordado 0 € = no se cobra.
+  if (importe == null || importe === 0) return [];
   return mesesNuevos(sumarDias(contrato.fechaFin, 1), hasta)
     .filter((venceEl) => !pagos.some((p) => p.clienteId === contrato.clienteId && p.estado !== 'CANCELADO' && p.mes === mesDe(venceEl)))
     .map((venceEl) => ({ concepto: nombreMesAnio(mesDe(venceEl)), importeCentimos: importe, venceEl, mes: mesDe(venceEl) }));

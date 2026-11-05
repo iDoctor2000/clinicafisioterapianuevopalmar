@@ -40,6 +40,7 @@ export function CamposPago({ datos, onCambio, mensual }: { datos: DatosPago; onC
           {METODOS_PAGO.map((m) => <option key={m} value={m}>{METODO_PAGO_LABEL[m]}</option>)}
         </Seleccion>
       </div>
+      <p className="text-sm text-ink-muted">Pon <strong className="text-ink">0 €</strong> si no paga (familia, cortesía): no se le crearán cobros ni saldrá en «Sin cobro», y se quitan los pendientes que tenga.</p>
     </div>
   );
 }
@@ -47,7 +48,8 @@ export function CamposPago({ datos, onCambio, mensual }: { datos: DatosPago; onC
 /** "Oferta trimestral · 65 €/mes · Bizum" */
 export function textoPago(c: Pick<Contrato, 'oferta' | 'importeCentimos' | 'metodoPago'>, mensual: boolean): string {
   const partes = [OFERTA_LABEL[c.oferta ?? 'NINGUNA']];
-  if (c.importeCentimos != null) partes.push(`${euros(c.importeCentimos)}${mensual ? '/mes' : ''}`);
+  if (c.importeCentimos === 0) partes.push('No se cobra');
+  else if (c.importeCentimos != null) partes.push(`${euros(c.importeCentimos)}${mensual ? '/mes' : ''}`);
   if (c.metodoPago) partes.push(METODO_PAGO_LABEL[c.metodoPago]);
   return partes.join(' · ');
 }
