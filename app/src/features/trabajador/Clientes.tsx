@@ -6,10 +6,10 @@ import { hoyISO } from '@/domain/fechas';
 import { nombreCompleto } from '@/data/selectores';
 import { Boton, Chip, Entrada, Interruptor, Tarjeta, Vacio, toast } from '@/ui';
 import { useTrabajador } from './useTrabajador';
-import { buscarClientes, resumenCliente } from './consultas';
+import { buscarClientes, fichasConMismoNombre, resumenCliente } from './consultas';
 import { pagosVencidos } from '@/domain/cobros';
 import { esCumpleanos } from '@/domain/logros';
-import { AvatarCliente, CampoBusqueda, Encabezado, Segmentado } from './comunes';
+import { AvatarCliente, CampoBusqueda, Confirmacion, Encabezado, Segmentado } from './comunes';
 import { ChipConsentimiento, estadoConsentimiento } from './Consentimientos';
 import { BotonRenovaciones } from './Renovaciones';
 
@@ -127,9 +127,15 @@ export function FormularioCliente({ inicial, onGuardar, textoGuardar = 'Guardar'
 }
 
 export function NuevoCliente() {
-  const { ejecutar } = useTrabajador();
+  const { db, ejecutar } = useTrabajador();
   const navigate = useNavigate();
-  const guardar = async (d: DatosCliente) => {
+  // Ya hay una ficha con ese nombre: se pregunta antes de crear otra (dos fichas de la misma persona descuadran
+  // los cobros: el pago se apunta en una y la otra sigue debiendo).
+  const [duplicado, setDuplicado] = useState<{ datos: DatosCliente; fichas: Cliente[] } | null>(null);
+  const guardar = async (d: DatosCliente, confirmado = false) => {
+    const mismas = confirmado ? [] : fichasConMismoNombre(db, d.nombre, d.apellidos);
+    if (mismas.length > 0) { setDuplicado({ datos: d, fichas: mismas }); return; }
+    setDuplicado(null);
     const r = await ejecutar('guardarCliente', { cliente: { ...d, clinica: { lesiones: '', patologias: '', observaciones: '', actualizadaEl: null }, userId: null, fotoUrl: null, consentimientoEl: null, consentimientoVersion: null } });
     if (r.ok) { toast.ok('Cliente creado.'); navigate(`/clientes/${r.valor.id}`, { replace: true }); } else toast.error(r.error);
   };
@@ -139,9 +145,18 @@ export function NuevoCliente() {
       <Tarjeta className="p-4 sm:p-6">
         <FormularioCliente
           inicial={{ nombre: '', apellidos: '', dni: '', telefono: '', email: '', direccion: '', notificacionesPush: true, activo: true, altaEl: hoyISO(), bajaEl: null, fechaNacimiento: null }}
-          onGuardar={guardar} textoGuardar="Crear cliente" onCancelar={() => navigate('/clientes')}
+          onGuardar={(d) => guardar(d)} textoGuardar="Crear cliente" onCancelar={() => navigate('/clientes')}
         />
       </Tarjeta>
+      <Confirmacion abierta={duplicado != null} onCerrar={() => setDuplicado(null)} titulo="Ya hay una ficha con ese nombre" textoConfirmar="Es otra persona: crear"
+        onConfirmar={() => { if (duplicado) void guardar(duplicado.datos, true); }}>
+        <p>Antes de crear otra, mira si es la misma persona. Si lo es, usa su ficha: con dos fichas, el pago se apunta en una y la otra sigue saliendo como pendiente.</p>
+        <ul className="mt-2 space-y-1">
+          {duplicado?.fichas.map((c) => (
+            <li key={c.id}><Link to={`/clientes/${c.id}`} className="font-semibold underline">{nombreCompleto(c)}</Link>{!c.activo && <span className="text-rose"> · de baja</span>}{c.dni ? ` · DNI ${c.dni}` : ''}{c.telefono ? ` · ${c.telefono}` : ''}</li>
+          ))}
+        </ul>
+      </Confirmacion>
     </div>
   );
 }

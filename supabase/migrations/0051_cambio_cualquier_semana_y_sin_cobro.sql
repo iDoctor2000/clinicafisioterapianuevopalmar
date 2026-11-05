@@ -8,6 +8,10 @@
 --      vez; si no, la conserva.
 --   2. Importe acordado 0 € = no se cobra (familia, cortesía): renovar no crea cobros, y al poner 0 € se quitan
 --      los cobros pendientes de ese contrato.
+--   3. Fichas duplicadas (05/11, Alison): se le dio de alta dos veces; el pago de noviembre se apuntó en la buena
+--      y la otra (dada de baja) seguía saliendo con noviembre «vencido». Se quitan los cobros pendientes de una
+--      ficha de baja cuando otra ficha activa con el mismo nombre ya tiene ese mes apuntado. La app avisa ahora al
+--      crear una ficha con un nombre que ya existe.
 --   Idempotente.
 -- =============================================================================
 
@@ -143,3 +147,23 @@ comment on function public.trg_contratos_pago_sin_cobro() is 'Importe acordado 0
 drop trigger if exists contratos_pago_sin_cobro on public.contratos_pago;
 create trigger contratos_pago_sin_cobro after update of importe_centimos on public.contratos_pago
   for each row execute function public.trg_contratos_pago_sin_cobro();
+
+-- Fichas duplicadas: el pendiente de la ficha de baja sobra si la ficha activa con el mismo nombre ya tiene ese mes.
+do $$
+declare v_n integer;
+begin
+  with dup as (
+    select p.id
+      from public.pagos p
+      join public.clientes b on b.id = p.cliente_id and not b.activo
+      join public.clientes a on a.id <> b.id and a.activo
+       and lower(regexp_replace(trim(a.nombre || ' ' || a.apellidos), '\s+', ' ', 'g')) = lower(regexp_replace(trim(b.nombre || ' ' || b.apellidos), '\s+', ' ', 'g'))
+     where p.estado = 'PENDIENTE'
+       and exists (select 1 from public.pagos q where q.cliente_id = a.id and q.mes = p.mes and q.estado <> 'CANCELADO')
+  ), b as (delete from public.pagos where id in (select id from dup) returning id)
+  select count(*) into v_n from b;
+  if v_n > 0 then
+    perform public._auditar('LIMPIEZA_COBROS', 'sistema', '0051', format('%s cobros pendientes de fichas duplicadas (de baja) quitados: el mes ya está en la ficha activa', v_n));
+  end if;
+  raise notice '0051: % cobros pendientes de fichas duplicadas quitados.', v_n;
+end $$;

@@ -129,6 +129,10 @@ with
           where estado = 'PAGADO' and mes >= (date_trunc('month', (select d from hoy)) - interval '2 months')::date
           group by cliente_id, mes having count(*) > 1) x),
         'Puede ser correcto (su tarifa y un bono). Si es el mismo pago apuntado dos veces, en la app: Más → Cobros → pestaña Repetidos, y se borra el que sobre desde la ficha del alumno.'),
+      -- 0051: la misma persona dada de alta dos veces descuadra los cobros (se paga en una ficha y la otra sigue debiendo).
+      (15, false, 'Alumnos con dos fichas (mismo nombre y apellidos)',
+        (select count(*) from (select lower(regexp_replace(trim(nombre || ' ' || apellidos), '\s+', ' ', 'g')) k from public.clientes group by 1 having count(*) > 1) x),
+        'Puede ser la misma persona dada de alta dos veces. Búscala en Clientes (también entre los de baja): si es la misma, deja una sola ficha con sus datos y cobros. Si son dos personas distintas con el mismo nombre, no hay que hacer nada.'),
       -- 0047: a una franja activa le toca clase un día y no la hay. Si el día está "quitado" (0042) es a propósito (ℹ️);
       -- si no, algo falla en la generación (⚠️). El calendario del personal enseña los dos como hueco.
       (13, true, 'Franjas activas con algún día sin clase en las próximas 4 semanas (sin estar quitado ni ser cierre)',

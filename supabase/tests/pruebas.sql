@@ -3051,5 +3051,22 @@ end $$;
 update public.tarifas set precio_centimos = null where id = pruebas.id('tar_dir2');
 update public.contratos set estado = 'FINALIZADO' where id = pruebas.id('con_s58');
 
+\echo '== 59. Ficha duplicada de baja: su pendiente sobra si la activa ya tiene ese mes (0051)'
+select pruebas.sistema();
+insert into public.clientes (id, nombre, apellidos, dni, email, telefono, activo) values
+  ('e0000000-0000-4000-8000-000000000591', 'Alicia', 'Doble  Ficha', '', '', '', true),
+  ('e0000000-0000-4000-8000-000000000592', 'alicia', 'Doble Ficha', '', '', '', false) on conflict (id) do nothing;
+insert into public.pagos (cliente_id, concepto, importe_centimos, vence_el, mes, estado, proveedor, pagado_el) values
+  ('e0000000-0000-4000-8000-000000000591', 'Noviembre 2026', 5800, date '2026-11-01', date '2026-11-01', 'PAGADO', 'EFECTIVO', now()),
+  ('e0000000-0000-4000-8000-000000000592', 'Noviembre 2026', 5800, date '2026-11-01', date '2026-11-01', 'PENDIENTE', 'SIN_INDICAR', null),
+  ('e0000000-0000-4000-8000-000000000592', 'Diciembre 2026', 5800, date '2026-12-01', date '2026-12-01', 'PENDIENTE', 'SIN_INDICAR', null);
+\ir ../migrations/0051_cambio_cualquier_semana_y_sin_cobro.sql
+do $$ begin
+  assert not exists (select 1 from public.pagos where cliente_id = 'e0000000-0000-4000-8000-000000000592' and mes = date '2026-11-01'), 'el noviembre de la duplicada sobra';
+  assert exists (select 1 from public.pagos where cliente_id = 'e0000000-0000-4000-8000-000000000592' and mes = date '2026-12-01'), 'diciembre (la activa no lo tiene) se queda';
+  assert exists (select 1 from public.pagos where cliente_id = 'e0000000-0000-4000-8000-000000000591' and estado = 'PAGADO'), 'el cobrado de la activa se queda';
+end $$;
+delete from public.pagos where cliente_id in ('e0000000-0000-4000-8000-000000000591', 'e0000000-0000-4000-8000-000000000592');
+
 \echo
 \echo '== Todas las comprobaciones han pasado.'

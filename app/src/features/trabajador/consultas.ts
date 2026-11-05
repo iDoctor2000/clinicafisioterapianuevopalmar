@@ -45,6 +45,13 @@ export function resumenCliente(db: Db, cliente: Cliente, hoy: ISODate): ResumenC
   return { cliente, contrato, tarifa: tarifaDe(db, contrato), recuperaciones: recuperacionesDisponiblesDe(db, cliente.id, hoy).length };
 }
 
+/** Otras fichas con el mismo nombre y apellidos (sin tildes ni mayúsculas): posibles duplicados. */
+export function fichasConMismoNombre(db: Db, nombre: string, apellidos: string, excepto?: Id): Cliente[] {
+  const clave = normalizar(`${nombre} ${apellidos}`).replace(/\s+/g, ' ').trim();
+  if (!clave) return [];
+  return db.clientes.filter((c) => c.id !== excepto && normalizar(`${c.nombre} ${c.apellidos}`).replace(/\s+/g, ' ').trim() === clave);
+}
+
 export function normalizar(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
