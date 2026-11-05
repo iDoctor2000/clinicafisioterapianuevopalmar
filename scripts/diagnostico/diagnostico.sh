@@ -110,8 +110,18 @@ create temp table afectados on commit drop as
     from public.clientes cl
    where exists (select 1 from public.contratos k where k.cliente_id = cl.id and (k.creado_el > :desde or k.actualizado_el > :desde))
       or exists (select 1 from public.reservas r where r.cliente_id = cl.id and (r.cancelado_el > :desde or (r.creado_el > :desde and r.origen <> 'AUTOMATICA')))
-      or exists (select 1 from public.lista_espera e where e.cliente_id = cl.id);
+      or exists (select 1 from public.lista_espera e where e.cliente_id = cl.id)
+      -- También a quien le ha salido algún error en la app (p. ej. «no me deja reservar»).
+      or (to_regclass('public.errores_app') is not null and cl.user_id is not null
+          and exists (select 1 from public.errores_app e where e.user_id = cl.user_id and e.instante > :desde));
 select quien from afectados order by quien;
+
+\echo '== Errores que han visto los alumnos en los últimos días (mensaje sin nombres)'
+select (select a.quien from afectados a join public.clientes cl on cl.id = a.id where cl.user_id = e.user_id) as quien,
+       e.instante at time zone 'Europe/Madrid' as cuando, e.tipo, e.pantalla, left(public._anonimizar(e.mensaje), 160) as mensaje
+  from public.errores_app e
+ where e.instante > :desde and e.tipo_usuario = 'ALUMNO'
+ order by e.instante;
 
 \echo '== Sus contratos'
 select x.quien, left(k.id::text, 8) as contrato, t.nombre as tarifa, k.modalidad, k.fecha_inicio, k.fecha_fin, k.estado, k.sesiones_restantes as sesiones,
