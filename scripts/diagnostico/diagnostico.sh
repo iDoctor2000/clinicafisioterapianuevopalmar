@@ -222,6 +222,30 @@ select (select count(*) from public.pagos) as cobros_totales,
        has_table_privilege('authenticated', 'public.contratos_pago', 'SELECT') as contratos_pago_legible_desde_app,
        has_function_privilege('authenticated', 'public.informe_cambios_hoy()', 'EXECUTE') as informe_bot_ejecutable_desde_app;
 
+\echo '== Cumpleaños: fechas de nacimiento, avisos al móvil del equipo y la tarea de cada mañana (0026)'
+select count(*) filter (where activo) as alumnos_activos,
+       count(*) filter (where activo and fecha_nacimiento is not null) as con_fecha_de_nacimiento,
+       count(*) filter (where activo and fecha_nacimiento is not null
+                          and to_char(fecha_nacimiento, 'MM-DD') between to_char(public._hoy() - 30, 'MM-DD') and to_char(public._hoy(), 'MM-DD')) as cumplidos_ultimos_30_dias,
+       count(*) filter (where activo and fecha_nacimiento is not null
+                          and to_char(fecha_nacimiento, 'MM-DD') between to_char(public._hoy(), 'MM-DD') and to_char(public._hoy() + 30, 'MM-DD')) as cumplen_proximos_30_dias
+  from public.clientes;
+select upper(left(t.nombre, 1)) || '.' || upper(left(coalesce(nullif(t.apellidos, ''), '-'), 1)) || '. ' || left(t.id::text, 8) as quien, t.rol, t.es_monitor,
+       (t.es_monitor or t.rol = 'ADMIN') and t.activo as le_tocan_cumpleanos,
+       (select count(*) from public.suscripciones_push s where s.trabajador_id = t.id) as moviles_con_avisos,
+       (select max(s.creado_el) at time zone 'Europe/Madrid' from public.suscripciones_push s where s.trabajador_id = t.id) as activados_el
+  from public.trabajadores t where t.activo order by t.rol, t.nombre;
+select count(*) as notificaciones_equipo_pendientes, min(creado_el) at time zone 'Europe/Madrid' as la_mas_antigua from public.push_personal_pendientes;
+select to_regclass('cron.job') is not null and to_regclass('cron.job_run_details') is not null as hay_cron \gset
+\if :hay_cron
+select j.jobname, j.schedule, j.active,
+       (select count(*) from cron.job_run_details d where d.jobid = j.jobid and d.start_time > now() - interval '14 days') as ejecuciones_14_dias,
+       (select count(*) from cron.job_run_details d where d.jobid = j.jobid and d.start_time > now() - interval '14 days' and d.status <> 'succeeded') as fallidas_14_dias,
+       (select max(d.start_time) at time zone 'Europe/Madrid' from cron.job_run_details d where d.jobid = j.jobid) as ultima,
+       (select left(d.return_message, 80) from cron.job_run_details d where d.jobid = j.jobid order by d.start_time desc limit 1) as resultado
+  from cron.job j where j.jobname in ('push-cumpleanos', 'mantenimiento-diario');
+\endif
+
 \echo '== Permisos de las tablas que usa la función de notificaciones (enviar-push usa el rol service_role)'
 select r.rolname as rol, r.rolbypassrls as salta_rls,
        t.tabla,
