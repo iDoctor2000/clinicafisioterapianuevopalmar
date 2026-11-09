@@ -93,7 +93,7 @@ export function ResumenCobros() {
         )}
         {pestana === 'SIN_COBRO' && (
           <>
-            <p className="px-4 pt-4 text-sm text-ink-muted flex gap-2"><UserX className="h-4 w-4 shrink-0 mt-0.5" /> Alumnos con tarifa mensual en {nombreMes(mes)} a los que les falta el cobro de <strong className="text-ink">{nombreMes(mes)}</strong> (ni pagado ni pendiente). Los meses anteriores no cuentan aquí: debajo de cada uno sale su último cobro. Apúntalo desde su ficha (Tarifa → Cobros → Añadir cobro).</p>
+            <p className="px-4 pt-4 text-sm text-ink-muted flex gap-2"><UserX className="h-4 w-4 shrink-0 mt-0.5" /><span>Alumnos con tarifa mensual en {nombreMes(mes)} a los que les falta el cobro de <strong className="text-ink">{nombreMes(mes)}</strong> (ni pagado ni pendiente). Los meses anteriores no cuentan aquí: debajo de cada uno sale su último cobro. Apúntalo desde su ficha (Tarifa → Cobros → Añadir cobro): con «Cobrado» si ya pagó, o sin marcarlo para dejarlo pendiente.</span></p>
             <Lista vacio={`Todos los alumnos con tarifa mensual tienen su cobro de ${nombreMes(mes)} apuntado.`}>
               {r.sinCobro.map(({ cliente: c, contrato }) => {
                 const tarifa = db.tarifas.find((t) => t.id === contrato.tarifaId);
