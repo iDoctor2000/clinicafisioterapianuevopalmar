@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Tags, Users, UserCog, type LucideIcon, Trophy, Wallet } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Sun, Tags, Users, UserCog, type LucideIcon, Trophy, Wallet } from 'lucide-react';
 import { useStore } from '@/data/store';
 import { tienePermiso, veFinanzas, type Permiso, type Sesion } from '@/domain/types';
 import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
@@ -16,6 +16,7 @@ interface Item {
 
 const items: Item[] = [
   { to: '/', etiqueta: 'Calendario', icono: CalendarDays, permiso: null, principal: true },
+  { to: '/hoy', etiqueta: 'El día de hoy', icono: Sun, permiso: null },
   { to: '/clientes', etiqueta: 'Clientes', icono: Users, permiso: 'CLIENTES_VER', principal: true },
   { to: '/horarios', etiqueta: 'Horarios', icono: ClipboardList, permiso: null, principal: true }, // 0038: todos lo ven; solo quien gestiona el horario lo edita
   { to: '/avisos', etiqueta: 'Avisos', icono: Bell, permiso: 'AVISOS_ENVIAR', principal: true },

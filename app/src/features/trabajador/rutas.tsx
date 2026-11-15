@@ -14,6 +14,7 @@ import { ResumenCobros } from './ResumenCobros';
 import { Equipo } from './Equipo';
 import { Ajustes } from './Ajustes';
 import { Mas } from './Mas';
+import { Hoy } from './Hoy';
 import { useTrabajador } from './useTrabajador';
 
 /** Redirige al calendario si el trabajador no tiene el permiso necesario. */
@@ -28,6 +29,7 @@ function Requiere({ permiso, admin, finanzas, children }: { permiso?: Permiso; a
 export const rutasTrabajador = (
   <>
     <Route index element={<Calendario />} />
+    <Route path="hoy" element={<Hoy />} />
     <Route path="clase/:id" element={<DetalleClase />} />
     <Route path="clientes" element={<Requiere permiso="CLIENTES_VER"><Clientes /></Requiere>} />
     <Route path="clientes/nuevo" element={<Requiere permiso="CLIENTES_EDITAR"><NuevoCliente /></Requiere>} />
