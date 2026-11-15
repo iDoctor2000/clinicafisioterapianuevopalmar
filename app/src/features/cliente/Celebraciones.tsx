@@ -11,7 +11,7 @@ import type { Cliente, PremioMes, Tarifa } from '@/domain/types';
 import { nombreMes, premioVigente, retoDelMes } from '@/domain/clienteDelMes';
 import { hoyISO } from '@/domain/fechas';
 import {
-  MEDALLAS, MENSAJE_CUMPLEANOS_POR_DEFECTO, MINIMO_CLASES_RESUMEN, anioResumenVisible, calcularMedallas, esCumpleanos, resumenAnual,
+  MEDALLAS, MENSAJE_CUMPLEANOS_POR_DEFECTO, MINIMO_CLASES_RESUMEN, anioResumenVisible, calcularMedallas, esCumpleanos, medallasDelAnio, resumenAnual,
   type ClaseHecha, type IdMedalla, type Medalla,
 } from '@/domain/logros';
 import { useHistorialCliente } from '@/data/logros';
@@ -43,14 +43,18 @@ export function cupoSemanal(tarifa: Tarifa | null): number {
   return Math.max(1, tarifa.cupos.reduce((s, c) => s + c.sesionesSemana, 0));
 }
 
-export function datosResumen(db: Db, cliente: Cliente, clases: ClaseHecha[], anio: number): DatosResumenAlumno {
+export function datosResumen(db: Db, cliente: Cliente, clases: ClaseHecha[], anio: number, tarifa: Tarifa | null): DatosResumenAlumno {
   const resumen = resumenAnual(clases, anio);
+  // Medallas del año: las conseguidas hasta el 31 de diciembre de ese año (en enero se sigue viendo el del año anterior).
+  const finAnio = `${anio}-12-31`;
+  const medallas = medallasDelAnio(calcularMedallas(clases.filter((c) => c.fecha <= finAnio), { cupoSemanal: cupoSemanal(tarifa), hoy: finAnio < hoyISO() ? finAnio : hoyISO() }), anio);
   const monitor = db.trabajadores.find((t) => t.id === resumen.monitorFavoritoId);
   return {
     nombre: cliente.nombre,
     resumen,
     actividad: db.actividades.find((a) => a.id === resumen.actividadFavoritaId)?.nombre ?? null,
     monitor: monitor ? monitor.nombre.split(' ')[0] : null,
+    medallas,
   };
 }
 
@@ -121,7 +125,7 @@ export function Celebraciones() {
   }
   if (paso.tipo === 'CUMPLE') return <TarjetaCumpleanos nombre={cliente.nombre} mensaje={db.config.mensajeCumpleanos?.trim() || MENSAJE_CUMPLEANOS_POR_DEFECTO} onCerrar={siguiente} />;
   if (paso.tipo === 'MEDALLAS') return <CelebracionMedallas medallas={paso.medallas} estreno={paso.estreno} onCerrar={siguiente} />;
-  return <HistoriaResumen datos={datosResumen(db, cliente, clases, paso.anio)} onCerrar={siguiente} />;
+  return <HistoriaResumen datos={datosResumen(db, cliente, clases, paso.anio, tarifa)} onCerrar={siguiente} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,7 +165,7 @@ export function MisLogros() {
 // ---------------------------------------------------------------------------
 
 export function TarjetaResumenInicio() {
-  const { db, cliente } = useCliente();
+  const { db, cliente, tarifa } = useCliente();
   const clases = useHistorialCliente(cliente.id);
   const [abierto, setAbierto] = useState(false);
   const anio = anioResumenVisible(hoyISO(), { activo: db.config.resumenAnualActivo, desde: db.config.resumenAnualDesde, hasta: db.config.resumenAnualHasta });
@@ -173,7 +177,7 @@ export function TarjetaResumenInicio() {
         <span className="flex-1 min-w-0"><span className="block font-serif text-xl leading-tight">Tu {anio} en Pilates</span><span className="block text-sm text-ink-soft">Tu año, en seis pantallas. ¡Y para compartir!</span></span>
         <ChevronRight className="h-5 w-5 text-ink-muted shrink-0" />
       </button>
-      {abierto && <HistoriaResumen datos={datosResumen(db, cliente, clases, anio)} onCerrar={() => setAbierto(false)} />}
+      {abierto && <HistoriaResumen datos={datosResumen(db, cliente, clases, anio, tarifa)} onCerrar={() => setAbierto(false)} />}
     </>
   );
 }

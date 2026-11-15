@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { EstadoMedalla, Medalla, ResumenAnual } from '@/domain/logros';
-import { NOMBRE_MES, textoFalta } from '@/domain/logros';
+import { NOMBRE_MES, desdeResumen, textoFalta } from '@/domain/logros';
 import type { ResumenCentro } from '@/data/logros';
 import { Boton, lanzarConfeti, toast } from '@/ui';
 import { aPng, cargarImagen, compartirImagen, roundRect } from '@/lib/compartir';
@@ -274,10 +274,13 @@ export interface DatosResumenAlumno {
   resumen: ResumenAnual;
   actividad: string | null;
   monitor: string | null;
+  /** Medallas conseguidas ese año (sin "Primera clase"). */
+  medallas?: Medalla[];
 }
 
 export function diapositivasResumen(d: DatosResumenAlumno, onCompartir: () => void, compartiendo: boolean, ejemplo?: boolean): Diapositiva[] {
   const r = d.resumen;
+  const desde = desdeResumen(r);
   const lista: Diapositiva[] = [
     {
       fondo: FONDOS.arena,
@@ -285,7 +288,7 @@ export function diapositivasResumen(d: DatosResumenAlumno, onCompartir: () => vo
         <>
           <img src={`${import.meta.env.BASE_URL}icons/mark.png`} alt="" className="h-14 w-14 rounded-2xl shadow-card mb-6" />
           <Pequeno>Tu {r.anio} en Pilates{ejemplo ? ' · ejemplo' : ''}</Pequeno>
-          <Titulo>{d.nombre}, este año has venido a</Titulo>
+          <Titulo>{d.nombre}, {desde ?? 'este año'} has venido a</Titulo>
           <Grande valor={r.total} />
           <p className="font-serif text-3xl">clases</p>
           <Texto>Eso son <strong>{r.horas} horas</strong> dedicadas a cuidarte. 💛</Texto>
@@ -337,6 +340,25 @@ export function diapositivasResumen(d: DatosResumenAlumno, onCompartir: () => vo
       </>
     ),
   });
+  const medallas = d.medallas ?? [];
+  if (medallas.length > 0) lista.push({
+    fondo: FONDOS.rosa,
+    contenido: (
+      <>
+        <Pequeno>Tus medallas de {r.anio}</Pequeno>
+        <Titulo>{medallas.length === 1 ? 'Has ganado una medalla' : `Has ganado ${medallas.length} medallas`}</Titulo>
+        <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-5 w-full max-w-[20rem]">
+          {medallas.slice(0, 9).map((m) => (
+            <li key={m.id} className="flex flex-col items-center text-center">
+              <IconoMedalla medalla={m} tamano="md" />
+              <span className="mt-2 text-sm font-semibold leading-tight">{m.nombre}</span>
+            </li>
+          ))}
+        </ul>
+        <Texto>{medallas.length >= 4 ? '¡Menuda colección!' : 'Y las que quedan por llegar.'} Las tienes todas en Perfil → Mis logros.</Texto>
+      </>
+    ),
+  });
   lista.push({
     fondo: FONDOS.beige,
     contenido: (
@@ -347,6 +369,7 @@ export function diapositivasResumen(d: DatosResumenAlumno, onCompartir: () => vo
           <p className="lema mt-3">Mi {r.anio} en Pilates</p>
           <p className="font-serif text-6xl mt-2 leading-none">{r.total}</p>
           <p className="font-serif text-xl">clases</p>
+          {desde && <p className="text-xs text-ink-muted">{desde}</p>}
           <p className="text-sm text-ink-soft mt-3">{r.horas} horas{d.actividad ? ` · ${d.actividad}` : ''} · racha de {r.mejorRacha} sem.</p>
         </div>
         <Boton className="mt-7" onClick={onCompartir} cargando={compartiendo}><Share2 className="h-5 w-5" /> Compartir mi año</Boton>
@@ -381,6 +404,8 @@ export async function imagenResumen(d: DatosResumenAlumno): Promise<Blob> {
   g.fillText(String(r.total), W / 2, 1000);
   g.font = '400 80px Georgia, "Playfair Display", serif';
   g.fillText('clases', W / 2, 1110);
+  const desde = desdeResumen(r);
+  if (desde) { g.fillStyle = '#86735F'; g.font = '400 40px Inter, system-ui, sans-serif'; g.fillText(desde, W / 2, 1170); }
   g.fillStyle = '#5C5C5C'; g.font = '400 44px Inter, system-ui, sans-serif';
   const lineas = [`${r.horas} horas cuidándome`, d.actividad ? `Mi favorita: ${d.actividad}` : '', `Mejor racha: ${r.mejorRacha} ${r.mejorRacha === 1 ? 'semana' : 'semanas'}`].filter(Boolean);
   lineas.forEach((t, k) => g.fillText(t, W / 2, 1240 + k * 80));

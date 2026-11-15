@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { Bell, Cake, Eye, Gift, Save, Sparkles, Trophy } from 'lucide-react';
 import { hoyISO } from '@/domain/fechas';
-import { MENSAJE_CUMPLEANOS_POR_DEFECTO, NOMBRE_MES, type ResumenAnual } from '@/domain/logros';
+import { MEDALLAS, MENSAJE_CUMPLEANOS_POR_DEFECTO, NOMBRE_MES, type ResumenAnual } from '@/domain/logros';
 import { mesAnterior, nombreMes } from '@/domain/clienteDelMes';
 import { resumenCentro, type ResumenCentro } from '@/data/logros';
 import { AreaTexto, Boton, Hoja, Interruptor, Seleccion, Tarjeta, toast } from '@/ui';
@@ -16,7 +16,7 @@ import { Seccion } from './comunes';
 
 const EJEMPLO_RESUMEN: ResumenAnual = {
   anio: 0, total: 86, horas: 79, actividadFavoritaId: null, vecesActividadFavorita: 52, actividadesDistintas: 3,
-  horaFavorita: '09:30', deMananas: true, mejorRacha: 14, monitorFavoritoId: null, vecesMonitorFavorito: 40, mesTop: 10, clasesMesTop: 11,
+  horaFavorita: '09:30', deMananas: true, mejorRacha: 14, monitorFavoritoId: null, vecesMonitorFavorito: 40, mesTop: 10, clasesMesTop: 11, primeraClase: null,
 };
 
 /** Día y mes (guardado como MM-DD). */
@@ -155,7 +155,7 @@ export function Sorpresas() {
       {vista === 'CUMPLE' && <TarjetaCumpleanos nombre="Ana" mensaje={f.mensajeCumpleanos.trim() || MENSAJE_CUMPLEANOS_POR_DEFECTO} onCerrar={() => setVista(null)} />}
       {vista === 'RESUMEN' && (
         <HistoriaResumen ejemplo onCerrar={() => setVista(null)}
-          datos={{ nombre: 'Ana', actividad: db.actividades[0]?.nombre ?? 'Pilates Reformer', monitor: db.trabajadores[0]?.nombre.split(' ')[0] ?? null, resumen: { ...EJEMPLO_RESUMEN, anio: anioCentro } }} />
+          datos={{ nombre: 'Ana', actividad: db.actividades[0]?.nombre ?? 'Pilates Reformer', monitor: db.trabajadores[0]?.nombre.split(' ')[0] ?? null, resumen: { ...EJEMPLO_RESUMEN, anio: anioCentro }, medallas: MEDALLAS.filter((m) => ['c25', 'c50', 'racha4', 'racha12', 'madrugador', 'explorador'].includes(m.id)) }} />
       )}
       {vista === 'PREMIO' && <TarjetaPremioMes ejemplo nombre="Ana" mesTexto={nombreMes(mesAnterior(hoy))} clases={12} preguntar onResponder={() => setVista(null)} onCerrar={() => setVista(null)} />}
       {centro && <HistoriaCentro anio={centro.anio} datos={centro.datos} actividad={actividadTop} onCerrar={() => setCentro(null)} />}

@@ -237,6 +237,8 @@ export interface ResumenAnual {
   /** Mes con más clases (1-12). */
   mesTop: number | null;
   clasesMesTop: number;
+  /** Primera clase del año (la app empezó a usarse en otoño de 2026: ese año no empieza en enero). */
+  primeraClase: ISODate | null;
 }
 
 function masRepetido<T>(valores: T[]): { valor: T | null; veces: number } {
@@ -265,7 +267,23 @@ export function resumenAnual(clases: ClaseHecha[], anio: number): ResumenAnual {
     mejorRacha: mejorRacha(delAnio),
     monitorFavoritoId: mon.valor, vecesMonitorFavorito: mon.veces,
     mesTop: mes.valor, clasesMesTop: mes.veces,
+    primeraClase: delAnio[0]?.fecha ?? null,
   };
+}
+
+/**
+ * Si el año del resumen no empieza en enero (primera clase después del 31 de enero: la app se
+ * estrenó a mitad de año o el alumno empezó más tarde), el texto dice "desde el 29 de septiembre"
+ * en lugar de "este año", para no quedarse corto con quien lleva años viniendo.
+ */
+export function desdeResumen(r: Pick<ResumenAnual, 'anio' | 'primeraClase'>): string | null {
+  if (!r.primeraClase || r.primeraClase <= `${r.anio}-01-31`) return null;
+  return `desde el ${Number(r.primeraClase.slice(8, 10))} de ${NOMBRE_MES[Number(r.primeraClase.slice(5, 7)) - 1]}`;
+}
+
+/** Medallas conseguidas en el año del resumen, sin "Primera clase" (para quien venía de antes de la app no es la primera). */
+export function medallasDelAnio(estados: EstadoMedalla[], anio: number): Medalla[] {
+  return estados.filter((e) => e.conseguida && e.medalla.id !== 'primera' && e.conseguidaEl?.startsWith(`${anio}-`)).map((e) => e.medalla);
 }
 
 /** Mínimo de clases en el año para ver "Tu año en Pilates". */
