@@ -1,7 +1,7 @@
 # Política de privacidad y protección de datos
 
 **Aplicación "Nuevo Palmar Pilates"**
-Última actualización: 27 de septiembre de 2026
+Última actualización: 19 de noviembre de 2026
 
 > Borrador preparado para su revisión por la persona responsable de protección de datos de la clínica. Los datos entre corchetes deben completarse o confirmarse antes de publicarlo.
 
@@ -22,7 +22,8 @@ Usamos tus datos únicamente para gestionar tu actividad en el centro de Pilates
 4. **Identificarte en clase** mediante tu fotografía, si decides ponerla.
 5. **Enviarte avisos del centro** (cancelaciones, cambios de horario, clases extraordinarias) dentro de la aplicación y, si lo activas, como notificaciones en tu móvil.
 6. **Felicitarte y reconocer tu constancia**: si nos das tu fecha de nacimiento (es opcional), la usamos únicamente para felicitarte el día de tu cumpleaños. Con tu asistencia la aplicación calcula tus medallas, tu reto del mes y tu resumen anual ("Tu año en Pilates"), que solo ves tú. Si te elegimos **"Cliente del mes"**, tu nombre y la inicial de tu apellido solo se muestran a los demás alumnos si lo aceptas expresamente en la aplicación; si no contestas o dices que no, solo lo ves tú y el personal del centro.
-7. **Elaborar estadísticas internas** de ocupación y asistencia. Para ello los datos se usan de forma agregada, sin identificarte.
+7. **Atender lo que nos escribas desde la aplicación** ("Escribir al centro"): dudas sobre tus clases, cambios de horario o de tarifa, o algo que quieras contarnos antes de venir, y contestarte por el mismo medio.
+8. **Elaborar estadísticas internas** de ocupación y asistencia. Para ello los datos se usan de forma agregada, sin identificarte.
 
 No usamos tus datos para publicidad ni los cedemos a terceros con fines comerciales.
 
@@ -38,11 +39,12 @@ No usamos tus datos para publicidad ni los cedemos a terceros con fines comercia
 | Fecha de nacimiento | Día de tu cumpleaños (opcional), solo para felicitarte | Tú desde la aplicación, o recepción |
 | Reconocimientos | Medallas obtenidas, premios de "Cliente del mes" y tu respuesta sobre si se pueden mostrar a otros alumnos | Automático, y el administrador al elegir el premio |
 | Notificaciones | Identificador técnico de tu dispositivo para enviarte avisos (solo si activas las notificaciones) | Tu dispositivo, al activarlas |
+| Mensajes al centro | Lo que escribes en "Escribir al centro", el motivo que eliges y nuestras respuestas. Si nos cuentas algo sobre una lesión o tu estado físico, lo tratamos como **dato de salud** | Tú, y la dirección del centro al contestarte |
 | Registro de actividad | Fecha y hora de las reservas, cancelaciones y cambios, y quién los realizó | Automático |
 
 ## 4. Con qué base legal
 
-- **Ejecución del contrato** (art. 6.1.b RGPD): gestionar tu tarifa, tus reservas y tus avisos.
+- **Ejecución del contrato** (art. 6.1.b RGPD): gestionar tu tarifa, tus reservas y tus avisos, y atender los mensajes que nos escribas.
 - **Consentimiento explícito** (art. 9.2.a RGPD) para los **datos de salud** y para tu **fotografía**. Puedes retirarlo cuando quieras; hasta entonces el tratamiento realizado es legítimo.
 - **Consentimiento** para las **notificaciones en el móvil**, que activas y desactivas tú desde tu perfil, para la **fecha de nacimiento** (que puedes dejar en blanco o borrar cuando quieras) y para **mostrar a otros alumnos tu premio de "Cliente del mes"**.
 - **Interés legítimo** (art. 6.1.f RGPD) para la seguridad de la aplicación y el registro de actividad.
@@ -50,6 +52,7 @@ No usamos tus datos para publicidad ni los cedemos a terceros con fines comercia
 ## 5. Quién puede ver tus datos
 
 - **El personal del centro**, solo en la medida en que lo necesite para su trabajo. Cada trabajador tiene permisos concretos; por ejemplo, la **información de salud solo es visible para el personal expresamente autorizado**, y los monitores que solo imparten sus clases ven únicamente a sus alumnos.
+- **Los mensajes que escribes al centro** desde la aplicación solo los leen y contestan las personas de la dirección expresamente autorizadas para atender ese buzón: no los ven los monitores ni el resto del personal. La respuesta te llega firmada como "Nuevo Palmar". Escribirnos es voluntario; para una urgencia, llama al centro.
 - **Los demás alumnos** no ven tus datos. La única excepción es el premio "Cliente del mes": si lo ganas **y aceptas expresamente** que se vea, los demás alumnos verán tu nombre y la inicial de tu apellido. El historial de premios lo ve el personal del centro.
 - **Tú**, desde tu perfil, ves tus datos de contacto, tus reservas y tu tarifa. La información de salud la gestiona el personal sanitario; puedes pedir una copia en cualquier momento.
 
@@ -68,6 +71,7 @@ Algunos de estos proveedores pueden realizar transferencias internacionales ampa
 
 - Mientras seas cliente del centro y, después, durante el tiempo necesario para atender responsabilidades legales (con carácter general, **5 años** desde la última contratación).
 - Los datos de salud se conservan mientras dure tu relación con el centro y se eliminan o bloquean cuando dejas de ser cliente, salvo obligación legal de conservación.
+- Los mensajes que nos escribes y nuestras respuestas se conservan mientras seas cliente del centro, para poder seguir la conversación, y se eliminan cuando causas baja definitiva; puedes pedirnos antes que borremos una consulta.
 - La fotografía se elimina en cuanto la quitas desde tu perfil o cuando causas baja.
 - Los identificadores de notificaciones se eliminan cuando desactivas las notificaciones o cuando el dispositivo deja de responder.
 

@@ -58,6 +58,11 @@ export interface ConfigCentro {
   resumenAnualHasta?: string;
   /** Premio "Cliente del mes" (por defecto, activo). */
   clienteDelMesActivo?: boolean;
+  /** Buzón (0052): los alumnos pueden escribir al centro. Ausente = no disponible (aún sin la migración). */
+  buzonActivo?: boolean;
+  /** Buzón: hora desde la que se contesta y hasta la que suena el móvil del equipo ("08:00"–"22:00"). */
+  buzonDesde?: HoraHHmm;
+  buzonHasta?: HoraHHmm;
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +387,38 @@ export interface Aviso {
   importante: boolean;
   publicadoEl: ISOInstant;
   publicadoPor: Id;
+  /** Aviso al alumno de que el centro ha respondido a esta consulta (0052): no sale en la lista de avisos del centro. */
+  consultaId?: Id | null;
+}
+
+// ---------------------------------------------------------------------------
+// Buzón: consultas de los alumnos al centro (0052)
+// ---------------------------------------------------------------------------
+
+export type MotivoConsulta = 'CLASES' | 'LESION' | 'TARIFA' | 'OTRO';
+export type EstadoConsulta = 'PENDIENTE' | 'RESPONDIDA' | 'CERRADA';
+
+export interface MensajeConsulta {
+  id: Id;
+  autor: 'CLIENTE' | 'CENTRO';
+  texto: string;
+  creadoEl: ISOInstant;
+  /** Quién del equipo lo escribió. Solo lo recibe quien atiende el buzón: al alumno le firma "Nuevo Palmar". */
+  trabajadorId?: Id | null;
+}
+
+export interface Consulta {
+  id: Id;
+  clienteId: Id;
+  motivo: MotivoConsulta;
+  estado: EstadoConsulta;
+  creadaEl: ISOInstant;
+  /** Último mensaje o cambio de estado. */
+  actualizadaEl: ISOInstant;
+  /** Última vez que el alumno la abrió: lo posterior del centro está sin leer. */
+  leidaClienteEl: ISOInstant | null;
+  /** Por orden de envío. */
+  mensajes: MensajeConsulta[];
 }
 
 export interface LecturaAviso {
@@ -510,6 +547,13 @@ export interface Trabajador {
    * cambios. Explícito, persona a persona: el rol ADMIN no lo incluye. Solo quien lo tiene puede concederlo.
    */
   gestionaHorario?: boolean;
+  /**
+   * Atiende el buzón de los alumnos (0052): lee y contesta sus consultas. Explícito, persona a persona: el rol
+   * ADMIN no lo incluye. Solo quien lo tiene puede concederlo.
+   */
+  atiendeBuzon?: boolean;
+  /** Si atiende el buzón: quiere que le suene el móvil con las consultas nuevas (por defecto, sí). */
+  buzonPush?: boolean;
 }
 
 export interface RegistroAuditoria {
@@ -537,6 +581,8 @@ export type Sesion =
       veFinanzas?: boolean;
       /** Gestiona el horario y las clases (ver Trabajador.gestionaHorario). */
       gestionaHorario?: boolean;
+      /** Atiende el buzón de los alumnos (ver Trabajador.atiendeBuzon). */
+      atiendeBuzon?: boolean;
     };
 
 export function tienePermiso(sesion: Sesion | null, permiso: Permiso): boolean {
@@ -553,4 +599,9 @@ export function gestionaHorario(sesion: Sesion | null): boolean {
 /** true si la sesión es de un trabajador con acceso a las finanzas. A diferencia de los permisos, el rol ADMIN no lo da. */
 export function veFinanzas(sesion: Sesion | null): boolean {
   return !!sesion && sesion.tipo === 'TRABAJADOR' && sesion.veFinanzas === true;
+}
+
+/** true si la sesión es de un trabajador que atiende el buzón de los alumnos. El rol ADMIN no lo da. */
+export function atiendeBuzon(sesion: Sesion | null): boolean {
+  return !!sesion && sesion.tipo === 'TRABAJADOR' && sesion.atiendeBuzon === true;
 }

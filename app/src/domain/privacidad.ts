@@ -4,7 +4,7 @@
  * qué texto aceptó; si la política cambia, hay que actualizar esta constante (y el .md)
  * y decidir si se vuelve a pedir el consentimiento.
  */
-export const VERSION_POLITICA_PRIVACIDAD = '2026-09-27';
+export const VERSION_POLITICA_PRIVACIDAD = '2026-11-19';
 
 /** Marca con la que el personal registra un consentimiento firmado en papel en recepción. */
 export const CONSENTIMIENTO_PAPEL = 'papel';

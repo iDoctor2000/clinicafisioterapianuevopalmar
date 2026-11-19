@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, CalendarClock, GraduationCap, Landmark, Plus, ShieldCheck } from 'lucide-react';
+import { Building2, CalendarClock, GraduationCap, Inbox, Landmark, Plus, ShieldCheck } from 'lucide-react';
 import type { Ambito, Permiso, RolTrabajador, Trabajador } from '@/domain/types';
 import { AMBITO_DESCRIPCION, AMBITO_LABEL, PERMISOS, PERMISOS_HORARIO, PERMISO_LABEL } from '@/domain/types';
 
@@ -47,6 +47,7 @@ function ChipsTrabajador({ t, finanzas }: { t: Trabajador; finanzas: boolean }) 
       <Chip tono={t.rol === 'ADMIN' ? 'cocoa' : 'gris'}>{ROL_TEXTO[t.rol]}</Chip>
       {finanzas && t.veFinanzas && <Chip tono="cocoa"><Landmark className="h-3.5 w-3.5" /> Finanzas</Chip>}
       {t.gestionaHorario && <Chip tono="azul"><CalendarClock className="h-3.5 w-3.5" /> Horario</Chip>}
+      {t.atiendeBuzon && <Chip tono="beige"><Inbox className="h-3.5 w-3.5" /> Buzón</Chip>}
       {t.esMonitor && t.rol !== 'MONITOR' && <Chip tono="beige">Imparte clases</Chip>}
       {t.rol !== 'ADMIN' && t.ambito === 'SUS_CLASES' && <Chip tono="ambar"><GraduationCap className="h-3.5 w-3.5" /> Solo sus clases</Chip>}
       <Chip tono="azul"><ShieldCheck className="h-3.5 w-3.5" /> {t.rol === 'ADMIN' ? 'todos' : t.permisos.filter((p) => !PERMISOS_HORARIO.includes(p)).length} permisos</Chip>
@@ -88,7 +89,9 @@ function SelectorAmbito({ valor, onCambio, esAdmin }: { valor: Ambito; onCambio:
 }
 
 function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | null; onCerrar: () => void }) {
-  const { ejecutar, sesion } = useTrabajador();
+  const { ejecutar, sesion, dbCompleta } = useTrabajador();
+  // Antes de la migración 0052 nadie atiende el buzón: el interruptor no se enseña.
+  const hayBuzon = dbCompleta.trabajadores.some((t) => t.atiendeBuzon);
   const [f, setF] = useState<Omit<Trabajador, 'id'>>(trabajador ?? { nombre: '', apellidos: '', email: '', telefono: '', rol: 'RECEPCION', permisos: ['CLIENTES_VER', 'RESERVAS_GESTIONAR', 'ASISTENCIA_REGISTRAR'], ambito: 'CENTRO', esMonitor: false, color: COLORES[1], activo: true, userId: null });
   const esYo = trabajador?.id === sesion.trabajadorId;
   const alternar = (p: Permiso) => setF({ ...f, permisos: f.permisos.includes(p) ? f.permisos.filter((x) => x !== p) : [...f.permisos, p] });
@@ -126,6 +129,12 @@ function HojaTrabajador({ trabajador, onCerrar }: { trabajador: Trabajador | nul
           <Interruptor activo={f.gestionaHorario === true} onCambio={(v) => setF({ ...f, gestionaHorario: v })} etiqueta="Gestiona el horario y las clases"
             descripcion={`Crear, cambiar y eliminar franjas; crear, cancelar y reactivar clases; publicar los cambios del horario. No lo da el rol de administrador: se concede persona a persona${sesion.gestionaHorario ? ', y solo por quien ya lo tiene.' : '. Solo puede cambiarlo quien ya lo tiene.'}`}
             deshabilitado={!sesion.gestionaHorario} />
+          {/* 0052: el buzón de los alumnos lo leen solo quienes tienen este interruptor; solo quien lo tiene puede darlo. */}
+          {hayBuzon && (
+            <Interruptor activo={f.atiendeBuzon === true} onCambio={(v) => setF({ ...f, atiendeBuzon: v })} etiqueta="Atiende el buzón de los alumnos"
+              descripcion={`Lee y contesta lo que los alumnos escriben al centro desde la app. No lo da el rol de administrador: se concede persona a persona${sesion.atiendeBuzon ? ', y solo por quien ya lo tiene.' : '. Solo puede cambiarlo quien ya lo tiene.'}`}
+              deshabilitado={!sesion.atiendeBuzon} />
+          )}
         </div>
         <SelectorAmbito valor={f.rol === 'ADMIN' ? 'CENTRO' : f.ambito} onCambio={(a) => setF({ ...f, ambito: a })} esAdmin={f.rol === 'ADMIN'} />
         <div>

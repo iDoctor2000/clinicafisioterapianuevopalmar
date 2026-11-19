@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, LogOut, Settings, ShieldCheck, Sun, Tags, Users, UserCog, type LucideIcon, Trophy, Wallet } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, CircleHelp, ClipboardList, Globe, Inbox, LogOut, Settings, ShieldCheck, Sun, Tags, Users, UserCog, type LucideIcon, Trophy, Wallet } from 'lucide-react';
 import { useStore } from '@/data/store';
-import { tienePermiso, veFinanzas, type Permiso, type Sesion } from '@/domain/types';
+import { atiendeBuzon, tienePermiso, veFinanzas, type Permiso, type Sesion } from '@/domain/types';
+import { consultasPendientes } from '@/domain/buzon';
 import { CabeceraCapa, MenuLateral, manualAyuda, type ItemMenu } from '@/ui';
 import { Avatar } from '@/ui/Avatar';
 import { cn } from '@/lib/cn';
@@ -12,6 +13,7 @@ interface Item {
   to: string; etiqueta: string; icono: LucideIcon; permiso: Permiso | null; principal?: boolean;
   /** Solo para el rol ADMIN (equipo y ajustes). */ soloAdmin?: boolean;
   /** Solo para quien ve las finanzas (0024); para el resto no existe. */ soloFinanzas?: boolean;
+  /** Solo para quien atiende el buzón de los alumnos (0052); para el resto no existe. */ soloBuzon?: boolean;
 }
 
 const items: Item[] = [
@@ -20,6 +22,7 @@ const items: Item[] = [
   { to: '/clientes', etiqueta: 'Clientes', icono: Users, permiso: 'CLIENTES_VER', principal: true },
   { to: '/horarios', etiqueta: 'Horarios', icono: ClipboardList, permiso: null, principal: true }, // 0038: todos lo ven; solo quien gestiona el horario lo edita
   { to: '/avisos', etiqueta: 'Avisos', icono: Bell, permiso: 'AVISOS_ENVIAR', principal: true },
+  { to: '/buzon', etiqueta: 'Buzón', icono: Inbox, permiso: null, soloBuzon: true },
   { to: '/tarifas', etiqueta: 'Tarifas', icono: Tags, permiso: 'TARIFAS_GESTIONAR' },
   { to: '/estadisticas', etiqueta: 'Estadísticas', icono: BarChart3, permiso: 'ESTADISTICAS_VER' },
   { to: '/trofeos', etiqueta: 'Trofeos', icono: Trophy, permiso: 'ESTADISTICAS_VER' },
@@ -34,6 +37,7 @@ const ROL = { ADMIN: 'Administrador', MONITOR: 'Monitor/a', RECEPCION: 'Recepci�
 export function itemVisible(item: Item, sesion: Sesion | null): boolean {
   if (item.soloAdmin && !(sesion?.tipo === 'TRABAJADOR' && sesion.rol === 'ADMIN')) return false;
   if (item.soloFinanzas && !veFinanzas(sesion)) return false;
+  if (item.soloBuzon && !atiendeBuzon(sesion)) return false;
   return !item.permiso || tienePermiso(sesion, item.permiso);
 }
 
@@ -52,10 +56,13 @@ export function CapaTrabajador() {
   const enMovil = visibles.filter((i) => i.principal).slice(0, 4);
   const trabajador = sesion?.tipo === 'TRABAJADOR' ? db.trabajadores.find((t) => t.id === sesion.trabajadorId) : undefined;
   const rol = sesion?.tipo === 'TRABAJADOR' ? ROL[sesion.rol] : '';
+  // Buzón (0052): consultas de alumnos que esperan respuesta (solo las recibe quien lo atiende).
+  const pendientesBuzon = atiendeBuzon(sesion) ? consultasPendientes(db.consultas) : 0;
+  const contadorDe = (to: string) => (to === '/buzon' ? pendientesBuzon : undefined);
 
   const manual = manualAyuda(sesion?.tipo === 'TRABAJADOR' && sesion.rol === 'ADMIN' ? 'administrador' : 'monitor');
   const itemsMenu: ItemMenu[] = [
-    ...visibles.map((i): ItemMenu => ({ to: i.to, etiqueta: i.etiqueta, icono: i.icono, end: i.to === '/' })),
+    ...visibles.map((i): ItemMenu => ({ to: i.to, etiqueta: i.etiqueta, icono: i.icono, end: i.to === '/', contador: contadorDe(i.to) })),
     { etiqueta: 'Clínica Nuevo Palmar', icono: Globe, separador: true, onClick: () => abrirWebClinica() },
     { etiqueta: 'Manual de ayuda', icono: CircleHelp, onClick: () => { window.open(manual, '_blank', 'noopener'); } },
     { to: '/privacidad', etiqueta: 'Política de privacidad', icono: ShieldCheck },
@@ -71,7 +78,8 @@ export function CapaTrabajador() {
         </div>
         {visibles.map((i) => (
           <NavLink key={i.to} to={i.to} end={i.to === '/'} className={({ isActive }) => cn('flex items-center gap-3 px-3 h-11 rounded-xl font-semibold', isActive ? 'bg-beige-100 text-ink' : 'text-ink-soft hover:bg-sand')}>
-            <i.icono className="h-5 w-5" /> {i.etiqueta}
+            <i.icono className="h-5 w-5" /> <span className="flex-1">{i.etiqueta}</span>
+            {(contadorDe(i.to) ?? 0) > 0 && <span className="h-6 min-w-6 px-1.5 rounded-full bg-rose text-white text-xs font-bold flex items-center justify-center">{contadorDe(i.to)}</span>}
           </NavLink>
         ))}
         <div className="mt-auto border-t border-beige-200 pt-3">
@@ -125,7 +133,10 @@ export function CapaTrabajador() {
             <NavLink to="/mas" className={({ isActive }) => cn('flex flex-col items-center justify-center gap-1 h-16 text-[12px] font-semibold tap', isActive ? 'text-ink' : 'text-ink-muted')}>
               {({ isActive }) => (
                 <>
-                  <span className={cn('h-8 w-12 rounded-full flex items-center justify-center', isActive && 'bg-beige-100')}><Settings className="h-6 w-6" /></span>
+                  <span className={cn('relative h-8 w-12 rounded-full flex items-center justify-center', isActive && 'bg-beige-100')}>
+                    <Settings className="h-6 w-6" />
+                    {pendientesBuzon > 0 && <span className="absolute -top-1 right-0 h-5 min-w-5 px-1 rounded-full bg-rose text-white text-[11px] font-bold flex items-center justify-center" aria-label={`${pendientesBuzon} consultas pendientes en el buzón`}>{pendientesBuzon}</span>}
+                  </span>
                   Más
                 </>
               )}

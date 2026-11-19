@@ -7,7 +7,7 @@ import * as comandos from './comandos';
 import { generarClasesPendientes, type Ctx, type Resultado } from './comandos';
 import type { ArgsComando, NombreComando, ValorComando } from './tiposComandos';
 import { hayServidor, servidor } from './supabase/cliente';
-import { cargarDb, cargarPagos } from './supabase/cargar';
+import { cargarConsultas, cargarDb, cargarLecturas, cargarPagos } from './supabase/cargar';
 import { ejecutarRemoto } from './supabase/comandos';
 import * as auth from './supabase/auth';
 import { alRegistrarError, esStandalone, registrar } from '@/lib/diagnostico';
@@ -92,7 +92,7 @@ function sesionDeUsuario(db: Db, userId: string): Sesion | null {
   if (u.tipo === 'TRABAJADOR' && u.trabajadorId) {
     const t = db.trabajadores.find((x) => x.id === u.trabajadorId);
     if (!t) return null;
-    return { tipo: 'TRABAJADOR', userId: u.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true, gestionaHorario: t.gestionaHorario === true };
+    return { tipo: 'TRABAJADOR', userId: u.id, trabajadorId: t.id, nombre: t.nombre, permisos: t.permisos, rol: t.rol, veFinanzas: t.veFinanzas === true, gestionaHorario: t.gestionaHorario === true, atiendeBuzon: t.atiendeBuzon === true };
   }
   return null;
 }
@@ -104,6 +104,14 @@ function sesionDeUsuario(db: Db, userId: string): Sesion | null {
 const recargaParcial: { [K in NombreComando]?: (db: Db) => Promise<Db> } = {
   guardarPago: async (db) => ({ ...db, pagos: await cargarPagos() }),
   borrarPago: async (db) => ({ ...db, pagos: await cargarPagos() }),
+  // Buzón (0052): escribir y contestar solo cambia las consultas (y, al abrirlas el alumno, sus avisos leídos).
+  enviarConsulta: async (db) => ({ ...db, consultas: await cargarConsultas() }),
+  responderConsulta: async (db) => ({ ...db, consultas: await cargarConsultas() }),
+  cerrarConsulta: async (db) => ({ ...db, consultas: await cargarConsultas() }),
+  leerConsulta: async (db) => {
+    const [consultas, lecturas] = await Promise.all([cargarConsultas(), cargarLecturas()]);
+    return { ...db, consultas, lecturas };
+  },
 };
 
 /**
@@ -153,6 +161,9 @@ const despuesDe: { [K in NombreComando]?: (args: ArgsComando<K>, valor: ValorCom
   eliminarPlantilla: () => { void enviarPushPendientes(); },
   // 0039: al publicar se liberan las plazas retenidas y puede entrar gente de la lista de espera.
   publicarCambios: () => { void enviarPushPendientes(); },
+  // 0052: la base de datos deja preparado el aviso al móvil (al equipo o al alumno) y aquí se manda.
+  enviarConsulta: () => { void enviarPushPendientes(); },
+  responderConsulta: () => { void enviarPushPendientes(); },
 };
 
 const crearEstado: StateCreator<Estado> = (set, get) => {

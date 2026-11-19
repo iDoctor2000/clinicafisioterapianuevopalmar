@@ -7,9 +7,11 @@ import { useTrabajador } from './useTrabajador';
 import { Avatar, Encabezado, ROL_TEXTO } from './comunes';
 import { AvisosMovil } from './AvisosMovil';
 import { AMBITO_LABEL } from '@/domain/types';
+import { consultasPendientes } from '@/domain/buzon';
 
 export function Mas() {
-  const { sesion, trabajador, ambito } = useTrabajador();
+  const { db, sesion, trabajador, ambito } = useTrabajador();
+  const pendientesBuzon = consultasPendientes(db.consultas);
   const cerrar = useStore((s) => s.cerrarSesion);
   const reiniciar = useStore((s) => s.reiniciarDemo);
   const secciones = itemsTrabajador.filter((i) => !i.principal && itemVisible(i, sesion));
@@ -32,6 +34,7 @@ export function Mas() {
                 <Link to={i.to} className="flex items-center gap-3 p-4 hover:bg-sand tap">
                   <span className="h-10 w-10 rounded-xl bg-beige-100 text-ink flex items-center justify-center"><i.icono className="h-5 w-5" /></span>
                   <span className="flex-1 font-semibold">{i.etiqueta}</span>
+                  {i.to === '/buzon' && pendientesBuzon > 0 && <span className="h-6 min-w-6 px-1.5 rounded-full bg-rose text-white text-xs font-bold flex items-center justify-center">{pendientesBuzon}</span>}
                   <ChevronRight className="h-5 w-5 text-ink-muted" />
                 </Link>
               </li>

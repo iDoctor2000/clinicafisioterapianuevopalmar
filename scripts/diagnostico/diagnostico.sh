@@ -246,6 +246,37 @@ select j.jobname, j.schedule, j.active,
   from cron.job j where j.jobname in ('push-cumpleanos', 'mantenimiento-diario');
 \endif
 
+\echo '== Buzón de los alumnos (0052): quién lo atiende, ajustes y consultas (nunca el texto de los mensajes)'
+select to_regclass('public.consultas') is not null as hay_buzon \gset
+\if :hay_buzon
+select buzon_activo, buzon_desde, buzon_hasta from public.config_centro;
+select upper(left(t.nombre, 1)) || '.' || upper(left(coalesce(nullif(t.apellidos, ''), '-'), 1)) || '. ' || left(t.id::text, 8) as quien, t.rol,
+       t.atiende_buzon, t.buzon_push as quiere_aviso_al_movil,
+       (select count(*) from public.suscripciones_push s where s.trabajador_id = t.id) as moviles_con_avisos
+  from public.trabajadores t where t.activo and t.atiende_buzon order by t.nombre;
+select estado, count(*) as consultas, min(actualizada_el) at time zone 'Europe/Madrid' as la_mas_antigua, max(actualizada_el) at time zone 'Europe/Madrid' as la_mas_reciente
+  from public.consultas group by estado order by estado;
+select motivo, count(*) as consultas, count(distinct cliente_id) as alumnos from public.consultas where creada_el > now() - make_interval(days => :dias) group by motivo order by 2 desc;
+select m.autor, count(*) as mensajes, count(distinct c.cliente_id) as alumnos, round(avg(char_length(m.texto))) as letras_de_media
+  from public.consulta_mensajes m join public.consultas c on c.id = m.consulta_id
+ where m.creado_el > now() - make_interval(days => :dias) group by m.autor order by m.autor;
+-- Cuánto tarda el centro en contestar (primera respuesta de cada consulta del periodo).
+select count(*) as consultas_respondidas,
+       round(extract(epoch from percentile_cont(0.5) within group (order by r.primera - c.creada_el)) / 3600.0, 1) as horas_mediana_hasta_responder,
+       round(extract(epoch from max(r.primera - c.creada_el)) / 3600.0, 1) as horas_la_que_mas
+  from public.consultas c
+  join lateral (select min(m.creado_el) as primera from public.consulta_mensajes m where m.consulta_id = c.id and m.autor = 'CENTRO') r on r.primera is not null
+ where c.creada_el > now() - make_interval(days => :dias);
+select count(*) filter (where url = '#/buzon') as avisos_al_equipo_sin_enviar, count(*) filter (where url = '#/buzon?noche') as aviso_de_la_noche_preparado,
+       min(enviar_desde) at time zone 'Europe/Madrid' as se_enviara_desde
+  from public.push_personal_pendientes where url like '#/buzon%';
+select count(*) as avisos_de_respuesta, count(*) filter (where exists (select 1 from public.aviso_lecturas l where l.aviso_id = a.id)) as leidos,
+       (select count(*) from public.avisos_push_pendientes p join public.avisos x on x.id = p.aviso_id where x.consulta_id is not null) as sin_enviar_al_movil
+  from public.avisos a where a.consulta_id is not null;
+\else
+\echo 'Sin la migración 0052: el buzón todavía no existe.'
+\endif
+
 \echo '== Permisos de las tablas que usa la función de notificaciones (enviar-push usa el rol service_role)'
 select r.rolname as rol, r.rolbypassrls as salta_rls,
        t.tabla,

@@ -93,6 +93,8 @@
     <tr><td>Cambiar el horario, el teléfono o la dirección de la clínica de fisioterapia en la web</td><td>Web → editor → pestañas Contacto y Horario</td><td>15</td></tr>
     <tr><td>Cambiar el texto de presentación de Pilates en la web</td><td>Web → editor → pestaña Pilates (los textos generales; lo demás viene de la app)</td><td>15</td></tr>
     <tr><td>Imprimir o compartir el código QR para que los alumnos descarguen la app</td><td>App → icono QR de la cabecera (junto a la interrogación) → Compartir, Descargar o Imprimir</td><td>3</td></tr>
+    <tr><td>Contestar a un alumno que ha escrito al centro</td><td>App → Más → Buzón (solo quien atiende el buzón)</td><td>10</td></tr>
+    <tr><td>Decidir quién lee y contesta las consultas de los alumnos</td><td>App → Equipo → la persona → Atiende el buzón de los alumnos</td><td>12</td></tr>
     <tr><td>Ver quién hizo qué</td><td>App → Ajustes → Registro de cambios</td><td>13</td></tr>
     <tr><td>Comprobar que se están haciendo las copias de seguridad</td><td>App → Ajustes → Copias de seguridad</td><td>17</td></tr>
     <tr><td>Descargar los datos en un Excel</td><td>App → Ajustes → Copias de seguridad → Descargar los datos en Excel</td><td>17</td></tr>
@@ -185,7 +187,7 @@
     <li><strong>Las cifras del día:</strong> cuántas clases hay, cuántos alumnos apuntados, plazas libres y cuántos esperan en lista de espera.</li>
     <li><strong>Ahora en clase / Siguiente clase:</strong> quién viene, con su foto, y a quién tener un detalle: <em>🎂 Cumple hoy</em>, <em>Primera clase</em> (alta reciente), <em>Vuelve tras 4 semanas</em> o <em>🎉 Su clase 50</em>.</li>
     <li><strong>Clases de hoy:</strong> cada una con <em>Terminada</em>, <em>En curso</em> o <em>Próxima</em>, las plazas y si <em>falta pasar lista</em>. Al tocarla se abre su ficha.</li>
-    <li><strong>Para mirar:</strong> alumnos de horario fijo que no tienen plaza esta semana porque su clase está completa (y en qué puesto de la lista de espera están), clases de los últimos 7 días sin pasar lista y alumnos nuevos de la semana. Si no hay nada, pone <em>"Todo en orden"</em>.</li>
+    <li><strong>Para mirar:</strong> las consultas de alumnos sin responder (solo a quien atiende el buzón), alumnos de horario fijo que no tienen plaza esta semana porque su clase está completa (y en qué puesto de la lista de espera están), clases de los últimos 7 días sin pasar lista y alumnos nuevos de la semana. Si no hay nada, pone <em>"Todo en orden"</em>.</li>
     <li><strong>Mañana:</strong> cuántas clases hay, a qué hora es la primera y cuántos alumnos van.</li>
   </ul>
   <p>Un monitor con ámbito "Solo sus clases" ve solo lo suyo.</p>
@@ -459,6 +461,25 @@
     <div class="t">Sobre las notificaciones al móvil</div>
     <p>Cada cliente decide si las quiere (Perfil → Avisos en el móvil). Si alguien no las recibe, lo primero es comprobar ese interruptor y, en iPhone, que tenga la app instalada en la pantalla de inicio.</p>
   </div>
+  <h3>El buzón: cuando el alumno escribe al centro</h3>
+  <p>Los avisos van del centro al alumno. El <strong>buzón</strong> es el camino de vuelta: el alumno toca <span class="btn">Escribir al centro</span> (en su Inicio o en Avisos → Mis consultas), elige de qué se trata (<em>Mis clases y horario</em>, <em>Lesión o molestia</em>, <em>Cambio de tarifa</em> u <em>Otra cosa</em>) y escribe. No es un chat: es una consulta que se contesta y se cierra.</p>
+  <p><strong>Solo lo ve quien atiende el buzón</strong> (el interruptor <em>Atiende el buzón de los alumnos</em> de su ficha de Equipo, capítulo 12). El resto del equipo, monitores incluidos, no ve el buzón ni ningún mensaje.</p>
+  <ol class="pasos">
+    <li><strong>Más → Buzón.</strong> En <em>Pendientes</em> están las consultas que esperan respuesta, la que más lleva esperando arriba. El número rojo de <strong>Más</strong> y la pantalla <strong>El día de hoy</strong> te avisan de cuántas hay.</li>
+    <li>Toca una consulta: ves la conversación y, con <span class="btn claro">Ficha</span>, la ficha del alumno.</li>
+    <li>Escribe la respuesta y <span class="btn">Responder</span>. Al alumno le llega un aviso (y una notificación al móvil si la tiene activada) y ve la respuesta firmada como <strong>"Nuevo Palmar"</strong>, la escriba quien la escriba. Dentro del buzón sí se ve quién contestó.</li>
+    <li>Si la consulta no necesita respuesta (un "gracias", un "llego tarde"), <span class="btn claro">Cerrar sin responder más</span>. Si el alumno vuelve a escribir, se reabre sola.</li>
+  </ol>
+  <ul>
+    <li><strong>Avisarme al móvil de las consultas:</strong> cada persona del buzón lo activa o lo apaga para sí misma, abajo en la pantalla del Buzón. Hace falta tener también <em>Avisos en el móvil</em> activado en <strong>Más</strong>.</li>
+    <li><strong>Horario:</strong> los alumnos pueden escribir a cualquier hora. De 8:00 a 22:00 el móvil suena en el momento; lo que llegue de noche no suena y se junta en <strong>un solo aviso a las 8:00</strong>. Las horas se cambian en <em>Ajustes del buzón</em> (misma pantalla), donde también se puede <strong>desactivar el buzón</strong>.</li>
+    <li><strong>Límites para evitar abusos:</strong> 1.500 letras por mensaje y 10 mensajes por alumno cada 24 horas.</li>
+    <li>El resumen de cada noche avisa si alguna consulta lleva <strong>más de 3 días sin respuesta</strong>.</li>
+  </ul>
+  <div class="caja ojo">
+    <div class="t">Lo que escriben puede ser delicado</div>
+    <p>Un alumno puede contar una lesión o un problema de salud. Por eso el buzón lo lee solo quien tiene el interruptor, el registro de cambios anota que alguien escribió o contestó pero <strong>nunca el texto</strong>, y la notificación del móvil solo dice "Consulta de…" sin el contenido.</p>
+  </div>
 </section>
 
 <section class="cap">
@@ -480,6 +501,7 @@
     <li><strong>Ámbito:</strong> <em>Todo el centro</em> o <em>Solo sus clases</em> (ve y gestiona únicamente las clases que imparte y a sus alumnos).</li>
     <li><strong>Permisos:</strong> marca lo que necesite. Para un monitor típico: Registrar asistencia, Gestionar reservas y recuperaciones, Consultar fichas de clientes y Crear y enviar avisos.</li>
     <li><strong>Gestiona el horario y las clases:</strong> interruptor aparte, para quien lleva el horario (franjas, clases extraordinarias, cancelar y reactivar clases, publicar cambios). No lo da el rol de administrador: se concede persona a persona y <strong>solo puede darlo o quitarlo quien ya lo tiene</strong>. Nunca puede quedarse nadie sin él (la app lo impide).</li>
+    <li><strong>Atiende el buzón de los alumnos:</strong> otro interruptor aparte, para quien lee y contesta lo que los alumnos escriben al centro (capítulo 10). Funciona igual: no lo da el rol de administrador, solo puede darlo o quitarlo quien ya lo tiene y nunca puede quedarse nadie sin él.</li>
     <li>Guarda y dile que entre en la app con ese correo.</li>
   </ol>
   <h3>Los permisos, uno a uno</h3>
@@ -492,6 +514,7 @@
     <tr><td>Consultar información clínica</td><td>Ver la pestaña Clínica de las fichas.</td></tr>
     <tr><td>Crear y enviar avisos</td><td>Publicar avisos.</td></tr>
     <tr><td>Gestiona el horario y las clases (interruptor)</td><td>Crear, cambiar y eliminar franjas; crear clases extraordinarias; cancelar, reactivar y eliminar clases; publicar los cambios del horario. Va aparte de la lista de permisos y el rol de administrador no lo incluye.</td></tr>
+    <tr><td>Atiende el buzón de los alumnos (interruptor)</td><td>Leer y contestar las consultas que los alumnos escriben al centro, y cerrarlas. Va aparte de la lista de permisos y el rol de administrador no lo incluye.</td></tr>
     <tr><td>Introducir clases sueltas</td><td>Apuntar a alguien como clase suelta (pago en recepción).</td></tr>
     <tr><td>Gestionar actividades y tarifas</td><td>La sección Tarifas.</td></tr>
     <tr><td>Consultar estadísticas</td><td>La sección Estadísticas.</td></tr>

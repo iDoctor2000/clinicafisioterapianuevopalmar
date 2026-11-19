@@ -5,11 +5,12 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClock, ChevronRight, ClipboardCheck, Moon, PartyPopper, Sparkles, Sun, UserPlus, Users } from 'lucide-react';
+import { CalendarClock, ChevronRight, ClipboardCheck, Inbox, Moon, PartyPopper, Sparkles, Sun, UserPlus, Users } from 'lucide-react';
 import type { ClaseVista } from '@/data/selectores';
 import type { Id } from '@/domain/types';
 import { DIAS_SEMANA_CORTO, diaSemanaDe, fechaLarga, horaFin, hoyISO, sumarDias } from '@/domain/fechas';
 import { HITOS_CLASES } from '@/domain/logros';
+import { consultasPendientes } from '@/domain/buzon';
 import { conteoClases } from '@/data/logros';
 import { Chip, Tarjeta } from '@/ui';
 import { cn } from '@/lib/cn';
@@ -40,7 +41,7 @@ function useAhora(): Date {
 }
 
 export function Hoy() {
-  const { db, sesion, trabajador, puede, limitado } = useTrabajador();
+  const { db, sesion, trabajador, puede, limitado, atiendeBuzon } = useTrabajador();
   const ahora = useAhora();
   const hoy = hoyISO(ahora);
   const manana = sumarDias(hoy, 1);
@@ -54,7 +55,9 @@ export function Hoy() {
   const sinPlaza = useMemo(() => (verAlumnos ? agruparPorAlumno(fijosSinPlaza(db, ahora, hoy, 7)) : []), [db, ahora, hoy, verAlumnos]);
   const sinLista = useMemo(() => (puede('ASISTENCIA_REGISTRAR') ? clasesSinPasarLista(db, ahora, hoy, 7) : []), [db, ahora, hoy, puede]);
   const altas = useMemo(() => (verAlumnos ? altasRecientes(db, hoy, 7) : []), [db, hoy, verAlumnos]);
-  const nada = sinPlaza.length === 0 && sinLista.length === 0 && altas.length === 0;
+  // Buzón (0052): solo para quien lo atiende (el resto recibe `db` sin consultas).
+  const consultas = atiendeBuzon ? consultasPendientes(db.consultas) : 0;
+  const nada = consultas === 0 && sinPlaza.length === 0 && sinLista.length === 0 && altas.length === 0;
   const nombre = (trabajador?.nombre ?? sesion.nombre).split(' ')[0];
 
   return (
@@ -97,6 +100,17 @@ export function Hoy() {
           <Tarjeta className="p-5 flex items-center gap-3 text-ink-soft"><Sparkles className="h-6 w-6 text-beige-600 shrink-0" /><span><strong className="text-ink">Todo en orden.</strong> No hay nada pendiente de revisar.</span></Tarjeta>
         ) : (
           <div className="space-y-3">
+            {consultas > 0 && (
+              <Link to="/buzon" className="block">
+                <Tarjeta className="p-4 flex items-center gap-3 hover:border-beige-200 tap">
+                  <div className="flex-1 min-w-0">
+                    <TituloAviso icono={Inbox} texto={consultas === 1 ? '1 consulta de un alumno sin responder' : `${consultas} consultas de alumnos sin responder`} />
+                    <p className="text-sm text-ink-soft mt-1">Están en el Buzón. Al contestar, al alumno le llega el aviso.</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-ink-muted shrink-0" />
+                </Tarjeta>
+              </Link>
+            )}
             {sinPlaza.length > 0 && (
               <Tarjeta className="p-4">
                 <TituloAviso icono={Users} texto={`${sinPlaza.length === 1 ? '1 alumno de horario fijo' : `${sinPlaza.length} alumnos de horario fijo`} sin plaza esta semana`} />
@@ -300,7 +314,7 @@ function ClaseAhora({ clase }: { clase: ClaseDeHoy }) {
 
 /** Acceso desde el calendario: "El día de hoy · 7 clases · 2 cosas que mirar ›". */
 export function EnlaceHoy() {
-  const { db, puede, limitado } = useTrabajador();
+  const { db, puede, limitado, atiendeBuzon } = useTrabajador();
   const ahora = useAhora();
   const hoy = hoyISO(ahora);
   const n = useMemo(() => {
@@ -309,9 +323,10 @@ export function EnlaceHoy() {
       clases: cifrasDia(clasesDeDia(db, hoy, ahora)).clases,
       mirar: (verAlumnos ? agruparPorAlumno(fijosSinPlaza(db, ahora, hoy, 7)).length : 0)
         + (puede('ASISTENCIA_REGISTRAR') ? clasesSinPasarLista(db, ahora, hoy, 7).length : 0)
-        + (verAlumnos ? altasRecientes(db, hoy, 7).length : 0),
+        + (verAlumnos ? altasRecientes(db, hoy, 7).length : 0)
+        + (atiendeBuzon ? consultasPendientes(db.consultas) : 0),
     };
-  }, [db, hoy, ahora, puede, limitado]);
+  }, [db, hoy, ahora, puede, limitado, atiendeBuzon]);
   return (
     <Link to="/hoy" className="mb-4 flex items-center gap-3 rounded-2xl bg-white border border-beige-200 shadow-card px-4 py-3 tap hover:border-beige-300">
       <Sun className="h-5 w-5 text-beige-600 shrink-0" />

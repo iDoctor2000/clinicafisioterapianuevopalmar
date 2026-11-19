@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, CalendarDays, CalendarPlus, ChevronRight, Clock, RefreshCw, Sparkles, Ticket, User } from 'lucide-react';
+import { Bell, CalendarDays, CalendarPlus, ChevronRight, Clock, MessageCircle, RefreshCw, Sparkles, Ticket, User } from 'lucide-react';
 import type { ReservaVista } from '@/data/selectores';
 import { avisosDeCliente, portadaVisible, recuperacionesDisponiblesDe } from '@/data/selectores';
 import { fechaLarga, horaFin, hoyISO } from '@/domain/fechas';
@@ -42,7 +42,7 @@ export function Inicio() {
       <PreguntaCumpleanos />
 
       {ultimoAviso && (
-        <Link to="/avisos" className="block mb-4">
+        <Link to={ultimoAviso.aviso.consultaId ? '/avisos?ver=consultas' : '/avisos'} className="block mb-4">
           <Tarjeta className="p-4 border-beige-200 bg-beige-50 flex items-center gap-3 hover:border-beige-300 tap">
             <span className="h-11 w-11 rounded-full bg-white text-beige-600 flex items-center justify-center shrink-0"><Bell className="h-6 w-6" /></span>
             <span className="flex-1 min-w-0">
@@ -141,6 +141,19 @@ export function Inicio() {
             <Boton variante="suave" ancho className="mt-4" onClick={() => navegar('/horario')}>Usar una recuperación</Boton>
           </Tarjeta>
         </section>
+      )}
+
+      {db.config.buzonActivo === true && (
+        <Link to="/avisos?ver=consultas&escribir=1" className="block mb-5">
+          <Tarjeta className="p-4 flex items-center gap-3 hover:border-beige-200 tap">
+            <span className="h-11 w-11 rounded-full bg-beige-100 text-ink flex items-center justify-center shrink-0"><MessageCircle className="h-6 w-6" /></span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold leading-tight">¿Necesitas decirnos algo?</span>
+              <span className="block text-sm text-ink-soft">Escribe al centro desde aquí: una duda, una molestia, un cambio…</span>
+            </span>
+            <ChevronRight className="h-5 w-5 text-ink-muted shrink-0" />
+          </Tarjeta>
+        </Link>
       )}
 
       {tarifa && contrato && (

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Actividad, Cliente, ConfigCentro, PlantillaClase, Tarifa, Trabajador } from '@/domain/types';
 import {
   aActividad, aAuditoria, aAviso, aClase, aCliente, aConfig, aContrato, aDestino, aHora, aInstante, aLectura, aPlantilla, aRecuperacion, aReserva,
-  aTarifa, aTrabajador, aTrabajadorDesdeMonitor, deActividad, deClaseNueva, deCliente, deClinica, deConfig, deDestino, deDiasCierre, deHora,
+  aTarifa, aTrabajador, aTrabajadorDesdeMonitor, aConsultas, deActividad, deClaseNueva, deCliente, deClinica, deConfig, deDestino, deDiasCierre, deHora,
   dePlantilla, deTarifa, deTrabajador, derivarUsuarios,
   type FilaActividad, type FilaAuditoria, type FilaAviso, type FilaClase, type FilaCliente, type FilaClienteClinica, type FilaConfigCentro,
   type FilaContrato, type FilaPlantillaClase, type FilaRecuperacion, type FilaReserva, type FilaTarifa, type FilaTrabajador,
@@ -35,11 +35,17 @@ describe('config_centro', () => {
       zonaHoraria: 'Europe/Madrid', diasCierre: [{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }],
       direccion: '', telefono: '', whatsapp: '', instagram: '', email: '',
       mensajeCumpleanos: '', resumenAnualActivo: true, resumenAnualDesde: '12-15', resumenAnualHasta: '01-15', clienteDelMesActivo: true,
+      // 0052: sin las columnas del buzón (migración sin aplicar), el buzón no está disponible.
+      buzonActivo: false, buzonDesde: '08:00', buzonHasta: '22:00',
     });
+    // Con la migración: activo y con sus horas ("08:30:00" → "08:30").
+    expect(aConfig({ ...fila, buzon_activo: true, buzon_desde: '08:30:00', buzon_hasta: '21:00:00' }, [])).toMatchObject({ buzonActivo: true, buzonDesde: '08:30', buzonHasta: '21:00' });
+    expect(deConfig({ buzonActivo: false, buzonDesde: '09:00', buzonHasta: '20:00' })).toEqual({ buzon_activo: false, buzon_desde: '09:00', buzon_hasta: '20:00' });
     const { id: _id, dias_generacion_clases: _d, ...esperado } = fila;
     expect(deConfig(c)).toEqual({
       ...esperado, direccion: '', telefono: '', whatsapp: '', instagram: '', email: '',
       mensaje_cumpleanos: '', resumen_anual_activo: true, resumen_anual_desde: '12-15', resumen_anual_hasta: '01-15', cliente_del_mes_activo: true,
+      buzon_activo: false, buzon_desde: '08:00', buzon_hasta: '22:00',
     });
     expect(deDiasCierre(c.diasCierre)).toEqual([{ fecha: '2026-01-01', motivo: 'Año nuevo' }, { fecha: '2026-12-25', motivo: 'Navidad' }]);
   });
@@ -91,7 +97,7 @@ describe('trabajadores', () => {
   const fila: FilaTrabajador = { id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', ambito: 'SUS_CLASES', es_monitor: true, color: '#fff', activo: true, user_id: AUTH };
   it('ida y vuelta con permisos (sin user_id al escribir)', () => {
     const t = aTrabajador(fila, [{ trabajador_id: U1, permiso: 'CLIENTES_VER' }, { trabajador_id: U2, permiso: 'AVISOS_ENVIAR' }, { trabajador_id: U1, permiso: 'ASISTENCIA_REGISTRAR' }]);
-    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#fff', activo: true, userId: AUTH, veFinanzas: false, gestionaHorario: false });
+    expect(t).toEqual<Trabajador>({ id: U1, nombre: 'Ana', apellidos: 'Martínez', email: 'ana@x.com', telefono: '600', rol: 'MONITOR', permisos: ['CLIENTES_VER', 'ASISTENCIA_REGISTRAR'], ambito: 'SUS_CLASES', esMonitor: true, color: '#fff', activo: true, userId: AUTH, veFinanzas: false, gestionaHorario: false, atiendeBuzon: false, buzonPush: true });
     const { trabajador, permisos } = deTrabajador(t);
     const { user_id: _u, ...sinUser } = fila;
     expect(trabajador).toEqual(sinUser);
@@ -101,6 +107,9 @@ describe('trabajadores', () => {
     // 0038: lo mismo con gestiona_horario.
     expect(deTrabajador({ ...t, gestionaHorario: true }, false, true).trabajador).toEqual({ ...sinUser, gestiona_horario: true });
     expect(aTrabajador({ ...fila, gestiona_horario: true }, []).gestionaHorario).toBe(true);
+    // 0052: y con atiende_buzon. El aviso al móvil (buzon_push) nunca viaja desde la ficha: lo cambia cada uno con su orden.
+    expect(deTrabajador({ ...t, atiendeBuzon: true, buzonPush: false }, false, false, true).trabajador).toEqual({ ...sinUser, atiende_buzon: true });
+    expect(aTrabajador({ ...fila, atiende_buzon: true, buzon_push: false }, [])).toMatchObject({ atiendeBuzon: true, buzonPush: false });
     expect(permisos).toEqual([{ trabajador_id: U1, permiso: 'CLIENTES_VER' }, { trabajador_id: U1, permiso: 'ASISTENCIA_REGISTRAR' }]);
   });
   it('vista monitores (lo que ve un cliente)', () => {
@@ -230,5 +239,30 @@ describe('auditoría y usuarios', () => {
       { id: U2, email: 'a@x', tipo: 'TRABAJADOR', clienteId: null, trabajadorId: U3 },
       { id: AUTH, email: 'm@x', tipo: 'CLIENTE', clienteId: U1, trabajadorId: null },
     ]);
+  });
+});
+
+describe('buzón (0052)', () => {
+  it('consultas con sus mensajes en orden; quién contestó solo si llega (a quien atiende el buzón)', () => {
+    const filas = [{ id: U1, cliente_id: U2, motivo: 'LESION' as const, estado: 'RESPONDIDA' as const, creada_el: '2026-11-19T09:00:00+00:00', actualizada_el: '2026-11-19T09:10:00+00:00', leida_cliente_el: null }];
+    const mensajes = [
+      { id: 'm2', consulta_id: U1, autor: 'CENTRO' as const, texto: 'Ven antes', creado_el: '2026-11-19T09:10:00+00:00' },
+      { id: 'm1', consulta_id: U1, autor: 'CLIENTE' as const, texto: 'Me duele', creado_el: '2026-11-19T09:00:00+00:00' },
+      { id: 'm9', consulta_id: 'otra', autor: 'CLIENTE' as const, texto: 'De otra consulta', creado_el: '2026-11-19T09:05:00+00:00' },
+    ];
+    const [equipo] = aConsultas(filas, mensajes, [{ mensaje_id: 'm2', trabajador_id: 'tra-1' }]);
+    expect(equipo).toMatchObject({ id: U1, clienteId: U2, motivo: 'LESION', estado: 'RESPONDIDA', leidaClienteEl: null, creadaEl: '2026-11-19T09:00:00.000Z' });
+    expect(equipo.mensajes).toEqual([
+      { id: 'm1', autor: 'CLIENTE', texto: 'Me duele', creadoEl: '2026-11-19T09:00:00.000Z' },
+      { id: 'm2', autor: 'CENTRO', texto: 'Ven antes', creadoEl: '2026-11-19T09:10:00.000Z', trabajadorId: 'tra-1' },
+    ]);
+    // El alumno no recibe `consulta_respuestas`: sus mensajes llegan sin autor del equipo.
+    const [alumno] = aConsultas(filas, mensajes, []);
+    expect(alumno.mensajes[1]).toEqual({ id: 'm2', autor: 'CENTRO', texto: 'Ven antes', creadoEl: '2026-11-19T09:10:00.000Z' });
+  });
+  it('el aviso de respuesta lleva su consulta; los demás avisos, no', () => {
+    const base: FilaAviso = { id: U1, titulo: 'T', cuerpo: '', destino_tipo: 'CLIENTES', destino_clase_id: null, destino_actividad_id: null, importante: false, publicado_el: '2026-11-19T09:00:00+00:00', publicado_por: null };
+    expect(aAviso({ ...base, consulta_id: U2 }, []).consultaId).toBe(U2);
+    expect('consultaId' in aAviso(base, [])).toBe(false);
   });
 });

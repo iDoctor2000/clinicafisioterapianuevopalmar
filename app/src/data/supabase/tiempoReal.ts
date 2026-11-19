@@ -9,6 +9,11 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { servidor } from './cliente';
 
 export const TABLAS_TIEMPO_REAL = ['reservas', 'clases', 'avisos', 'recuperaciones', 'contratos', 'pagos', 'portada_imagenes', 'premios_mes', 'lista_espera'] as const;
+/**
+ * Tablas que van en un canal aparte: si alguna no está aún en la publicación (migración sin aplicar), el
+ * fallo se queda en su canal y no deja sin tiempo real a las demás. Buzón (0052).
+ */
+export const TABLAS_TIEMPO_REAL_APARTE = ['consultas'] as const;
 const DEBOUNCE_MS = 500;
 const INTERVALO_MS = 5 * 60 * 1000;
 
@@ -33,6 +38,19 @@ export function activarTiempoReal(recargar: () => void): () => void {
   } catch (e) {
     console.warn('[supabase] No se ha podido activar el tiempo real:', e);
   }
+  const aparte: RealtimeChannel[] = [];
+  for (const table of TABLAS_TIEMPO_REAL_APARTE) {
+    try {
+      const c = servidor().channel(`db-${table}`);
+      c.on('postgres_changes', { event: '*', schema: 'public', table }, programar);
+      c.subscribe((estado, err) => {
+        if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') console.warn(`[supabase] Tiempo real de "${table}" no disponible:`, err?.message ?? estado);
+      });
+      aparte.push(c);
+    } catch (e) {
+      console.warn(`[supabase] No se ha podido activar el tiempo real de "${table}":`, e);
+    }
+  }
 
   const alVolver = () => {
     if (document.visibilityState === 'visible') programar();
@@ -47,5 +65,6 @@ export function activarTiempoReal(recargar: () => void): () => void {
     window.removeEventListener('online', programar);
     clearInterval(intervalo);
     if (canal) void servidor().removeChannel(canal);
+    for (const c of aparte) void servidor().removeChannel(c);
   };
 }
