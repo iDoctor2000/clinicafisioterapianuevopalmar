@@ -5,10 +5,11 @@
  * (Supabase Edge Functions) sin cambios.
  */
 import type {
-  Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, EntradaListaEspera, Id, ISODate, MetodoPago, Oferta, Pago,
+  Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Consulta, Contrato, DestinoAviso, EntradaListaEspera, Id, ISODate, MensajeConsulta, MetodoPago, MotivoConsulta, Oferta, Pago,
   PlantillaClase, PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Sesion, Tarifa, Trabajador, Permiso,
 } from '@/domain/types';
-import { gestionaHorario, tienePermiso, veFinanzas } from '@/domain/types';
+import { atiendeBuzon, gestionaHorario, tienePermiso, veFinanzas } from '@/domain/types';
+import { MOTIVO_CONSULTA_TEXTO, limiteAlcanzado, validarMensaje } from '@/domain/buzon';
 import {
   MENSAJE_AVISO_LIMITADO, MENSAJE_CLASE_AJENA, MENSAJE_CLASE_EXTRA_LIMITADA, MENSAJE_CLIENTE_AJENO, MENSAJE_HORARIO_LIMITADO, MENSAJE_SOLO_ADMIN_EQUIPO,
   esAlumnoMio, limitadoASusClases, puedeGestionarClase,
@@ -1258,6 +1259,97 @@ export function marcarAvisoLeido(ctx: Ctx, args: { avisoId: Id }): Resultado<voi
   return ok({ ...db, lecturas: [...db.lecturas, { avisoId: args.avisoId, clienteId: sesion.clienteId, leidoEl: ahora.toISOString() }] }, undefined);
 }
 
+// ---------------------------------------------------------------------------
+// Buzón: consultas de los alumnos al centro (0052). Espejo de enviar_consulta, responder_consulta…
+// ---------------------------------------------------------------------------
+
+export const MENSAJE_SIN_BUZON = 'No atiendes el buzón de los alumnos.';
+const MENSAJE_LIMITE_BUZON = 'Has enviado muchos mensajes hoy. Si es urgente, llama al centro.';
+
+const nombreDeCliente = (db: Db, clienteId: Id): string => {
+  const c = db.clientes.find((x) => x.id === clienteId);
+  return c ? `${c.nombre} ${c.apellidos}` : clienteId;
+};
+
+/** Un alumno abre una consulta al centro. */
+export function enviarConsulta(ctx: Ctx, args: { motivo: MotivoConsulta; texto: string }): Resultado<Consulta> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'CLIENTE') return fallo('Solo los alumnos pueden escribir al centro desde aquí.');
+  if (db.config.buzonActivo !== true) return fallo('Ahora mismo no se puede escribir al centro desde la app.');
+  if (!(args.motivo in MOTIVO_CONSULTA_TEXTO)) return fallo('Elige sobre qué es tu consulta.');
+  const v = validarMensaje(args.texto);
+  if (!v.ok) return fallo(v.error);
+  if (limiteAlcanzado(db.consultas ?? [], sesion.clienteId, ahora)) return fallo(MENSAJE_LIMITE_BUZON);
+  const instante = ahora.toISOString();
+  const consulta: Consulta = {
+    id: nuevoId('con'), clienteId: sesion.clienteId, motivo: args.motivo, estado: 'PENDIENTE', creadaEl: instante, actualizadaEl: instante, leidaClienteEl: null,
+    mensajes: [{ id: nuevoId('msg'), autor: 'CLIENTE', texto: v.texto, creadoEl: instante }],
+  };
+  const nuevo: Db = { ...db, consultas: [consulta, ...(db.consultas ?? [])] };
+  return ok(auditar(nuevo, sesion, ahora, 'CONSULTA', 'consulta', consulta.id, `${nombreDeCliente(db, sesion.clienteId)} escribe al centro`), consulta);
+}
+
+/** Escribe en una consulta: el alumno en la suya (vuelve a pendiente) o quien atiende el buzón (pasa a respondida y se avisa al alumno). */
+export function responderConsulta(ctx: Ctx, args: { consultaId: Id; texto: string }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  const consulta = (db.consultas ?? []).find((c) => c.id === args.consultaId);
+  if (!consulta) return fallo('La consulta no existe.');
+  const v = validarMensaje(args.texto);
+  if (!v.ok) return fallo(v.error);
+  const instante = ahora.toISOString();
+  const poner = (c: Consulta): Db => ({ ...db, consultas: (db.consultas ?? []).map((x) => (x.id === c.id ? c : x)) });
+
+  if (sesion.tipo === 'CLIENTE') {
+    if (consulta.clienteId !== sesion.clienteId) return fallo(MENSAJE_SIN_BUZON);
+    if (limiteAlcanzado(db.consultas ?? [], sesion.clienteId, ahora)) return fallo(MENSAJE_LIMITE_BUZON);
+    const mensaje: MensajeConsulta = { id: nuevoId('msg'), autor: 'CLIENTE', texto: v.texto, creadoEl: instante };
+    const nuevo = poner({ ...consulta, estado: 'PENDIENTE', actualizadaEl: instante, mensajes: [...consulta.mensajes, mensaje] });
+    return ok(auditar(nuevo, sesion, ahora, 'CONSULTA', 'consulta', consulta.id, `${nombreDeCliente(db, sesion.clienteId)} escribe al centro`), undefined);
+  }
+
+  if (!atiendeBuzon(sesion)) return fallo(MENSAJE_SIN_BUZON);
+  const mensaje: MensajeConsulta = { id: nuevoId('msg'), autor: 'CENTRO', texto: v.texto, creadoEl: instante, trabajadorId: sesion.trabajadorId };
+  let nuevo = poner({ ...consulta, estado: 'RESPONDIDA', actualizadaEl: instante, mensajes: [...consulta.mensajes, mensaje] });
+  // Aviso al alumno: uno por consulta; el anterior sin leer se sustituye.
+  const leidos = new Set(db.lecturas.filter((l) => l.clienteId === consulta.clienteId).map((l) => l.avisoId));
+  const aviso: Aviso = {
+    id: nuevoId('avi'), titulo: 'Nuevo Palmar ha respondido a tu consulta', cuerpo: 'Tienes la respuesta en Avisos, en "Mis consultas".',
+    destino: { tipo: 'CLIENTES', clienteIds: [consulta.clienteId] }, destinatariosIds: [consulta.clienteId], importante: false,
+    publicadoEl: instante, publicadoPor: 'sistema', consultaId: consulta.id,
+  };
+  nuevo = { ...nuevo, avisos: [aviso, ...nuevo.avisos.filter((a) => a.consultaId !== consulta.id || leidos.has(a.id))] };
+  return ok(auditar(nuevo, sesion, ahora, 'CONSULTA', 'consulta', consulta.id, `Respuesta a ${nombreDeCliente(db, consulta.clienteId)}`), undefined);
+}
+
+/** Quien atiende el buzón cierra una consulta que no necesita (más) respuesta. */
+export function cerrarConsulta(ctx: Ctx, args: { consultaId: Id }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  if (!atiendeBuzon(sesion)) return fallo(MENSAJE_SIN_BUZON);
+  const consulta = (db.consultas ?? []).find((c) => c.id === args.consultaId);
+  if (!consulta || consulta.estado === 'CERRADA') return ok(db, undefined);
+  const nuevo: Db = { ...db, consultas: (db.consultas ?? []).map((c) => (c.id === consulta.id ? { ...c, estado: 'CERRADA', actualizadaEl: ahora.toISOString() } : c)) };
+  return ok(auditar(nuevo, sesion, ahora, 'CONSULTA', 'consulta', consulta.id, `Cerrada la consulta de ${nombreDeCliente(db, consulta.clienteId)}`), undefined);
+}
+
+/** El alumno abre su consulta: queda leída, y también su aviso de "te han respondido". */
+export function leerConsulta(ctx: Ctx, args: { consultaId: Id }): Resultado<void> {
+  const { db, sesion, ahora } = ctx;
+  if (sesion.tipo !== 'CLIENTE') return ok(db, undefined);
+  const consulta = (db.consultas ?? []).find((c) => c.id === args.consultaId && c.clienteId === sesion.clienteId);
+  if (!consulta) return ok(db, undefined);
+  const instante = ahora.toISOString();
+  const yaLeidos = new Set(db.lecturas.filter((l) => l.clienteId === sesion.clienteId).map((l) => l.avisoId));
+  const lecturas = db.avisos.filter((a) => a.consultaId === consulta.id && !yaLeidos.has(a.id)).map((a) => ({ avisoId: a.id, clienteId: sesion.clienteId, leidoEl: instante }));
+  return ok({ ...db, lecturas: [...db.lecturas, ...lecturas], consultas: (db.consultas ?? []).map((c) => (c.id === consulta.id ? { ...c, leidaClienteEl: instante } : c)) }, undefined);
+}
+
+/** Cada persona del buzón decide si le suena el móvil con las consultas nuevas. */
+export function buzonAvisarme(ctx: Ctx, args: { activo: boolean }): Resultado<void> {
+  const { db, sesion } = ctx;
+  if (!atiendeBuzon(sesion) || sesion.tipo !== 'TRABAJADOR') return fallo(MENSAJE_SIN_BUZON);
+  return ok({ ...db, trabajadores: db.trabajadores.map((t) => (t.id === sesion.trabajadorId ? { ...t, buzonPush: args.activo } : t)) }, undefined);
+}
+
 export function actualizarPreferenciasCliente(ctx: Ctx, args: { notificacionesPush?: boolean; telefono?: string; email?: string; direccion?: string; fechaNacimiento?: ISODate | null }): Resultado<void> {
   const { db, sesion, ahora } = ctx;
   if (sesion.tipo !== 'CLIENTE') return fallo('Solo para clientes.');
@@ -1379,6 +1471,12 @@ export function guardarTrabajador(ctx: Ctx, args: { trabajador: Omit<Trabajador,
   else if (anterior?.gestionaHorario && (!t.gestionaHorario || !t.activo) && !db.trabajadores.some((x) => x.id !== t.id && x.gestionaHorario && x.activo)) {
     return fallo('Tiene que quedar al menos una persona activa que gestione el horario.');
   }
+  // Buzón de los alumnos (0052): mismas reglas. El aviso al móvil es de cada uno: aquí no se cambia.
+  if (!atiendeBuzon(sesion)) t.atiendeBuzon = anterior?.atiendeBuzon === true;
+  else if (anterior?.atiendeBuzon && (!t.atiendeBuzon || !t.activo) && !db.trabajadores.some((x) => x.id !== t.id && x.atiendeBuzon && x.activo)) {
+    return fallo('Tiene que quedar al menos una persona activa que atienda el buzón.');
+  }
+  t.buzonPush = anterior?.buzonPush;
   let usuarios = db.usuarios;
   if (!t.userId) {
     const userId = nuevoId('usr');

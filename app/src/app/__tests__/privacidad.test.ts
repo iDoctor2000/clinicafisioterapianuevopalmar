@@ -12,7 +12,7 @@ describe('docs/PRIVACIDAD.md', () => {
     expect(bloques[0]).toEqual({ tipo: 'h1', lineas: ['Política de privacidad y protección de datos'] });
     const tabla = bloques.find((b) => b.tipo === 'tabla');
     expect(tabla && tabla.tipo === 'tabla' && tabla.cabecera).toEqual(['Tipo de dato', 'Ejemplos', 'Quién lo introduce']);
-    expect(tabla && tabla.tipo === 'tabla' && tabla.filas.length).toBe(9);
+    expect(tabla && tabla.tipo === 'tabla' && tabla.filas.length).toBe(10);
     expect(bloques.filter((b) => b.tipo === 'h2').length).toBe(13);
     // Ninguna línea del documento se pierde en el parseo (todo el texto queda en algún bloque).
     const texto = bloques.flatMap((b) => (b.tipo === 'hr' ? [] : b.tipo === 'lista' ? b.items : b.tipo === 'tabla' ? [...b.cabecera, ...b.filas.flat()] : b.lineas)).join('\n');
@@ -26,8 +26,8 @@ describe('docs/PRIVACIDAD.md', () => {
     expect(lineas[0]).toMatch(/^He leído la \*\*política de privacidad\*\* y \*\*consiento\*\*/);
   });
   it('la versión de la política coincide con la fecha de "Última actualización" del .md', () => {
-    expect(politicaMd).toContain('Última actualización: 27 de septiembre de 2026');
-    expect(VERSION_POLITICA_PRIVACIDAD).toBe('2026-09-27');
+    expect(politicaMd).toContain('Última actualización: 19 de noviembre de 2026');
+    expect(VERSION_POLITICA_PRIVACIDAD).toBe('2026-11-19');
   });
   it('cada versión tiene su texto: la vigente es el .md; una desconocida no existe; las archivadas van en docs/privacidad/versiones', () => {
     expect(markdownDeVersion(VERSION_POLITICA_PRIVACIDAD)).toBe(politicaMd);

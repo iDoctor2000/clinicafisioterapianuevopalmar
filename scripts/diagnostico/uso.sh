@@ -89,7 +89,9 @@ select count(distinct v.id) as avisos, count(d.cliente_id) as entregas,
   from public.avisos v
   join public.aviso_destinatarios d on d.aviso_id = v.id
   left join public.aviso_lecturas l on l.aviso_id = v.id and l.cliente_id = d.cliente_id
- where v.publicado_el > :desde;
+ where v.publicado_el > :desde
+   -- 0052: los avisos de "el centro ha respondido a tu consulta" no son avisos del centro.
+   and to_jsonb(v) ->> 'consulta_id' is null;
 
 \echo
 \echo '== 4. Equipo: uso de cada persona (periodo)'

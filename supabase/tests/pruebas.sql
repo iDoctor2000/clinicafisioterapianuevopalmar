@@ -1373,7 +1373,8 @@ begin
   perform pruebas.guardar('res_b_jue2', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
      where r.cliente_id = pruebas.id('cliente_b') and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_jue_1800') and c.fecha = pruebas.fecha('lunes') + 10));
   perform pruebas.guardar('res_b_mar2', (select r.id::text from public.reservas r join public.clases c on c.id = r.clase_id
-     where r.cliente_id = pruebas.id('cliente_b') and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_mar_1800') and c.fecha = pruebas.fecha('lunes') + 15));
+     where r.cliente_id = pruebas.id('cliente_b') and r.estado = 'RESERVADA' and c.plantilla_id = pruebas.id('pl_mar_1800') and c.fecha >= pruebas.fecha('lunes') + 15
+     order by c.fecha limit 1)); -- el primer martes que tenga a partir de dos semanas después (lunes + 15 puede ser festivo)
 end $$;
 begin;
 set local role authenticated;
@@ -2423,7 +2424,10 @@ do $$ begin assert not exists (select 1 from public.clases where plantilla_id = 
 -- Mover las clases con sus alumnos al cambiar la hora o el día de la franja.
 select pruebas.sistema();
 select pruebas.guardar('pl_mover', 'd0000000-0000-4000-8000-000000000482');
-select pruebas.guardar('f_mover', (public._hoy() + 10)::text);
+-- Un día (de hoy+8 a hoy+14) en el que ni él, ni el de la semana siguiente, ni el día al que se moverá después son festivos.
+select pruebas.guardar('f_mover', (select d::date::text from generate_series(public._hoy() + 8, public._hoy() + 14, interval '1 day') d
+  where not exists (select 1 from public.dias_cierre x where x.fecha in (d::date, d::date + 7, d::date + case when extract(isodow from d) = 7 then -1 else 1 end))
+  order by abs(d::date - (public._hoy() + 10)), d limit 1));
 insert into public.plantillas_clase (id, actividad_id, dia_semana, hora_inicio, duracion_min, monitor_id, plazas)
   values (pruebas.id('pl_mover'), pruebas.id('act_suelo'), extract(isodow from pruebas.fecha('f_mover'))::int, '12:00', 55, pruebas.id('tra_admin'), 6);
 select public._generar_clases(public._hoy(), public._hoy() + 21);
@@ -2485,7 +2489,10 @@ insert into public.clientes (id, nombre, apellidos, dni, email, telefono, user_i
 select pruebas.como('admin');
 select pruebas.guardar('con_r', public.crear_contrato(pruebas.id('cliente_r'), pruebas.id('tar_dir2'), public._hoy(), public._hoy() + 30, 'LIBRE')::text);
 select pruebas.sistema();
-select pruebas.guardar('f_borr', (public._hoy() + 5)::text);
+-- Un día (de hoy+3 a hoy+7) cuyas tres semanas seguidas no caen en festivo (la franja tiene que dar al menos 3 clases).
+select pruebas.guardar('f_borr', (select d::date::text from generate_series(public._hoy() + 3, public._hoy() + 7, interval '1 day') d
+  where not exists (select 1 from public.dias_cierre x where x.fecha in (d::date, d::date + 7, d::date + 14))
+  order by abs(d::date - (public._hoy() + 5)), d limit 1));
 select pruebas.guardar('f_borr_hasta', (public._hoy() + 21)::text);
 select pruebas.guardar('hoy_borr', public._hoy()::text);
 -- a) Franja nueva sin publicar: el alumno no la ve ni sus clases; el equipo sí, y si le apunta, él sí la ve.
@@ -3067,6 +3074,186 @@ do $$ begin
   assert exists (select 1 from public.pagos where cliente_id = 'e0000000-0000-4000-8000-000000000591' and estado = 'PAGADO'), 'el cobrado de la activa se queda';
 end $$;
 delete from public.pagos where cliente_id in ('e0000000-0000-4000-8000-000000000591', 'e0000000-0000-4000-8000-000000000592');
+
+\echo '== 60. Buzón: los alumnos escriben al centro y solo lo lee quien lo atiende (0052)'
+select pruebas.sistema();
+delete from public.push_personal_pendientes;
+update public.trabajadores set atiende_buzon = true, buzon_push = true where id = pruebas.id('tra_admin');
+update public.config_centro set buzon_activo = true, buzon_desde = '00:00', buzon_hasta = '23:59:59';
+select pruebas.guardar('n_avisos_60', (select count(*)::text from public.avisos));
+
+-- a) Ana escribe: consulta PENDIENTE, texto limpio, aviso al móvil de quien atiende el buzón.
+begin;
+set local role authenticated;
+select pruebas.como('a');
+select pruebas.espera_error($q$select public.enviar_consulta('PAGOS', 'hola')$q$, 'Elige sobre qué es tu consulta.');
+select pruebas.espera_error($q$select public.enviar_consulta('OTRO', '   ')$q$, 'Escribe tu mensaje.');
+select pruebas.espera_error(format('select public.enviar_consulta(%L, %L)', 'OTRO', repeat('a', 1501)), 'El mensaje es demasiado largo%');
+select pruebas.guardar('con_60', public.enviar_consulta('LESION', E'  Me duele el hombro \n')::text);
+do $$ begin
+  assert (select estado from public.consultas where id = pruebas.id('con_60')) = 'PENDIENTE', 'nace pendiente';
+  assert (select texto from public.consulta_mensajes where consulta_id = pruebas.id('con_60')) = 'Me duele el hombro', 'el texto se guarda limpio';
+  assert (select count(*) from public.consulta_respuestas) = 0, 'el alumno no ve quién contesta';
+end $$;
+-- Otra alumna no la ve ni puede escribir en ella.
+select pruebas.como('b');
+do $$ begin
+  assert (select count(*) from public.consultas) = 0 and (select count(*) from public.consulta_mensajes) = 0, 'Berta no ve la consulta de Ana';
+end $$;
+select pruebas.espera_error(format('select public.responder_consulta(%L, %L)', pruebas.id('con_60'), 'me cuelo'), 'No atiendes el buzón%');
+-- Recepción (sin buzón) tampoco la ve ni puede contestar o cerrar.
+select pruebas.como('recep');
+do $$ begin
+  assert (select count(*) from public.consultas) = 0 and (select count(*) from public.consulta_mensajes) = 0, 'quien no atiende el buzón no ve las consultas';
+end $$;
+select pruebas.espera_error(format('select public.responder_consulta(%L, %L)', pruebas.id('con_60'), 'hola'), 'No atiendes el buzón%');
+select pruebas.espera_error(format('select public.cerrar_consulta(%L)', pruebas.id('con_60')), 'No atiendes el buzón%');
+select pruebas.espera_error('select public.buzon_avisarme(false)', 'No atiendes el buzón%');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select count(*) from public.push_personal_pendientes where url = '#/buzon' and destinatarios = array[pruebas.id('tra_admin')] and enviar_desde <= now()) = 1, 'en horario: una notificación al momento para quien atiende el buzón';
+  assert (select titulo from public.push_personal_pendientes where url = '#/buzon') = 'Consulta de Ana Libre', 'con el nombre y sin el texto';
+  assert exists (select 1 from public.auditoria where accion = 'CONSULTA' and entidad_id = pruebas.id('con_60')::text and detalle = 'Ana Libre escribe al centro'), 'queda en el registro sin el texto';
+end $$;
+
+-- b) El centro contesta: RESPONDIDA, aviso al alumno (que no ve el resto del equipo) y quién contestó.
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+do $$ begin assert (select count(*) from public.consultas) = 1, 'quien atiende el buzón la ve'; end $$;
+select public.responder_consulta(pruebas.id('con_60'), 'Ven y lo miramos antes de clase.');
+do $$ begin
+  assert (select estado from public.consultas where id = pruebas.id('con_60')) = 'RESPONDIDA', 'pasa a respondida';
+  assert (select trabajador_id from public.consulta_respuestas) = pruebas.id('tra_admin'), 'se anota quién contestó';
+  assert (select count(*) from public.avisos where consulta_id = pruebas.id('con_60')) = 1, 'quien atiende el buzón ve el aviso de respuesta';
+end $$;
+select pruebas.como('recep');
+do $$ begin
+  assert (select count(*) from public.avisos where consulta_id is not null) = 0, 'el resto del equipo no ve el aviso de respuesta';
+  assert (select count(*) from public.aviso_destinatarios where public._aviso_de_consulta(aviso_id)) = 0, 'ni a quién va dirigido';
+  assert (select count(*) from public.aviso_destinatarios) > 0, 'pero sigue viendo los destinatarios de los avisos normales';
+end $$;
+select pruebas.como('b');
+do $$ begin assert (select count(*) from public.avisos where consulta_id is not null) = 0, 'otra alumna tampoco'; end $$;
+select pruebas.como('a');
+do $$ begin
+  assert (select count(*) from public.avisos where consulta_id = pruebas.id('con_60') and titulo = 'Nuevo Palmar ha respondido a tu consulta') = 1, 'Ana recibe su aviso';
+  assert (select count(*) from public.consulta_mensajes where consulta_id = pruebas.id('con_60')) = 2, 'y lee la respuesta';
+  assert (select count(*) from public.consulta_respuestas) = 0, 'sin saber quién la escribió';
+end $$;
+select public.leer_consulta(pruebas.id('con_60'));
+do $$ begin
+  assert (select leida_cliente_el from public.consultas where id = pruebas.id('con_60')) is not null, 'queda leída';
+  assert exists (select 1 from public.aviso_lecturas l join public.avisos a on a.id = l.aviso_id where a.consulta_id = pruebas.id('con_60') and l.cliente_id = pruebas.id('cliente_a')), 'y su aviso también';
+end $$;
+select pruebas.como('recep');
+do $$ begin assert (select count(*) from public.aviso_lecturas where public._aviso_de_consulta(aviso_id)) = 0, 'el resto del equipo tampoco ve si lo ha leído'; end $$;
+select pruebas.como('admin');
+do $$ begin
+  assert (select count(*) from public.aviso_destinatarios where public._aviso_de_consulta(aviso_id)) = 1, 'quien atiende el buzón ve el destinatario';
+  assert (select count(*) from public.aviso_lecturas where public._aviso_de_consulta(aviso_id)) = 1, 'y que lo ha leído';
+end $$;
+select pruebas.como('a');
+-- Ana contesta: vuelve a pendiente.
+select public.responder_consulta(pruebas.id('con_60'), 'Gracias, voy antes.');
+do $$ begin assert (select estado from public.consultas where id = pruebas.id('con_60')) = 'PENDIENTE', 'al contestar el alumno vuelve a pendiente'; end $$;
+-- El centro contesta dos veces seguidas: el aviso sin leer se sustituye (no se acumulan).
+select pruebas.como('admin');
+select public.responder_consulta(pruebas.id('con_60'), 'Perfecto.');
+select public.responder_consulta(pruebas.id('con_60'), 'Te esperamos.');
+do $$ begin
+  assert (select count(*) from public.avisos where consulta_id = pruebas.id('con_60')) = 2, 'un aviso leído y uno solo sin leer';
+end $$;
+-- Cerrar, y que el alumno pueda reabrirla escribiendo.
+select public.cerrar_consulta(pruebas.id('con_60'));
+do $$ begin assert (select estado from public.consultas where id = pruebas.id('con_60')) = 'CERRADA', 'cerrada'; end $$;
+select pruebas.como('a');
+select public.responder_consulta(pruebas.id('con_60'), 'Una cosa más.');
+do $$ begin assert (select estado from public.consultas where id = pruebas.id('con_60')) = 'PENDIENTE', 'si el alumno escribe, se reabre'; end $$;
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select count(*) from public.avisos_push_pendientes p join public.avisos a on a.id = p.aviso_id where a.consulta_id = pruebas.id('con_60')) = 1, 'el aviso vigente está pendiente de ir al móvil';
+  assert (select count(*) from public.avisos) = current_setting('pruebas.n_avisos_60')::int + 2, 'solo los avisos de respuesta';
+end $$;
+
+-- c) Límite: 10 mensajes de un alumno en 24 horas (Ana lleva 3).
+begin;
+set local role authenticated;
+select pruebas.como('a');
+do $$ begin for i in 1..7 loop perform public.responder_consulta(pruebas.id('con_60'), 'mensaje ' || i); end loop; end $$;
+select pruebas.espera_error(format('select public.responder_consulta(%L, %L)', pruebas.id('con_60'), 'uno más'), 'Has enviado muchos mensajes hoy%');
+select pruebas.espera_error($q$select public.enviar_consulta('OTRO', 'otra')$q$, 'Has enviado muchos mensajes hoy%');
+commit;
+
+-- d) Fuera de horario: no suena; una sola notificación para la apertura, con las pendientes.
+select pruebas.sistema();
+delete from public.push_personal_pendientes;
+update public.config_centro set buzon_desde = '00:00', buzon_hasta = '00:00';
+begin;
+set local role authenticated;
+select pruebas.como('b');
+select pruebas.guardar('con_60b', public.enviar_consulta('CLASES', 'De noche 1')::text);
+select public.responder_consulta(pruebas.id('con_60b'), 'De noche 2');
+select pruebas.como('c');
+select public.enviar_consulta('TARIFA', 'De noche 3');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert (select count(*) from public.push_personal_pendientes) = 1, 'de noche: una sola notificación';
+  assert (select enviar_desde > now() and url = '#/buzon?noche' and cuerpo = 'Hay 3 consultas pendientes de responder.' from public.push_personal_pendientes), 'para la apertura, con las pendientes';
+end $$;
+
+-- e) Quien atiende el buzón puede apagar su aviso al móvil; el buzón se puede desactivar.
+delete from public.push_personal_pendientes;
+update public.config_centro set buzon_desde = '00:00', buzon_hasta = '23:59:59';
+begin;
+set local role authenticated;
+select pruebas.como('admin');
+select public.buzon_avisarme(false);
+select pruebas.como('c');
+select public.enviar_consulta('OTRO', 'Sin sonar');
+commit;
+select pruebas.sistema();
+do $$ begin
+  assert not (select buzon_push from public.trabajadores where id = pruebas.id('tra_admin')), 'aviso apagado';
+  assert (select count(*) from public.push_personal_pendientes) = 0, 'sin nadie a quien avisar no se prepara notificación';
+end $$;
+update public.config_centro set buzon_activo = false;
+begin;
+set local role authenticated;
+select pruebas.como('c');
+select pruebas.espera_error($q$select public.enviar_consulta('OTRO', 'cerrado')$q$, 'Ahora mismo no se puede escribir al centro%');
+-- f) El permiso: solo lo da quien lo tiene y no puede quedarse nadie sin él.
+select pruebas.como('admin');
+select pruebas.espera_error(format('update public.trabajadores set atiende_buzon = false where id = %L', pruebas.id('tra_admin')), 'Tiene que quedar al menos una persona que atienda el buzón.');
+update public.trabajadores set atiende_buzon = true where id = pruebas.id('tra_recep');
+update public.trabajadores set atiende_buzon = false where id = pruebas.id('tra_admin');
+do $$ begin
+  assert (select atiende_buzon from public.trabajadores where id = pruebas.id('tra_recep')), 'quien lo tiene se lo da a otro';
+  assert not (select atiende_buzon from public.trabajadores where id = pruebas.id('tra_admin')), 'y entonces puede dejarlo';
+  assert (select count(*) from public.consultas) = 0, 'al dejarlo deja de ver las consultas';
+end $$;
+-- Ya sin él, no puede devolvérselo (se conserva en silencio).
+update public.trabajadores set atiende_buzon = true where id = pruebas.id('tra_admin');
+do $$ begin assert not (select atiende_buzon from public.trabajadores where id = pruebas.id('tra_admin')), 'sin el permiso no se lo puede dar a sí mismo'; end $$;
+commit;
+select pruebas.sistema();
+-- Volver a ejecutar la migración no cambia quién lo atiende ni borra nada.
+\ir ../migrations/0052_buzon_consultas.sql
+do $$ begin
+  assert (select count(*) from public.trabajadores where atiende_buzon) = 1 and (select atiende_buzon from public.trabajadores where id = pruebas.id('tra_recep')), 'idempotente: no reparte el permiso otra vez';
+  assert (select count(*) from public.consultas) = 4, 'las consultas siguen';
+end $$;
+-- Al borrar un alumno se van sus consultas y sus avisos de respuesta (limpieza de la prueba).
+delete from public.consultas;
+do $$ begin
+  assert (select count(*) from public.consulta_mensajes) = 0 and (select count(*) from public.avisos where consulta_id is not null) = 0, 'mensajes y avisos se van con la consulta';
+end $$;
+delete from public.push_personal_pendientes;
+update public.trabajadores set atiende_buzon = false, buzon_push = true;
+update public.config_centro set buzon_activo = true, buzon_desde = '08:00', buzon_hasta = '22:00';
 
 \echo
 \echo '== Todas las comprobaciones han pasado.'

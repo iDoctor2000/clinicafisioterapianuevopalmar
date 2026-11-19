@@ -10,7 +10,7 @@
  * sobre el `Db` recargado después del comando (función `valor(db)`).
  */
 import type { Clase, Cliente, Id, Recuperacion, Reserva, Sesion } from '@/domain/types';
-import { gestionaHorario, tienePermiso, veFinanzas } from '@/domain/types';
+import { atiendeBuzon, gestionaHorario, tienePermiso, veFinanzas } from '@/domain/types';
 import { aISODate, sumarDias } from '@/domain/fechas';
 import { CONSENTIMIENTO_PAPEL, VERSION_POLITICA_PRIVACIDAD } from '@/domain/privacidad';
 import type { Db } from '../db';
@@ -292,6 +292,38 @@ const impl: Impl = {
     return (db) => db.avisos.find((x) => x.id === id) ?? { id, ...args, destinatariosIds: [], publicadoEl: new Date().toISOString(), publicadoPor: sesion.userId };
   },
 
+  // -------------------------------------------------------------------------
+  // Buzón: consultas de los alumnos al centro (0052)
+  // -------------------------------------------------------------------------
+  async enviarConsulta(args, sesion) {
+    const id = await rpc<string>('enviar_consulta', { p_motivo: args.motivo, p_texto: args.texto });
+    return (db) => (db.consultas ?? []).find((c) => c.id === id) ?? {
+      id, clienteId: sesion.tipo === 'CLIENTE' ? sesion.clienteId : '', motivo: args.motivo, estado: 'PENDIENTE', creadaEl: new Date().toISOString(),
+      actualizadaEl: new Date().toISOString(), leidaClienteEl: null, mensajes: [],
+    };
+  },
+
+  async responderConsulta(args) {
+    await rpc('responder_consulta', { p_consulta_id: args.consultaId, p_texto: args.texto });
+    return () => undefined;
+  },
+
+  async cerrarConsulta(args) {
+    await rpc('cerrar_consulta', { p_consulta_id: args.consultaId });
+    return () => undefined;
+  },
+
+  async leerConsulta(args, sesion) {
+    if (sesion.tipo !== 'CLIENTE') return () => undefined;
+    await rpc('leer_consulta', { p_consulta_id: args.consultaId });
+    return () => undefined;
+  },
+
+  async buzonAvisarme(args) {
+    await rpc('buzon_avisarme', { p_activo: args.activo });
+    return () => undefined;
+  },
+
   async marcarAvisoLeido(args, sesion) {
     if (sesion.tipo !== 'CLIENTE') return () => undefined;
     const r = await servidor().from('aviso_lecturas').upsert({ aviso_id: args.avisoId, cliente_id: sesion.clienteId }, { onConflict: 'aviso_id,cliente_id', ignoreDuplicates: true });
@@ -381,7 +413,7 @@ const impl: Impl = {
   async guardarTrabajador(args, sesion) {
     const sb = servidor();
     const t = { ...args.trabajador, id: args.trabajador.id ?? nuevoUuid() };
-    const { trabajador, permisos } = deTrabajador(t, veFinanzas(sesion), gestionaHorario(sesion));
+    const { trabajador, permisos } = deTrabajador(t, veFinanzas(sesion), gestionaHorario(sesion), atiendeBuzon(sesion));
     comprobar(await sb.from('trabajadores').upsert(trabajador));
     comprobar(await sb.from('trabajador_permisos').delete().eq('trabajador_id', t.id));
     if (permisos.length > 0) comprobar(await sb.from('trabajador_permisos').insert(permisos));

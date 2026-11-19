@@ -1,5 +1,5 @@
 import type {
-  Actividad, Aviso, Clase, Cliente, ConfigCentro, Contrato, EntradaListaEspera, LecturaAviso, Pago, PlantillaClase,
+  Actividad, Aviso, Clase, Cliente, ConfigCentro, Consulta, Contrato, EntradaListaEspera, LecturaAviso, Pago, PlantillaClase,
   PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, Trabajador, Id, ISODate,
 } from '@/domain/types';
 
@@ -41,12 +41,14 @@ export interface Db {
   clasesQuitadas?: { plantillaId: Id; fecha: ISODate }[];
   /** Clases fijas de cuya lista de espera salió el alumno: no se le vuelve a apuntar (0050). Solo en la demo. */
   listaEsperaRechazos?: { claseId: Id; clienteId: Id }[];
+  /** Buzón (0052): consultas de los alumnos al centro. Un alumno solo recibe las suyas; el equipo, solo quien atiende el buzón. */
+  consultas?: Consulta[];
 }
 
 import type { Tarifa } from '@/domain/types';
 
 /** Versión de la instantánea persistida en demo: al cambiar, la demo se regenera desde el seed. */
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 
 let contador = 0;
 export function nuevoId(prefijo = 'id'): Id {

@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import { useStore } from '@/data/store';
-import { gestionaHorario as sesionGestionaHorario, tienePermiso, veFinanzas as sesionVeFinanzas, type Ambito, type Clase, type Permiso, type Sesion, type Trabajador } from '@/domain/types';
+import { atiendeBuzon as sesionAtiendeBuzon, gestionaHorario as sesionGestionaHorario, tienePermiso, veFinanzas as sesionVeFinanzas, type Ambito, type Clase, type Permiso, type Sesion, type Trabajador } from '@/domain/types';
 import { ambitoDe, puedeGestionarClase, recortarAlAmbito } from '@/domain/ambito';
 import { ocultarFinanzas } from '@/domain/finanzas';
+import { ocultarBuzon } from '@/domain/buzon';
 import type { Db } from '@/data/db';
 
 export type SesionTrabajador = Extract<Sesion, { tipo: 'TRABAJADOR' }>;
@@ -26,6 +27,8 @@ export function useTrabajador(): {
   veFinanzas: boolean;
   /** Gestiona el horario y las clases (0038): equivale a `puede('HORARIOS_GESTIONAR')`. */
   gestionaHorario: boolean;
+  /** Atiende el buzón de los alumnos (0052). Sin él, `db` llega sin consultas. */
+  atiendeBuzon: boolean;
   ambito: Ambito;
   /** true si el ámbito es SUS_CLASES. */
   limitado: boolean;
@@ -39,11 +42,13 @@ export function useTrabajador(): {
   const ambito = ambitoDe(dbCompleta, sesionBase) ?? 'CENTRO';
   const sesion = useMemo<SesionTrabajador>(() => (sesionBase ? { ...sesionBase, ambito } : sesionBase), [sesionBase, ambito]);
   const veFinanzas = sesionVeFinanzas(sesion);
+  const atiendeBuzon = sesionAtiendeBuzon(sesion);
   const db = useMemo(() => {
     const recortada = recortarAlAmbito(dbCompleta, sesion);
-    return veFinanzas ? recortada : ocultarFinanzas(recortada);
-  }, [dbCompleta, sesion, veFinanzas]);
+    const sinDinero = veFinanzas ? recortada : ocultarFinanzas(recortada);
+    return atiendeBuzon ? sinDinero : ocultarBuzon(sinDinero);
+  }, [dbCompleta, sesion, veFinanzas, atiendeBuzon]);
   const puede = useCallback((p: Permiso) => tienePermiso(sesion, p), [sesion]);
   const gestionaClase = useCallback((clase: Pick<Clase, 'monitorId'>) => puedeGestionarClase(dbCompleta, sesion, clase), [dbCompleta, sesion]);
-  return { db, dbCompleta, sesion, trabajador, puede, esAdmin: sesion?.rol === 'ADMIN', veFinanzas, gestionaHorario: sesionGestionaHorario(sesion), ambito, limitado: ambito === 'SUS_CLASES', gestionaClase, ejecutar };
+  return { db, dbCompleta, sesion, trabajador, puede, esAdmin: sesion?.rol === 'ADMIN', veFinanzas, gestionaHorario: sesionGestionaHorario(sesion), atiendeBuzon, ambito, limitado: ambito === 'SUS_CLASES', gestionaClase, ejecutar };
 }

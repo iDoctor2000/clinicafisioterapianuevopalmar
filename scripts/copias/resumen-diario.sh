@@ -149,7 +149,12 @@ with
           where p.activa and p.eliminada_el is null and q.fecha between (select d from hoy) and (select d from hoy) + 27
             and extract(isodow from q.fecha) = p.dia_semana
             and (p.vigencia_desde is null or q.fecha >= p.vigencia_desde) and (p.vigencia_hasta is null or q.fecha <= p.vigencia_hasta)) end),
-        'Son clases que alguien eliminó ("Eliminar clase") y por eso no se vuelven a crear. En el calendario salen como "Clase quitada": si alguna tiene que darse, tócala y "Volver a poner la clase" (o guarda la franja en Horarios, que las recupera todas).')
+        'Son clases que alguien eliminó ("Eliminar clase") y por eso no se vuelven a crear. En el calendario salen como "Clase quitada": si alguna tiene que darse, tócala y "Volver a poner la clase" (o guarda la franja en Horarios, que las recupera todas).'),
+      -- 0052: una consulta de un alumno que lleva más de 3 días esperando respuesta.
+      (16, true, 'Consultas de alumnos sin responder desde hace más de 3 días',
+        case when to_regclass('public.consultas') is null then 0
+             else (xpath('/row/n/text()', query_to_xml($q$select count(*) as n from public.consultas where estado = 'PENDIENTE' and actualizada_el < now() - interval '3 days'$q$, false, true, '')))[1]::text::bigint end,
+        'Un alumno escribió al centro desde la app y nadie le ha contestado. Quien atiende el buzón las tiene en la app: Más → Buzón → Pendientes. Si no necesita respuesta, se cierra con "Cerrar sin responder más".')
   )
 select line from (
   select 1 as o, '## Resumen de las últimas 24 horas (' || to_char(now() at time zone 'Europe/Madrid', 'DD/MM/YYYY HH24:MI') || ', hora de Madrid)' as line
@@ -218,7 +223,8 @@ select line from (
         ('0048', to_regprocedure('public.registrar_apertura(text, text, boolean)') is not null),
         ('0049', pg_get_functiondef('public.renovar_contratos(uuid[], date)'::regprocedure) like '%precio_centimos%'),
         ('0050', to_regclass('public.lista_espera_rechazos') is not null),
-        ('0051', exists (select 1 from pg_trigger where tgname = 'contratos_pago_sin_cobro')))
+        ('0051', exists (select 1 from pg_trigger where tgname = 'contratos_pago_sin_cobro')),
+        ('0052', to_regprocedure('public.enviar_consulta(text, text)') is not null))
       select case when bool_and(ok) then 'todas aplicadas, hasta la ' || max(n)
                   else '⚠️ falta ejecutar: ' || string_agg(n, ', ' order by n) filter (where not ok) end
         from m) || ' |'
@@ -247,6 +253,15 @@ select line from (
       select case when f.n + s.n + c.r = 0 then 'ninguno'
                   else f.n || ' franjas y ' || s.n || ' clases sin publicar, ' || c.r || ' plazas retenidas ℹ️ (se publican desde el calendario)' end
         from f, c, s) || ' |'
+  -- 0052: el buzón de los alumnos. Sin la migración las tablas no existen: se cuenta con query_to_xml para no fallar.
+  union all select 28, '| Personas que atienden el buzón de los alumnos | ' ||
+      case when to_regclass('public.consultas') is null then 'sin la migración 0052'
+           else (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'atiende_buzon')::boolean, false))
+                || case when (select count(*) from public.trabajadores t where t.activo and coalesce((to_jsonb(t)->>'atiende_buzon')::boolean, false)) = 0 then ' ⚠️ nadie: las consultas no las lee nadie' else '' end
+      end || ' |'
+  union all select 29, '| Consultas de alumnos pendientes de responder | ' ||
+      case when to_regclass('public.consultas') is null then '-'
+           else (xpath('/row/n/text()', query_to_xml($q$select count(*) as n from public.consultas where estado = 'PENDIENTE'$q$, false, true, '')))[1]::text end || ' |'
   union all select 30, ''
   union all select 31, '### Vigilancia'
   union all select 32, '| Qué | Cuántos |'

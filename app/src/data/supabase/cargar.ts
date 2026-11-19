@@ -11,7 +11,7 @@
  */
 import { addMonths } from 'date-fns';
 import { aISODate } from '@/domain/fechas';
-import type { Pago } from '@/domain/types';
+import type { Consulta as ConsultaBuzon, LecturaAviso, Pago } from '@/domain/types';
 import { DB_VERSION, type Db } from '../db';
 import { mensajeError, servidor } from './cliente';
 import {
@@ -23,6 +23,7 @@ import {
   type FilaOcupacionClase, type FilaPlantillaClase, type FilaPortadaImagen, type FilaPremioMes, type FilaRecuperacion, type FilaReserva, type FilaTarifa,
   type FilaTarifaCupo, type FilaTrabajador, type FilaTrabajadorPermiso,
   aClaseQuitada, type FilaClaseQuitada,
+  aConsultas, type FilaConsulta, type FilaConsultaMensaje, type FilaConsultaRespuesta,
 } from './mapeo';
 
 /** Meses hacia atrás y hacia delante que se cargan de clases y reservas. */
@@ -101,7 +102,7 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
 
   const [
     cierres, actividades, tarifas, cupos, trabajadores, permisos, monitores, clientes, clinicas, plantillas, clases, ocupacion, contratos, finanzas, franjas, pagos,
-    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios, listaEspera, miListaEspera, clasesQuitadas,
+    reservas, recuperaciones, avisos, destinatarios, lecturas, auditoria, portada, premios, listaEspera, miListaEspera, clasesQuitadas, consultas,
   ] = await Promise.all([
     leerPaginado<FilaDiaCierre>('dias_cierre', de('dias_cierre', 'fecha')),
     leerPaginado<FilaActividad>('actividades', de('actividades', 'orden', 'nombre', 'id')),
@@ -139,6 +140,8 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     leerPaginado<FilaMiListaEspera>('mi_lista_espera', de('mi_lista_espera', 'clase_id'), 1),
     // Días quitados de franjas (0042): el calendario del personal enseña el hueco y deja volver a poner la clase (0047).
     leerPaginado<FilaClaseQuitada>('clases_quitadas', (d, h) => sb.from('clases_quitadas').select('*', { count: 'exact' }).gte('fecha', desde).order('plantilla_id').order('fecha').range(d, h) as unknown as Consulta<FilaClaseQuitada>, 1),
+    // Buzón (0052). RLS: cada alumno las suyas; del equipo, solo quien atiende el buzón.
+    cargarConsultas(),
   ]);
 
   const clinicaPorCliente = new Map(clinicas.map((c) => [c.cliente_id, c]));
@@ -170,5 +173,30 @@ export async function cargarDb(ahora: Date = new Date()): Promise<Db> {
     premios: premios.map(aPremioMes),
     listaEspera: listaEspera.map((e) => aEntradaListaEspera(e, posicionPorEntrada.get(e.id))),
     clasesQuitadas: clasesQuitadas.map(aClaseQuitada),
+    consultas,
   };
+}
+
+/**
+ * Buzón (0052): consultas con sus mensajes. Si la migración no está aplicada, las tablas no existen y queda
+ * vacío. También se usa sola, para refrescar el buzón tras escribir sin recargar todo el centro.
+ */
+export async function cargarConsultas(): Promise<ConsultaBuzon[]> {
+  const de = <T>(tabla: string, ...orden: string[]): Paginada<T> => (d, h) => {
+    let q = servidor().from(tabla).select('*', { count: 'exact' });
+    for (const o of orden) q = q.order(o);
+    return q.range(d, h) as unknown as Consulta<T>;
+  };
+  const [filas, mensajes, respuestas] = await Promise.all([
+    leerPaginado<FilaConsulta>('consultas', de('consultas', 'id')),
+    leerPaginado<FilaConsultaMensaje>('consulta_mensajes', de('consulta_mensajes', 'creado_el', 'id')),
+    leerPaginado<FilaConsultaRespuesta>('consulta_respuestas', de('consulta_respuestas', 'mensaje_id')),
+  ]);
+  return aConsultas(filas, mensajes, respuestas);
+}
+
+/** Lecturas de avisos (para refrescar solo eso cuando el alumno abre una consulta). */
+export async function cargarLecturas(): Promise<LecturaAviso[]> {
+  const filas = await leerPaginado<FilaAvisoLectura>('aviso_lecturas', (d, h) => servidor().from('aviso_lecturas').select('*', { count: 'exact' }).order('aviso_id').order('cliente_id').range(d, h) as unknown as Consulta<FilaAvisoLectura>);
+  return filas.map(aLectura);
 }

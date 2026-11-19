@@ -7,7 +7,7 @@
  */
 import { mesDe } from '@/domain/cobros';
 import type {
-  EntradaListaEspera,
+  EntradaListaEspera, Consulta, EstadoConsulta, MensajeConsulta, MotivoConsulta,
   Actividad, Asistencia, Aviso, Categoria, Clase, Cliente, ConfigCentro, Contrato, DestinoAviso, DiaSemana, EstadoClase,
   EstadoContrato, EstadoPago, EstadoRecuperacion, EstadoReserva, Id, InformacionClinica, LecturaAviso, MetodoPago, Modalidad, MotivoRecuperacion,
   Ambito, Oferta, OrigenReserva, Pago, Permiso, PlantillaClase, PortadaImagen, PremioMes, Recuperacion, RegistroAuditoria, Reserva, RolTrabajador, Tarifa, TipoTarifa, Trabajador,
@@ -33,6 +33,8 @@ export interface FilaConfigCentro {
   /** Columnas añadidas en 0014_logros.sql. */
   mensaje_cumpleanos?: string; resumen_anual_activo?: boolean; resumen_anual_desde?: string; resumen_anual_hasta?: string;
   cliente_del_mes_activo?: boolean;
+  /** Columnas añadidas en 0052 (buzón). */
+  buzon_activo?: boolean; buzon_desde?: string; buzon_hasta?: string;
 }
 export interface FilaDiaCierre { fecha: string; motivo: string }
 
@@ -59,6 +61,9 @@ export interface FilaTrabajador {
   ve_finanzas?: boolean | null;
   /** Columna añadida en 0038 (default false). */
   gestiona_horario?: boolean | null;
+  /** Columnas añadidas en 0052 (buzón de los alumnos). */
+  atiende_buzon?: boolean | null;
+  buzon_push?: boolean | null;
 }
 export interface FilaTrabajadorPermiso { trabajador_id: string; permiso: Permiso }
 /** Vista `monitores`: lo que ve un cliente de los trabajadores (sin contacto). */
@@ -134,7 +139,15 @@ export interface FilaRecuperacion {
 export interface FilaAviso {
   id: string; titulo: string; cuerpo: string; destino_tipo: DestinoAviso['tipo']; destino_clase_id: string | null;
   destino_actividad_id: string | null; importante: boolean; publicado_el: string; publicado_por: string | null;
+  /** Columna añadida en 0052: aviso de respuesta a una consulta. */
+  consulta_id?: string | null;
 }
+/** Buzón (0052). */
+export interface FilaConsulta {
+  id: string; cliente_id: string; motivo: MotivoConsulta; estado: EstadoConsulta; creada_el: string; actualizada_el: string; leida_cliente_el: string | null;
+}
+export interface FilaConsultaMensaje { id: string; consulta_id: string; autor: 'CLIENTE' | 'CENTRO'; texto: string; creado_el: string }
+export interface FilaConsultaRespuesta { mensaje_id: string; trabajador_id: string | null }
 export interface FilaAvisoDestinatario { aviso_id: string; cliente_id: string }
 export interface FilaAvisoLectura { aviso_id: string; cliente_id: string; leido_el: string }
 
@@ -196,8 +209,15 @@ export function aConfig(fila: FilaConfigCentro | null, cierres: FilaDiaCierre[])
     mensajeCumpleanos: fila.mensaje_cumpleanos ?? '', resumenAnualActivo: fila.resumen_anual_activo ?? true,
     resumenAnualDesde: fila.resumen_anual_desde ?? '12-15', resumenAnualHasta: fila.resumen_anual_hasta ?? '01-15',
     clienteDelMesActivo: fila.cliente_del_mes_activo ?? true,
+    // 0052: sin la migración la columna no existe y el buzón no se enseña.
+    buzonActivo: fila.buzon_activo === true, buzonDesde: aHoraCorta(fila.buzon_desde, '08:00'), buzonHasta: aHoraCorta(fila.buzon_hasta, '22:00'),
     diasCierre,
   };
+}
+
+/** "08:00:00" → "08:00". */
+function aHoraCorta(v: string | null | undefined, porDefecto: string): string {
+  return /^\d{2}:\d{2}/.test(v ?? '') ? v!.slice(0, 5) : porDefecto;
 }
 
 /** Columnas de config_centro a actualizar (solo las presentes en el parcial). */
@@ -219,6 +239,9 @@ export function deConfig(c: Partial<ConfigCentro>): Partial<Omit<FilaConfigCentr
   if (c.resumenAnualDesde !== undefined) fila.resumen_anual_desde = c.resumenAnualDesde;
   if (c.resumenAnualHasta !== undefined) fila.resumen_anual_hasta = c.resumenAnualHasta;
   if (c.clienteDelMesActivo !== undefined) fila.cliente_del_mes_activo = c.clienteDelMesActivo;
+  if (c.buzonActivo !== undefined) fila.buzon_activo = c.buzonActivo;
+  if (c.buzonDesde !== undefined) fila.buzon_desde = c.buzonDesde;
+  if (c.buzonHasta !== undefined) fila.buzon_hasta = c.buzonHasta;
   return fila;
 }
 
@@ -282,6 +305,7 @@ export function aTrabajador(f: FilaTrabajador, permisos: FilaTrabajadorPermiso[]
     permisos: permisos.filter((p) => p.trabajador_id === f.id).map((p) => p.permiso),
     ambito: f.rol === 'ADMIN' ? 'CENTRO' : f.ambito ?? 'CENTRO',
     esMonitor: f.es_monitor, color: f.color, activo: f.activo, userId: f.user_id, veFinanzas: f.ve_finanzas === true, gestionaHorario: f.gestiona_horario === true,
+    atiendeBuzon: f.atiende_buzon === true, buzonPush: f.buzon_push !== false,
   };
 }
 /** Un cliente solo ve la vista `monitores`: sin contacto, rol MONITOR y sin permisos. */
@@ -294,15 +318,17 @@ export function aTrabajadorDesdeMonitor(f: FilaMonitor): Trabajador {
 /** No incluye user_id: la vinculación con la cuenta de acceso se hace desde Supabase, no desde la app. */
 /**
  * `conFinanzas`: solo quien ve las finanzas manda la columna ve_finanzas (el servidor la conservaría igual,
- * pero así ni siquiera viaja). `conHorario`: lo mismo con gestiona_horario (0038).
+ * pero así ni siquiera viaja). `conHorario`: lo mismo con gestiona_horario (0038). `conBuzon`: con atiende_buzon (0052).
  */
-export function deTrabajador(t: Trabajador, conFinanzas = false, conHorario = false): { trabajador: Omit<FilaTrabajador, 'user_id'>; permisos: FilaTrabajadorPermiso[] } {
+export function deTrabajador(t: Trabajador, conFinanzas = false, conHorario = false, conBuzon = false): { trabajador: Omit<FilaTrabajador, 'user_id'>; permisos: FilaTrabajadorPermiso[] } {
   return {
     trabajador: {
       id: t.id, nombre: t.nombre, apellidos: t.apellidos, email: t.email, telefono: t.telefono, rol: t.rol,
       ambito: t.rol === 'ADMIN' ? 'CENTRO' : t.ambito, es_monitor: t.esMonitor, color: t.color, activo: t.activo,
       ...(conFinanzas ? { ve_finanzas: t.veFinanzas === true } : {}),
       ...(conHorario ? { gestiona_horario: t.gestionaHorario === true } : {}),
+      // 0052: solo quien atiende el buzón manda la columna (antes de la migración no existe y nadie lo atiende).
+      ...(conBuzon ? { atiende_buzon: t.atiendeBuzon === true } : {}),
     },
     permisos: t.permisos.map((p) => ({ trabajador_id: t.id, permiso: p })),
   };
@@ -458,7 +484,23 @@ export function aAviso(f: FilaAviso, destinatarios: FilaAvisoDestinatario[]): Av
   return {
     id: f.id, titulo: f.titulo, cuerpo: f.cuerpo, destino: aDestino(f, destinatariosIds), destinatariosIds, importante: f.importante,
     publicadoEl: aInstante(f.publicado_el), publicadoPor: actor(f.publicado_por),
+    ...(f.consulta_id ? { consultaId: f.consulta_id } : {}),
   };
+}
+
+/** Consultas del buzón con sus mensajes en orden. `respuestas` (quién contestó) solo llega a quien atiende el buzón. */
+export function aConsultas(filas: FilaConsulta[], mensajes: FilaConsultaMensaje[], respuestas: FilaConsultaRespuesta[]): Consulta[] {
+  const autorDe = new Map(respuestas.map((r) => [r.mensaje_id, r.trabajador_id]));
+  const porConsulta = new Map<string, MensajeConsulta[]>();
+  for (const m of [...mensajes].sort((a, b) => a.creado_el.localeCompare(b.creado_el))) {
+    const lista = porConsulta.get(m.consulta_id) ?? [];
+    lista.push({ id: m.id, autor: m.autor, texto: m.texto, creadoEl: aInstante(m.creado_el), ...(autorDe.has(m.id) ? { trabajadorId: autorDe.get(m.id) ?? null } : {}) });
+    porConsulta.set(m.consulta_id, lista);
+  }
+  return filas.map((f) => ({
+    id: f.id, clienteId: f.cliente_id, motivo: f.motivo, estado: f.estado, creadaEl: aInstante(f.creada_el), actualizadaEl: aInstante(f.actualizada_el),
+    leidaClienteEl: f.leida_cliente_el ? aInstante(f.leida_cliente_el) : null, mensajes: porConsulta.get(f.id) ?? [],
+  }));
 }
 
 /** Parámetros de la RPC publicar_aviso a partir de un DestinoAviso. */

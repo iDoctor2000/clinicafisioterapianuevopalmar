@@ -21,6 +21,8 @@ const TIPOS: { valor: Tipo; texto: string }[] = [
 
 export function Avisos() {
   const { db, ejecutar, limitado } = useTrabajador();
+  // Los avisos de "el centro ha respondido a tu consulta" (0052) son del buzón, no del historial.
+  const historial = db.avisos.filter((a) => !a.consultaId);
   const [params, setParams] = useSearchParams();
   // Con ámbito SUS_CLASES solo se puede escribir a los alumnos de una clase propia.
   const tipos = limitado ? TIPOS.filter((t) => t.valor === 'CLASE') : TIPOS;
@@ -95,9 +97,9 @@ export function Avisos() {
 
         <div>
           <h2 className="text-lg font-sans font-semibold mb-2">Historial</h2>
-          {db.avisos.length === 0 ? <Vacio icono={Bell} titulo="Sin avisos" texto={limitado ? 'Aquí aparecerán los avisos que publiques o los dirigidos a tus clases.' : 'Aquí aparecerán los avisos publicados.'} /> : (
+          {historial.length === 0 ? <Vacio icono={Bell} titulo="Sin avisos" texto={limitado ? 'Aquí aparecerán los avisos que publiques o los dirigidos a tus clases.' : 'Aquí aparecerán los avisos publicados.'} /> : (
             <ul className="space-y-2">
-              {db.avisos.map((a) => (
+              {historial.map((a) => (
                 <li key={a.id}>
                   <Tarjeta className="p-4">
                     <div className="flex items-start gap-3">
